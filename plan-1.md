@@ -92,8 +92,19 @@ datasynx-opencrm/
 │   │   └── worker.ts             # Detached Daemon Process (cron + watcher)
 │   │
 │   ├── setup/
-│   │   ├── framework-detector.ts # Erkennt Claude Code, Codex, Cursor, Continue
-│   │   └── framework-writer.ts   # Schreibt MCP-Config in alle Frameworks
+│   │   ├── framework-adapter.ts  # FrameworkAdapter Interface + Types
+│   │   ├── framework-registry.ts # FRAMEWORK_ADAPTERS Array + installAllDetected()
+│   │   ├── harness-content.ts    # Alle Harness-Texte (Single Source of Truth)
+│   │   └── adapters/
+│   │       ├── claude-code.ts    # Tier 1 — Claude Code CLI
+│   │       ├── claude-desktop.ts # Tier 2 — Claude Desktop App
+│   │       ├── codex.ts          # Tier 1 — OpenAI Codex CLI
+│   │       ├── openclaw.ts       # Tier 1 — OpenClaw
+│   │       ├── hermes.ts         # Tier 1 — Hermes Agent
+│   │       ├── antigravity.ts    # Tier 1 — Antigravity CLI (agy)
+│   │       ├── cursor.ts         # Tier 2 — Cursor IDE
+│   │       ├── windsurf.ts       # Tier 2 — Windsurf IDE
+│   │       └── cline.ts          # Tier 2 — Cline (VSCode Extension)
 │   │
 │   ├── schemas/
 │   │   ├── main-facts.ts         # Zod-Schema main_facts.md Frontmatter
@@ -179,6 +190,7 @@ datasynx-opencrm/
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.10.0",
     "@lancedb/lancedb": "^0.29.0",
+    "apache-arrow": "^17.0.0",
     "@huggingface/transformers": "^3.8.1",
     "googleapis": "^140.0.0",
     "commander": "^14.0.0",
@@ -187,6 +199,8 @@ datasynx-opencrm/
     "zod-validation-error": "^3.0.0",
     "chokidar": "^4.0.0",
     "cron": "^4.4.0",
+    "slug": "^9.0.0",
+    "@iarna/toml": "^2.2.5",
     "ansis": "^3.0.0",
     "cli-table3": "^0.6.3",
     "@topcli/spinner": "^2.0.0",
@@ -206,7 +220,9 @@ datasynx-opencrm/
     "@vitest/coverage-v8": "^3.0.0",
     "memfs": "^4.0.0",
     "@types/cli-table3": "^0.6.0",
-    "@types/which": "^3.0.0"
+    "@types/which": "^3.0.0",
+    "@types/iarna__toml": "^2.0.0",
+    "@types/slug": "^5.0.0"
   }
 }
 ```
@@ -362,156 +378,70 @@ vi.mock("googleapis");
 5. Ausgabe: Zusammenfassung was gefunden/konfiguriert wurde
 ```
 
-### Framework Detection — exakte Config-Pfade
+### Framework Detection — Adapter-Pattern
 
-```typescript
-// src/setup/framework-detector.ts
-import { execSync } from "child_process";
-import fs from "fs";
-import path from "path";
-import os from "os";
+**Kein monolithisches `framework-detector.ts` mehr.** Jeder Adapter implementiert `detect()` selbst — die Logik bleibt dort, wo die Config-Schreiblogik ist.
 
-export interface DetectedFrameworks {
-  claudeCode: boolean;
-  codex: boolean;
-  cursor: boolean;
-  continueDev: boolean;
-}
+Detection-Zuständigkeiten der einzelnen Adapter:
 
-export function detectFrameworks(): DetectedFrameworks {
-  const home = os.homedir();
-
-  const hasCmd = (cmd: string): boolean => {
-    try { execSync(`which ${cmd}`, { stdio: "ignore" }); return true; }
-    catch { return false; }
-  };
-  const hasDir = (p: string): boolean => {
-    try { return fs.statSync(p).isDirectory(); } catch { return false; }
-  };
-  const hasFile = (p: string): boolean => fs.existsSync(p);
-
-  return {
-    // Claude Code: binary ODER ~/.claude.json ODER ~/.claude/ Verzeichnis
-    claudeCode:
-      hasCmd("claude") ||
-      hasFile(path.join(home, ".claude.json")) ||
-      hasDir(path.join(home, ".claude")),
-
-    // Codex CLI
-    codex:
-      hasCmd("codex") ||
-      hasDir(path.join(home, ".codex")),
-
-    // Cursor: kein CLI-Binary → nur Dateisystem
-    cursor:
-      hasDir(path.join(home, ".cursor")) ||
-      hasFile(path.join(home, ".cursor", "mcp.json")),
-
-    // Continue.dev
-    continueDev:
-      hasDir(path.join(home, ".continue")) ||
-      hasFile(path.join(home, ".continue", "config.yaml")),
-  };
-}
+```
+ClaudeCodeAdapter.detect()    → which claude | ~/.claude.json | ~/.claude/
+ClaudeDesktopAdapter.detect() → plattformspezifischer config-Pfad prüfen (macOS/Win/Linux)
+CodexAdapter.detect()         → which codex | ~/.codex/
+OpenClawAdapter.detect()      → which openclaw | ~/.openclaw/
+HermesAdapter.detect()        → which hermes | ~/.hermes/
+AntigravityAdapter.detect()   → ~/.gemini/ | which agy
+CursorAdapter.detect()        → ~/.cursor/
+WindsurfAdapter.detect()      → ~/.codeium/windsurf/
+ClineAdapter.detect()         → ~/.cline/
 ```
 
-### MCP-Config schreiben — alle Formate
+Die zentrale Einstiegsfunktion (in `framework-registry.ts`):
 
 ```typescript
-// src/setup/framework-writer.ts
-
-const MCP_ENTRY = {
-  type: "stdio",
-  command: process.execPath,       // absoluter Node-Pfad, kein npx
-  args: ["/path/to/dist/mcp.js"], // wird zur Laufzeit aufgelöst
-};
-
-// ─── Claude Code: ~/.claude.json ─────────────────────────────────────────────
-export function writeClaudeCode(mcpJsPath: string): void {
-  const configPath = path.join(os.homedir(), ".claude.json");
-  let json: Record<string, any> = {};
-  if (fs.existsSync(configPath)) {
-    try { json = JSON.parse(fs.readFileSync(configPath, "utf-8")); } catch {}
+// src/setup/framework-registry.ts
+export async function installAllDetected(config: InstallConfig): Promise<InstallResult[]> {
+  const results: InstallResult[] = [];
+  for (const adapter of FRAMEWORK_ADAPTERS) {
+    if (!adapter.detect()) continue;
+    try {
+      results.push(await adapter.install(config));
+    } catch (err) {
+      results.push({ framework: adapter.name, success: false, transport: "stdio",
+        configPath: "", harnessFiles: [], notes: (err as Error).message });
+    }
   }
-  // User-Scope: top-level mcpServers (global für alle Projekte)
-  json.mcpServers ??= {};
-  json.mcpServers["datasynx-opencrm"] = {
-    type: "stdio",
-    command: process.execPath,
-    args: [mcpJsPath],
-  };
-  fs.writeFileSync(configPath, JSON.stringify(json, null, 2));
-}
-
-// ─── Codex: ~/.codex/config.toml ─────────────────────────────────────────────
-// KEIN vollständiger TOML-Parser nötig — wir appenden nur
-export function writeCodex(mcpJsPath: string): void {
-  const configPath = path.join(os.homedir(), ".codex", "config.toml");
-  fs.mkdirSync(path.dirname(configPath), { recursive: true });
-
-  const section = `\n[mcp_servers.datasynx-opencrm]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(mcpJsPath)}]\nstartup_timeout_sec = 30\ntool_timeout_sec = 120\nenabled = true\n`;
-
-  const existing = fs.existsSync(configPath) ? fs.readFileSync(configPath, "utf-8") : "";
-  if (existing.includes("[mcp_servers.datasynx-opencrm]")) return; // Idempotent
-  fs.appendFileSync(configPath, section);
-}
-
-// ─── Cursor: ~/.cursor/mcp.json ──────────────────────────────────────────────
-export function writeCursor(mcpJsPath: string): void {
-  const configPath = path.join(os.homedir(), ".cursor", "mcp.json");
-  fs.mkdirSync(path.dirname(configPath), { recursive: true });
-  let json: { mcpServers?: Record<string, unknown> } = { mcpServers: {} };
-  if (fs.existsSync(configPath)) {
-    try { json = JSON.parse(fs.readFileSync(configPath, "utf-8")); json.mcpServers ??= {}; } catch {}
-  }
-  json.mcpServers!["datasynx-opencrm"] = { command: process.execPath, args: [mcpJsPath] };
-  fs.writeFileSync(configPath, JSON.stringify(json, null, 2));
-}
-
-// ─── Continue.dev: ~/.continue/config.yaml ───────────────────────────────────
-// Minimal: standalone MCP-File (wird von Continue automatisch gelesen)
-export function writeContinueDev(mcpJsPath: string): void {
-  const dir = path.join(os.homedir(), ".continue", "mcpServers");
-  fs.mkdirSync(dir, { recursive: true });
-  const content = `name: datasynx-opencrm\ncommand: ${process.execPath}\nargs:\n  - ${mcpJsPath}\n`;
-  fs.writeFileSync(path.join(dir, "datasynx-opencrm.yaml"), content);
+  return results;
 }
 ```
 
 ### Tests für Link 1
 
 ```typescript
-// __tests__/setup/framework-detector.test.ts
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { detectFrameworks } from "../../src/setup/framework-detector.js";
+// __tests__/setup/claude-code-adapter.test.ts
+import { describe, it, expect } from "vitest";
+import { ClaudeCodeAdapter } from "../../src/setup/adapters/claude-code.js";
 
-describe("detectFrameworks", () => {
-  it("detects Claude Code via ~/.claude.json", () => {
-    // memfs hat .claude.json
+describe("ClaudeCodeAdapter", () => {
+  it("detect() returns true when ~/.claude.json exists", () => {
     vol.fromJSON({ [`${HOME}/.claude.json`]: "{}" });
-    expect(detectFrameworks().claudeCode).toBe(true);
+    expect(new ClaudeCodeAdapter().detect()).toBe(true);
   });
 
-  it("detects Codex via ~/.codex/ directory", () => {
-    vol.fromJSON({ [`${HOME}/.codex/config.toml`]: "" });
-    expect(detectFrameworks().codex).toBe(true);
-  });
-
-  it("returns false when nothing is installed", () => {
-    vol.fromJSON({});
-    const result = detectFrameworks();
-    expect(result.claudeCode).toBe(false);
-    expect(result.codex).toBe(false);
-    expect(result.cursor).toBe(false);
-    expect(result.continueDev).toBe(false);
-  });
+  it("install() creates ~/.claude.json when it doesn't exist", async () => { ... });
+  it("install() deep-merges into existing ~/.claude.json without overwriting other entries", async () => { ... });
+  it("install() is idempotent — calling twice produces same result", async () => { ... });
+  it("install() writes CLAUDE.md to dataDir", async () => { ... });
+  it("install() writes .claude/settings.json with alwaysAllow for all 8 tools", async () => { ... });
 });
 
-// __tests__/setup/framework-writer.test.ts
-describe("writeClaudeCode", () => {
-  it("creates ~/.claude.json when it doesn't exist", () => { ... });
-  it("deep-merges into existing ~/.claude.json without overwriting other entries", () => { ... });
-  it("is idempotent — calling twice produces same result", () => { ... });
+// __tests__/setup/claude-desktop-adapter.test.ts
+describe("ClaudeDesktopAdapter", () => {
+  it("detect() returns true when desktop config path exists", () => { ... });
+  it("install() writes to platform-specific config path", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("install() notes contain restart instruction", async () => { ... });
+  it("uninstall() removes only datasynx-opencrm entry", async () => { ... });
 });
 ```
 
@@ -1664,10 +1594,13 @@ Tag 2:
 □ src/fs/interactions-writer.ts (PASSING)
 
 Tag 3:
-□ __tests__/setup/framework-detector.test.ts (FAILING)
-□ src/setup/framework-detector.ts (PASSING)
-□ __tests__/setup/framework-writer.test.ts (FAILING)
-□ src/setup/framework-writer.ts (PASSING)
+□ src/setup/framework-adapter.ts (Interface + Types)
+□ src/setup/harness-content.ts (alle Harness-Texte — Single Source of Truth)
+□ __tests__/setup/claude-code-adapter.test.ts (FAILING)
+□ src/setup/adapters/claude-code.ts (PASSING)
+□ __tests__/setup/claude-desktop-adapter.test.ts (FAILING)
+□ src/setup/adapters/claude-desktop.ts (PASSING)
+□ src/setup/framework-registry.ts (FRAMEWORK_ADAPTERS + installAllDetected)
 
 Tag 4:
 □ src/commands/init.ts (mit Framework-Detector + Writer)
@@ -1837,21 +1770,36 @@ export interface FrameworkAdapter {
 
 ---
 
-### Registry — Alle Adapter gesammelt
+### Registry — Alle 9 Adapter
+
+Die finale Registry (`src/setup/framework-registry.ts`) enthält alle Adapter. Implementierungen der einzelnen Adapter folgen weiter unten im Dokument.
 
 ```typescript
 // src/setup/framework-registry.ts
 import { ClaudeCodeAdapter } from "./adapters/claude-code.js";
+import { ClaudeDesktopAdapter } from "./adapters/claude-desktop.js";
 import { CodexAdapter } from "./adapters/codex.js";
 import { OpenClawAdapter } from "./adapters/openclaw.js";
 import { HermesAdapter } from "./adapters/hermes.js";
+import { AntigravityAdapter } from "./adapters/antigravity.js";
+import { CursorAdapter } from "./adapters/cursor.js";
+import { WindsurfAdapter } from "./adapters/windsurf.js";
+import { ClineAdapter } from "./adapters/cline.js";
 import type { FrameworkAdapter } from "./framework-adapter.js";
+import type { InstallConfig, InstallResult } from "./framework-adapter.js";
 
 export const FRAMEWORK_ADAPTERS: FrameworkAdapter[] = [
+  // Tier 1 — voller Adapter (CLI-Binary detektierbar, Harness-Injection)
   new ClaudeCodeAdapter(),
   new CodexAdapter(),
   new OpenClawAdapter(),
   new HermesAdapter(),
+  new AntigravityAdapter(),
+  // Tier 2 — Config-Writer (IDE/Desktop, kein globales Harness-System)
+  new CursorAdapter(),
+  new WindsurfAdapter(),
+  new ClineAdapter(),
+  new ClaudeDesktopAdapter(),   // non-developer audience, restart required
 ];
 
 export async function installAllDetected(config: InstallConfig): Promise<InstallResult[]> {
@@ -1859,8 +1807,7 @@ export async function installAllDetected(config: InstallConfig): Promise<Install
   for (const adapter of FRAMEWORK_ADAPTERS) {
     if (!adapter.detect()) continue;
     try {
-      const result = await adapter.install(config);
-      results.push(result);
+      results.push(await adapter.install(config));
     } catch (err) {
       results.push({
         framework: adapter.name,
@@ -2653,7 +2600,7 @@ describe("installAllDetected", () => {
 |---|---|---|---|
 | 23 | Claude Code | `~/.claude/claude_desktop_config.json` existiert nicht — korrekt: `~/.claude.json` | Immer `~/.claude.json` |
 | 24 | Claude Code | `alwaysAllow` in Claude Desktop resettet bei Neustart (Bug #24433) | `.claude/settings.json` `permissions.allow` als Fix |
-| 25 | Codex | Vollständiger TOML-Parser für Merge nötig wenn Section schon existiert | `@iarna/toml` als Dev-Dep, Idempotenz-Check vor Append |
+| 25 | Codex | Vollständiger TOML-Parser für Merge nötig wenn Section schon existiert | `@iarna/toml` in dependencies, Idempotenz-Check vor Append |
 | 26 | OpenClaw | `openclaw.json` wird live neu geladen — kein Restart nötig | Gateway-Hot-Reload nutzen, kein `openclaw restart` nötig |
 | 27 | OpenClaw | SOUL.md wird bei jedem Session-Start geladen → Größe begrenzen | Max 200 Zeilen, CRM-Abschnitt kompakt halten |
 | 28 | Hermes | Tool-Namen bekommen `mcp_<server_name>_` Prefix → Underscores in Server-Name | Server-Name `datasynx_opencrm` (Underscore) statt Bindestrich |
@@ -2673,8 +2620,8 @@ Nach Recherche klassifiziere ich alle relevanten Frameworks in drei Tiers:
 | Tier | Frameworks | Warum |
 |---|---|---|
 | **Tier 1 — Voller Adapter** | Claude Code, Codex, OpenClaw, Hermes, **Antigravity CLI** | CLI-binary detektierbar, volle Harness-Injection (SOUL.md/AGENTS.md/Skills), hohe User-Überlappung |
-| **Tier 2 — Config-Writer** | **Windsurf**, **Cline** | IDE-basiert (kein CLI-binary), nur `mcp_config.json`/`cline_mcp_settings.json` schreiben — kein Harness-Konzept |
-| **Tier 3 — Defer** | GitHub Copilot, Aider, Amp, Continue.dev | Cursor bereits via `~/.cursor/mcp.json` abgedeckt; Aider hat kein MCP; Amp und Copilot: kein stabiles Programmatic-API |
+| **Tier 2 — Config-Writer** | Cursor, **Windsurf**, **Cline**, **Claude Desktop** | IDE/Desktop-basiert (kein CLI-binary), MCP-Config schreiben + optionale Rules; kein globales Harness-Konzept |
+| **Tier 3 — Defer** | GitHub Copilot, Aider, Amp, Continue.dev | Aider hat kein MCP; Amp und Copilot: kein stabiles Programmatic-API für externe MCP-Registrierung |
 
 **Antigravity CLI ist Pflicht in Phase 1:** Google ersetzt Gemini CLI zum 18.06.2026 — das ist die größte aktive Nutzerbasis nach Claude Code. Wer Gemini CLI nutzte, wechselt jetzt auf `agy`.
 
@@ -3091,39 +3038,157 @@ export class ClineAdapter implements FrameworkAdapter {
 }
 ```
 
-### Registry Update — Alle 8 Adapter
+### Adapter 9 — Claude Desktop
+
+**Claude Desktop** ist die einzige Nicht-Developer-Claude-Umgebung mit vollständigem MCP-Support. Strategisch wichtig: Business-User nutzen Claude Desktop, nicht Claude Code.
+
+**Besonderheiten:**
+- Drei plattformspezifische Config-Pfade (macOS / Windows / Linux)
+- Gleiches JSON-Format wie Claude Code (`mcpServers` top-level)
+- Kein harness-System (keine CLAUDE.md, keine settings.json)
+- **Neustart zwingend erforderlich** nach Config-Änderung (kein Hot-Reload)
+- Zielgruppe: Nicht-Entwickler → klare Restart-Anweisung in `install()` notes
 
 ```typescript
-// src/setup/framework-registry.ts (aktualisiert)
+// src/setup/adapters/claude-desktop.ts
+import fs from "fs";
+import path from "path";
+import os from "os";
+import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
+
+// Platform-spezifische Config-Pfade (Stand Mai 2026):
+// macOS:   ~/Library/Application Support/Claude/claude_desktop_config.json
+// Windows: %APPDATA%\Claude\claude_desktop_config.json
+// Linux:   ~/.config/claude-desktop/claude_desktop_config.json
+function getDesktopConfigPath(): string {
+  switch (process.platform) {
+    case "darwin":
+      return path.join(
+        os.homedir(), "Library", "Application Support",
+        "Claude", "claude_desktop_config.json"
+      );
+    case "win32":
+      return path.join(
+        process.env["APPDATA"] ?? os.homedir(),
+        "Claude", "claude_desktop_config.json"
+      );
+    default: // linux
+      return path.join(
+        os.homedir(), ".config", "claude-desktop", "claude_desktop_config.json"
+      );
+  }
+}
+
+const DESKTOP_CONFIG = getDesktopConfigPath();
+
+export class ClaudeDesktopAdapter implements FrameworkAdapter {
+  readonly name = "Claude Desktop";
+
+  detect(): boolean {
+    // Config-Verzeichnis existiert → Claude Desktop ist installiert
+    return fs.existsSync(DESKTOP_CONFIG) || fs.existsSync(path.dirname(DESKTOP_CONFIG));
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(DESKTOP_CONFIG)) return false;
+    try {
+      const json = JSON.parse(fs.readFileSync(DESKTOP_CONFIG, "utf-8"));
+      return !!json?.mcpServers?.["datasynx-opencrm"];
+    } catch { return false; }
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(path.dirname(DESKTOP_CONFIG), { recursive: true });
+    let json: Record<string, any> = {};
+    if (fs.existsSync(DESKTOP_CONFIG)) {
+      try { json = JSON.parse(fs.readFileSync(DESKTOP_CONFIG, "utf-8")); } catch {}
+    }
+    json.mcpServers ??= {};
+    json.mcpServers[config.serverName] = {
+      command: process.execPath,
+      args: [config.mcpServerPath],
+    };
+    fs.writeFileSync(DESKTOP_CONFIG, JSON.stringify(json, null, 2));
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: DESKTOP_CONFIG,
+      harnessFiles: [],
+      notes: "Restart Claude Desktop to activate the MCP server. No harness files for Desktop app.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(DESKTOP_CONFIG)) return;
+    const json = JSON.parse(fs.readFileSync(DESKTOP_CONFIG, "utf-8"));
+    delete json?.mcpServers?.["datasynx-opencrm"];
+    fs.writeFileSync(DESKTOP_CONFIG, JSON.stringify(json, null, 2));
+  }
+}
+```
+
+---
+
+### Claude im Allgemeinen — Entscheidungsmatrix
+
+"Claude" ist nicht eine einzige Umgebung. Es gibt vier Deployment-Kontexte mit unterschiedlicher MCP-Unterstützung:
+
+| Kontext | MCP-Support | dxcrm-Integration | Adapter |
+|---|---|---|---|
+| **Claude Desktop** (macOS / Windows / Linux App) | ✓ vollständig | `ClaudeDesktopAdapter` | `adapters/claude-desktop.ts` |
+| **Claude Code** (CLI, Anthropic) | ✓ vollständig + professionell | `ClaudeCodeAdapter` | `adapters/claude-code.ts` |
+| **claude.ai Web** (Browser) | ✗ kein MCP (Stand Mai 2026) | nicht möglich | — |
+| **Claude Teams / Enterprise** (Web-Zugang) | ✗ kein MCP über Web | via Claude Code falls installiert | — |
+
+**Konsequenzen:**
+- **Claude Desktop** → `ClaudeDesktopAdapter` — die einzige Möglichkeit für Non-Developer-Nutzer
+- **Claude Code** → `ClaudeCodeAdapter` — Entwickler, Teams-Nutzer die Claude Code lokal nutzen
+- **claude.ai Web** → keine Integration möglich; wenn der User fragt: "Nutze claude.ai im Browser?" → Antwort: Claude Desktop installieren
+- **Claude Teams/Enterprise Web-App** → identische Einschränkung wie claude.ai Web; MCP ist nur über Claude Code (Desktop-App, separate Installation) erreichbar
+
+**Strategische Einschätzung:**
+Claude Desktop ist trotz Tier-2-Klassifizierung (kein Harness) ein Priority-Adapter: Es ist der einzige Zugang für Business-User ohne Developer-Background. Nach Zahlen von Anthropic überwiegt die Desktop-Nutzerbasis die CLI-Nutzerbasis deutlich. Der fehlende Harness ist verschmerzbar — das MCP-Tool-Interface selbst ist die Integration.
+
+---
+
+### Registry Update — Alle 9 Adapter
+
+```typescript
+// src/setup/framework-registry.ts (final)
 export const FRAMEWORK_ADAPTERS: FrameworkAdapter[] = [
+  // Tier 1 — voller Adapter (CLI-Binary + Harness-Injection)
   new ClaudeCodeAdapter(),
   new CodexAdapter(),
   new OpenClawAdapter(),
   new HermesAdapter(),
-  new AntigravityAdapter(),   // Tier 1
-  new CursorAdapter(),        // NEU (Tier 2)
-  new WindsurfAdapter(),      // Tier 2
-  new ClineAdapter(),         // Tier 2
+  new AntigravityAdapter(),
+  // Tier 2 — Config-Writer (kein globales Harness, Neustart nötig)
+  new CursorAdapter(),
+  new WindsurfAdapter(),
+  new ClineAdapter(),
+  new ClaudeDesktopAdapter(),    // NEU — non-developer audience
 ];
 ```
 
 ---
 
-### Vollständige Framework-Vergleichstabelle (alle 8)
+### Vollständige Framework-Vergleichstabelle (alle 9)
 
-| | Claude Code | Codex | OpenClaw | Hermes | Antigravity | **Cursor** | Windsurf | Cline |
-|---|---|---|---|---|---|---|---|---|
-| **Config-Datei** | `~/.claude.json` | `~/.codex/config.toml` | `~/.openclaw/openclaw.json` | `~/.hermes/config.yaml` | `~/.gemini/config/mcp_config.json` | **`~/.cursor/mcp.json`** | `~/.codeium/windsurf/mcp_config.json` | `~/.cline/data/settings/cline_mcp_settings.json` |
-| **Format** | JSON | TOML | JSON | YAML | JSON | **JSON** | JSON | JSON |
-| **HTTP-Field** | `url` | `url` | `url` | `url` | **`serverUrl`** | `url` | `url` | `url` |
-| **Hot-Reload** | nein | nein | **ja** | nein | nein | nein | nein | nein |
-| **Harness-Datei** | CLAUDE.md + settings.json | AGENTS.md | SOUL.md + AGENTS.md + TOOLS.md | SOUL.md + Skill | GEMINI.md + AGENTS.md + Skill-Dir | **`.cursor/rules/*.mdc`** | keine | keine |
-| **Skills-System** | nein | nein | Workspace skills/ | ~/.hermes/skills/ | ~/.gemini/…/skills/<name>/ | nein | nein | nein |
-| **alwaysAllow** | settings.json | kein | approved_tools | tools.include | kein | `alwaysApply: true` in .mdc | kein | kein |
-| **Binary** | `claude` | `codex` | `openclaw` | `hermes` | **`agy`** | kein CLI | kein CLI | kein CLI |
-| **Detection** | `which claude` \| `~/.claude.json` | `which codex` \| `~/.codex/` | `which openclaw` \| `~/.openclaw/` | `which hermes` \| `~/.hermes/` | `~/.gemini/` | **`~/.cursor/`** | `~/.codeium/windsurf/` | `~/.cline/` |
-| **Tier** | 1 | 1 | 1 | 1 | 1 | **2** | 2 | 2 |
-| **Besonderheit** | alwaysAllow Bug | TOML-Append | Hot-Reload | SOUL slot #1 | `serverUrl` ≠ `url` | **MDC Rules** | `${env:VAR}` | Absolute Paths |
+| | Claude Code | Codex | OpenClaw | Hermes | Antigravity | Cursor | Windsurf | Cline | **Claude Desktop** |
+|---|---|---|---|---|---|---|---|---|---|
+| **Config-Datei** | `~/.claude.json` | `~/.codex/config.toml` | `~/.openclaw/openclaw.json` | `~/.hermes/config.yaml` | `~/.gemini/config/mcp_config.json` | `~/.cursor/mcp.json` | `~/.codeium/windsurf/mcp_config.json` | `~/.cline/data/settings/cline_mcp_settings.json` | **plattformspez.** |
+| **Format** | JSON | TOML | JSON | YAML | JSON | JSON | JSON | JSON | **JSON** |
+| **HTTP-Field** | `url` | `url` | `url` | `url` | **`serverUrl`** | `url` | `url` | `url` | `url` |
+| **Hot-Reload** | nein | nein | **ja** | nein | nein | nein | nein | nein | **nein** |
+| **Harness-Datei** | CLAUDE.md + settings.json | AGENTS.md | SOUL.md + AGENTS.md + TOOLS.md | SOUL.md + Skill | GEMINI.md + AGENTS.md + Skill-Dir | `.cursor/rules/*.mdc` | keine | keine | **keine** |
+| **Skills-System** | nein | nein | Workspace skills/ | ~/.hermes/skills/ | ~/.gemini/…/skills/<name>/ | nein | nein | nein | **nein** |
+| **alwaysAllow** | settings.json | kein | approved_tools | tools.include | kein | `alwaysApply: true` | kein | kein | **kein** |
+| **Binary** | `claude` | `codex` | `openclaw` | `hermes` | **`agy`** | kein CLI | kein CLI | kein CLI | **kein CLI** |
+| **Detection** | `which claude` \| `~/.claude.json` | `which codex` \| `~/.codex/` | `which openclaw` \| `~/.openclaw/` | `which hermes` \| `~/.hermes/` | `~/.gemini/` | `~/.cursor/` | `~/.codeium/windsurf/` | `~/.cline/` | **Config-Dir exists** |
+| **Tier** | 1 | 1 | 1 | 1 | 1 | 2 | 2 | 2 | **2** |
+| **Zielgruppe** | Devs | Devs | Devs | Devs | Devs | Devs | Devs | Devs | **Business-User** |
+| **Besonderheit** | alwaysAllow Bug | TOML-Append | Hot-Reload | SOUL slot #1 | `serverUrl` ≠ `url` | MDC Rules | `${env:VAR}` | Absolute Paths | **3 Plattform-Pfade** |
 
 ---
 
@@ -3180,6 +3245,17 @@ describe("ClineAdapter", () => {
   it("install() uses absolute paths — never relative", async () => { ... });
   it("install() is idempotent", async () => { ... });
 });
+
+describe("ClaudeDesktopAdapter", () => {
+  it("detect() returns true when platform-specific config dir exists", () => { ... });
+  it("install() writes to correct platform path (macOS/Windows/Linux)", async () => { ... });
+  it("install() creates config directory if not exists", async () => { ... });
+  it("install() deep-merges into existing config without overwriting other entries", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("install() returns restart note in notes field", async () => { ... });
+  it("install() writes no harness files (harnessFiles is empty)", async () => { ... });
+  it("uninstall() removes only datasynx-opencrm entry", async () => { ... });
+});
 ```
 
 ---
@@ -3202,11 +3278,16 @@ describe("ClineAdapter", () => {
 | 44 | Windsurf | IDE-Neustart erforderlich nach Config-Änderung (kein Hot-Reload) | Install-Output: "Restart Windsurf to activate" |
 | 45 | Cline | Relative Pfade in `args` scheitern lautlos | Immer `process.execPath` (absolut) für `command` |
 | 46 | Cline | VSCode-Extension vs CLI — CLI-Config-Pfad weicht ab | `~/.cline/data/settings/` für CLI, VSCode nutzt globalStorage |
+| 47 | Claude Desktop | Drei plattformspezifische Config-Pfade (macOS/Windows/Linux) | `getDesktopConfigPath()` mit `process.platform` switch |
+| 48 | Claude Desktop | `%APPDATA%` auf Windows kann undefined sein | `process.env["APPDATA"] ?? os.homedir()` als Fallback |
+| 49 | Claude Desktop | Config-Verzeichnis existiert nicht bis zum ersten Start der App | `fs.mkdirSync(path.dirname(DESKTOP_CONFIG), { recursive: true })` |
+| 50 | Claude Desktop | Neustart zwingend nötig — kein programmatischer Reload | Install-Output explizit: "Quit and reopen Claude Desktop to activate" |
 
 ---
 
 *plan-1.md — Technischer Implementierungsplan Phase 1*
-*Basiert auf Deep-Search-Recherche Mai 2026 · Nächstes Update: nach Woche 1 abgeschlossen*
+*Basiert auf Deep-Search-Recherche Mai 2026 · 9 Framework-Adapter · 50 dokumentierte Gotchas*
+*Nächstes Update: nach Woche 1 abgeschlossen*
 
 Sources:
 - [MCP · OpenClaw](https://docs.openclaw.ai/cli/mcp)
