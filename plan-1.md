@@ -2888,10 +2888,111 @@ Call \`log_interaction(slug, type, summary, nextSteps)\`.
 
 ---
 
-### Tier 2 — Windsurf + Cline (Config-Writer, kein volles Adapter-Konzept)
+### Tier 2 — Cursor, Windsurf, Cline (Config-Writer + optionale Rules)
 
-IDE-basierte Tools ohne CLI-Binary. Kein Skills- oder Harness-System.
-Wir schreiben nur die MCP-Config-Datei — keine SOUL.md, keine AGENTS.md.
+IDE-basierte Tools ohne CLI-Binary. Kein globales Skills- oder SOUL-System.
+MCP-Config schreiben + wo möglich Projekt-Rules für CRM-Kontext.
+
+**Cursor-Besonderheiten:**
+- Global MCP: `~/.cursor/mcp.json` — identisches Format wie Claude Code `.mcp.json`
+- Project MCP: `.cursor/mcp.json` im Projektverzeichnis (überschreibt global)
+- Project Rules: `.cursor/rules/datasynx-crm.mdc` — MDC-Format, ersetzt `.cursorrules`
+- Kein CLI-Binary → Detection über `~/.cursor/` Verzeichnis
+- Neustart erforderlich nach Config-Änderung
+
+```typescript
+// src/setup/adapters/cursor.ts
+const CURSOR_GLOBAL_MCP = path.join(os.homedir(), ".cursor", "mcp.json");
+const CURSOR_DIR = path.join(os.homedir(), ".cursor");
+
+export class CursorAdapter implements FrameworkAdapter {
+  readonly name = "Cursor";
+
+  detect(): boolean {
+    return fs.existsSync(CURSOR_DIR) || fs.existsSync(CURSOR_GLOBAL_MCP);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(CURSOR_GLOBAL_MCP)) return false;
+    try {
+      const json = JSON.parse(fs.readFileSync(CURSOR_GLOBAL_MCP, "utf-8"));
+      return !!json?.mcpServers?.["datasynx-opencrm"];
+    } catch { return false; }
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(CURSOR_DIR, { recursive: true });
+    const harnessFiles: string[] = [];
+
+    // 1. Globale MCP-Config
+    let json: { mcpServers?: Record<string, unknown> } = { mcpServers: {} };
+    if (fs.existsSync(CURSOR_GLOBAL_MCP)) {
+      try {
+        json = JSON.parse(fs.readFileSync(CURSOR_GLOBAL_MCP, "utf-8"));
+        json.mcpServers ??= {};
+      } catch {}
+    }
+    json.mcpServers!["datasynx-opencrm"] = {
+      command: process.execPath,
+      args: [config.mcpServerPath],
+      env: { DXCRM_DATA_DIR: config.dataDir },
+    };
+    fs.writeFileSync(CURSOR_GLOBAL_MCP, JSON.stringify(json, null, 2));
+
+    // 2. Project Rules im CRM-Verzeichnis (.cursor/rules/datasynx-crm.mdc)
+    // MDC-Format: Frontmatter + Markdown-Instructions
+    // Cursor liest alle .mdc-Dateien in .cursor/rules/ als Agent-Kontext
+    const rulesDir = path.join(config.dataDir, ".cursor", "rules");
+    fs.mkdirSync(rulesDir, { recursive: true });
+    const rulesPath = path.join(rulesDir, "datasynx-crm.mdc");
+    if (!fs.existsSync(rulesPath)) {
+      fs.writeFileSync(rulesPath, buildCursorRulesMdc(config.dataDir));
+      harnessFiles.push(rulesPath);
+    }
+
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: CURSOR_GLOBAL_MCP,
+      harnessFiles,
+      notes: "Global MCP registered. CRM rules written to .cursor/rules/. Restart Cursor to activate.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(CURSOR_GLOBAL_MCP)) return;
+    const json = JSON.parse(fs.readFileSync(CURSOR_GLOBAL_MCP, "utf-8"));
+    delete json?.mcpServers?.["datasynx-opencrm"];
+    fs.writeFileSync(CURSOR_GLOBAL_MCP, JSON.stringify(json, null, 2));
+  }
+}
+
+function buildCursorRulesMdc(dataDir: string): string {
+  return `---
+description: DatasynxOpenCRM — CRM workflow rules
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# DatasynxOpenCRM Rules
+
+You have access to a local CRM via MCP tools (datasynx-opencrm).
+
+## Mandatory Workflow
+- Customer mentioned → call \`get_customer_context(slug)\` immediately
+- After any call/meeting/email → call \`log_interaction()\`
+- Historical question → call \`search_customer_knowledge(slug, query)\`
+- Deal discussed → call \`update_deal()\`
+
+## Available Tools
+get_customer_context · search_customer_knowledge · list_customers
+log_interaction · update_deal · get_capabilities
+
+## Data: ${dataDir}
+`.trim();
+}
+```
 
 ```typescript
 // src/setup/adapters/windsurf.ts
@@ -2990,7 +3091,7 @@ export class ClineAdapter implements FrameworkAdapter {
 }
 ```
 
-### Registry Update — Alle 7 Adapter
+### Registry Update — Alle 8 Adapter
 
 ```typescript
 // src/setup/framework-registry.ts (aktualisiert)
@@ -2999,30 +3100,30 @@ export const FRAMEWORK_ADAPTERS: FrameworkAdapter[] = [
   new CodexAdapter(),
   new OpenClawAdapter(),
   new HermesAdapter(),
-  new AntigravityAdapter(),   // NEU
-  new WindsurfAdapter(),      // NEU (Tier 2)
-  new ClineAdapter(),         // NEU (Tier 2)
+  new AntigravityAdapter(),   // Tier 1
+  new CursorAdapter(),        // NEU (Tier 2)
+  new WindsurfAdapter(),      // Tier 2
+  new ClineAdapter(),         // Tier 2
 ];
 ```
 
 ---
 
-### Vollständige Framework-Vergleichstabelle (alle 7)
+### Vollständige Framework-Vergleichstabelle (alle 8)
 
-| | Claude Code | Codex | OpenClaw | Hermes | **Antigravity** | Windsurf | Cline |
-|---|---|---|---|---|---|---|---|
-| **Config-Datei** | `~/.claude.json` | `~/.codex/config.toml` | `~/.openclaw/openclaw.json` | `~/.hermes/config.yaml` | `~/.gemini/config/mcp_config.json` | `~/.codeium/windsurf/mcp_config.json` | `~/.cline/data/settings/cline_mcp_settings.json` |
-| **Format** | JSON | TOML | JSON | YAML | JSON | JSON | JSON |
-| **HTTP-Field** | `url` | `url` | `url` | `url` | **`serverUrl`** | `url` | `url` |
-| **Hot-Reload** | nein | nein | **ja** | nein | nein | nein | nein |
-| **Harness-Datei** | CLAUDE.md + settings.json | AGENTS.md | SOUL.md + AGENTS.md + TOOLS.md | SOUL.md + Skill | GEMINI.md + AGENTS.md + Skill-Dir | **keine** | **keine** |
-| **Skills-System** | nein | nein | `~/.openclaw/workspace/skills/` | `~/.hermes/skills/<name>.md` | `~/.gemini/antigravity-cli/skills/<name>/SKILL.md` | nein | nein |
-| **Skill-Format** | — | — | `SKILL.md` in Workspace | Single `.md` (agentskills.io) | **Verzeichnis** mit `SKILL.md` | — | — |
-| **alwaysAllow** | `.claude/settings.json` | kein | in `openclaw.json` (approved_tools) | `tools.include` | kein stabiles API | kein | kein |
-| **Binary** | `claude` | `codex` | `openclaw` | `hermes` | **`agy`** | kein CLI | kein CLI |
-| **Detection** | `which claude` \| `~/.claude.json` | `which codex` \| `~/.codex/` | `which openclaw` \| `~/.openclaw/` | `which hermes` \| `~/.hermes/` | `~/.gemini/` | `~/.codeium/windsurf/` | `~/.cline/` |
-| **Tier** | 1 | 1 | 1 | 1 | **1** | 2 | 2 |
-| **Besonderheit** | alwaysAllow Bug | TOML-Append | Hot-Reload | SOUL slot #1 | `serverUrl` ≠ `url` | `${env:VAR}` Interpolation | Absolute Paths |
+| | Claude Code | Codex | OpenClaw | Hermes | Antigravity | **Cursor** | Windsurf | Cline |
+|---|---|---|---|---|---|---|---|---|
+| **Config-Datei** | `~/.claude.json` | `~/.codex/config.toml` | `~/.openclaw/openclaw.json` | `~/.hermes/config.yaml` | `~/.gemini/config/mcp_config.json` | **`~/.cursor/mcp.json`** | `~/.codeium/windsurf/mcp_config.json` | `~/.cline/data/settings/cline_mcp_settings.json` |
+| **Format** | JSON | TOML | JSON | YAML | JSON | **JSON** | JSON | JSON |
+| **HTTP-Field** | `url` | `url` | `url` | `url` | **`serverUrl`** | `url` | `url` | `url` |
+| **Hot-Reload** | nein | nein | **ja** | nein | nein | nein | nein | nein |
+| **Harness-Datei** | CLAUDE.md + settings.json | AGENTS.md | SOUL.md + AGENTS.md + TOOLS.md | SOUL.md + Skill | GEMINI.md + AGENTS.md + Skill-Dir | **`.cursor/rules/*.mdc`** | keine | keine |
+| **Skills-System** | nein | nein | Workspace skills/ | ~/.hermes/skills/ | ~/.gemini/…/skills/<name>/ | nein | nein | nein |
+| **alwaysAllow** | settings.json | kein | approved_tools | tools.include | kein | `alwaysApply: true` in .mdc | kein | kein |
+| **Binary** | `claude` | `codex` | `openclaw` | `hermes` | **`agy`** | kein CLI | kein CLI | kein CLI |
+| **Detection** | `which claude` \| `~/.claude.json` | `which codex` \| `~/.codex/` | `which openclaw` \| `~/.openclaw/` | `which hermes` \| `~/.hermes/` | `~/.gemini/` | **`~/.cursor/`** | `~/.codeium/windsurf/` | `~/.cline/` |
+| **Tier** | 1 | 1 | 1 | 1 | 1 | **2** | 2 | 2 |
+| **Besonderheit** | alwaysAllow Bug | TOML-Append | Hot-Reload | SOUL slot #1 | `serverUrl` ≠ `url` | **MDC Rules** | `${env:VAR}` | Absolute Paths |
 
 ---
 
@@ -3056,6 +3157,15 @@ describe("AntigravityAdapter", () => {
   it("uninstall() removes mcpServers entry and skill dir", async () => { ... });
 });
 
+describe("CursorAdapter", () => {
+  it("detect() returns true when ~/.cursor/ exists", () => { ... });
+  it("install() writes to ~/.cursor/mcp.json", async () => { ... });
+  it("install() creates .cursor/rules/datasynx-crm.mdc with alwaysApply: true", async () => { ... });
+  it("install() does not overwrite existing .cursor/rules/ files", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("uninstall() removes only datasynx-opencrm entry from mcp.json", async () => { ... });
+});
+
 describe("WindsurfAdapter", () => {
   it("detect() returns true when ~/.codeium/windsurf/ exists", () => { ... });
   it("install() writes to ~/.codeium/windsurf/mcp_config.json", async () => { ... });
@@ -3084,10 +3194,14 @@ describe("ClineAdapter", () => {
 | 36 | Antigravity | SKILL.md ist directory-based (`skills/<name>/SKILL.md`) — nicht single-file wie Hermes | `fs.mkdirSync(skillDir)` dann `SKILL.md` darin schreiben |
 | 37 | Antigravity | GEMINI.md global wird bei jeder Session geladen → Token-Budget | Max 50 Zeilen global, Details in AGENTS.md im Workspace |
 | 38 | Antigravity | `~/.gemini/` existiert auch bei alten Gemini CLI Nutzern — kein Beweis für Antigravity | Zusätzlich `agy` binary prüfen für echte Antigravity-Nutzer |
-| 39 | Windsurf | Erstellt `mcp_config.json` nicht automatisch — muss explizit angelegt werden | `fs.mkdirSync` + JSON-File schreiben wenn nicht vorhanden |
-| 40 | Windsurf | IDE-Neustart erforderlich nach Config-Änderung (kein Hot-Reload) | Install-Output: "Restart Windsurf to activate" |
-| 41 | Cline | Relative Pfade in `args` scheitern lautlos | Immer `process.execPath` (absolut) für `command` |
-| 42 | Cline | VSCode-Extension vs CLI — CLI-Config-Pfad weicht ab | `~/.cline/data/settings/` für CLI, VSCode nutzt globalStorage |
+| 39 | Cursor | Config-Format identisch mit Claude Code `.mcp.json` — gleicher JSON-Shape | ClaudeCodeAdapter als Referenz nutzen |
+| 40 | Cursor | `.cursorrules` deprecated — neues Format: `.cursor/rules/*.mdc` (MDC) | Nur `.mdc` schreiben, `.cursorrules` ignorieren |
+| 41 | Cursor | `alwaysApply: true` in MDC-Frontmatter macht Rule immer aktiv | In `buildCursorRulesMdc()` setzen |
+| 42 | Cursor | Neustart erforderlich nach `mcp.json`-Änderung | Install-Output: "Restart Cursor to activate" |
+| 43 | Windsurf | Erstellt `mcp_config.json` nicht automatisch — muss explizit angelegt werden | `fs.mkdirSync` + JSON-File schreiben wenn nicht vorhanden |
+| 44 | Windsurf | IDE-Neustart erforderlich nach Config-Änderung (kein Hot-Reload) | Install-Output: "Restart Windsurf to activate" |
+| 45 | Cline | Relative Pfade in `args` scheitern lautlos | Immer `process.execPath` (absolut) für `command` |
+| 46 | Cline | VSCode-Extension vs CLI — CLI-Config-Pfad weicht ab | `~/.cline/data/settings/` für CLI, VSCode nutzt globalStorage |
 
 ---
 
