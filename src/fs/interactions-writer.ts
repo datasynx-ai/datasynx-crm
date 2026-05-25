@@ -1,0 +1,62 @@
+import fs from "fs";
+import path from "path";
+import type { InteractionEntry } from "../schemas/interaction.js";
+
+const INTERACTION_SEPARATOR = "---";
+
+export function formatInteractionEntry(entry: InteractionEntry): string {
+  const header = `## ${entry.date} · ${entry.type}${entry.direction ? ` · ${entry.direction}` : ""}`;
+  const withLabel = entry.type === "Email" ? "Subject" : "With";
+  const nextStepsBlock =
+    entry.nextSteps.length > 0
+      ? entry.nextSteps.map((s) => `- [ ] ${s}`).join("\n")
+      : "- [ ] —";
+
+  return `${header}
+**${withLabel}:** ${entry.with}
+**Summary:** ${entry.summary}
+**Next Steps:**
+${nextStepsBlock}
+**Source:** ${entry.sourceRef}
+**Synced:** ${entry.synced}
+${INTERACTION_SEPARATOR}
+`;
+}
+
+export async function readInteractions(dataDir: string, slug: string): Promise<string> {
+  const filePath = path.join(dataDir, "customers", slug, "interactions.md");
+  if (!fs.existsSync(filePath)) {
+    return "";
+  }
+  return fs.readFileSync(filePath, "utf-8");
+}
+
+export async function appendInteraction(
+  dataDir: string,
+  slug: string,
+  entry: InteractionEntry
+): Promise<void> {
+  const filePath = path.join(dataDir, "customers", slug, "interactions.md");
+  const existing = fs.existsSync(filePath) ? (fs.readFileSync(filePath, "utf-8") as string) : "";
+
+  const formatted = formatInteractionEntry(entry);
+
+  let newContent: string;
+  if (existing === "") {
+    // No existing file — just write the entry
+    newContent = formatted;
+  } else {
+    // Prepend after the header block (first blank line)
+    const headerEnd = existing.indexOf("\n\n");
+    if (headerEnd > -1) {
+      const header = existing.slice(0, headerEnd + 2);
+      const body = existing.slice(headerEnd + 2);
+      newContent = header + formatted + "\n" + body;
+    } else {
+      // No blank line found — append at end
+      newContent = existing + "\n" + formatted;
+    }
+  }
+
+  fs.writeFileSync(filePath, newContent, "utf-8");
+}
