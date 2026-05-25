@@ -2664,6 +2664,433 @@ describe("installAllDetected", () => {
 
 ---
 
+## Antigravity CLI + Weitere Frameworks (Recherche Mai 2026)
+
+### Landscape-Entscheidung — Welche Frameworks werden unterstützt
+
+Nach Recherche klassifiziere ich alle relevanten Frameworks in drei Tiers:
+
+| Tier | Frameworks | Warum |
+|---|---|---|
+| **Tier 1 — Voller Adapter** | Claude Code, Codex, OpenClaw, Hermes, **Antigravity CLI** | CLI-binary detektierbar, volle Harness-Injection (SOUL.md/AGENTS.md/Skills), hohe User-Überlappung |
+| **Tier 2 — Config-Writer** | **Windsurf**, **Cline** | IDE-basiert (kein CLI-binary), nur `mcp_config.json`/`cline_mcp_settings.json` schreiben — kein Harness-Konzept |
+| **Tier 3 — Defer** | GitHub Copilot, Aider, Amp, Continue.dev | Cursor bereits via `~/.cursor/mcp.json` abgedeckt; Aider hat kein MCP; Amp und Copilot: kein stabiles Programmatic-API |
+
+**Antigravity CLI ist Pflicht in Phase 1:** Google ersetzt Gemini CLI zum 18.06.2026 — das ist die größte aktive Nutzerbasis nach Claude Code. Wer Gemini CLI nutzte, wechselt jetzt auf `agy`.
+
+---
+
+### Adapter 5 — Antigravity CLI (`agy`)
+
+**Antigravity-Besonderheiten:**
+- Binary: **`agy`** (nicht `antigravity` — häufigster Verwechslungs-Fehler)
+- Install-Pfad: `~/.local/bin/agy` (macOS/Linux) / `%LOCALAPPDATA%\Antigravity\` (Windows)
+- Shared MCP Config: `~/.gemini/config/mcp_config.json` ← gilt für CLI **und** IDE (Antigravity IDE)
+- CLI-only MCP Config: `~/.gemini/antigravity/mcp_config.json` ← nur CLI
+- HTTP-Field heißt **`serverUrl`** (nicht `url` — Claude Code / Hermes verwenden `url`)
+- Context-Dateien: `GEMINI.md` + `AGENTS.md` im Workspace (und global: `~/.gemini/GEMINI.md`)
+- Skills: `~/.gemini/antigravity-cli/skills/<skill-name>/SKILL.md` — Verzeichnis-basiert
+- Permissions: kein explizites `alwaysAllow` — Antigravity CLI hat `request-review` Mode per Default, keine programmatische Whitelist-API dokumentiert
+
+```typescript
+// src/setup/adapters/antigravity.ts
+import fs from "fs";
+import path from "path";
+import os from "os";
+import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
+import { buildAgentsMd } from "../harness-content.js";
+
+const HOME = os.homedir();
+const AGY_BIN_UNIX = path.join(HOME, ".local", "bin", "agy");
+
+// Shared config (CLI + IDE) — bevorzugt
+const GEMINI_CONFIG_DIR = path.join(HOME, ".gemini", "config");
+const SHARED_MCP_CONFIG = path.join(GEMINI_CONFIG_DIR, "mcp_config.json");
+
+// CLI-only config (Fallback)
+const AGY_DIR = path.join(HOME, ".gemini", "antigravity");
+const AGY_MCP_CONFIG = path.join(AGY_DIR, "mcp_config.json");
+
+// Globale Context-Dateien
+const GEMINI_GLOBAL_MD = path.join(HOME, ".gemini", "GEMINI.md");
+
+// Skills
+const AGY_SKILLS_DIR = path.join(HOME, ".gemini", "antigravity-cli", "skills");
+
+export class AntigravityAdapter implements FrameworkAdapter {
+  readonly name = "Antigravity CLI";
+
+  detect(): boolean {
+    // Binary-Check: agy (nicht antigravity!)
+    try { execSync("which agy", { stdio: "ignore" }); return true; } catch {}
+    // Installationspfad-Check
+    if (fs.existsSync(AGY_BIN_UNIX)) return true;
+    // Gemini-Verzeichnis (auch Gemini CLI Nutzer die noch nicht migriert haben)
+    return fs.existsSync(path.join(HOME, ".gemini"));
+  }
+
+  isInstalled(): boolean {
+    for (const configPath of [SHARED_MCP_CONFIG, AGY_MCP_CONFIG]) {
+      if (!fs.existsSync(configPath)) continue;
+      try {
+        const json = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        if (json?.mcpServers?.["datasynx-opencrm"]) return true;
+      } catch {}
+    }
+    return false;
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    const harnessFiles: string[] = [];
+
+    // 1. Shared MCP Config (bevorzugt — gilt für CLI und IDE)
+    //    Antigravity CLI liest erst SHARED_MCP_CONFIG, dann AGY_MCP_CONFIG
+    fs.mkdirSync(GEMINI_CONFIG_DIR, { recursive: true });
+    this.writeMcpEntry(SHARED_MCP_CONFIG, config);
+
+    // 2. GEMINI.md global (~/.gemini/GEMINI.md)
+    //    Antigravity liest diese bei jeder Session als globaler Kontext
+    const geminiMdContent = buildAgyGeminiMd(config.dataDir);
+    if (!fs.existsSync(GEMINI_GLOBAL_MD)) {
+      fs.mkdirSync(path.dirname(GEMINI_GLOBAL_MD), { recursive: true });
+      fs.writeFileSync(GEMINI_GLOBAL_MD, geminiMdContent);
+      harnessFiles.push(GEMINI_GLOBAL_MD);
+    } else {
+      const existing = fs.readFileSync(GEMINI_GLOBAL_MD, "utf-8");
+      if (!existing.includes("DatasynxOpenCRM")) {
+        fs.appendFileSync(GEMINI_GLOBAL_MD, "\n\n---\n\n" + buildAgyGeminiMdAppend());
+        harnessFiles.push(GEMINI_GLOBAL_MD + " (appended)");
+      }
+    }
+
+    // 3. AGENTS.md im CRM-Root (Antigravity liest AGENTS.md im Working Directory)
+    const agentsPath = path.join(config.dataDir, "AGENTS.md");
+    if (!fs.existsSync(agentsPath)) {
+      fs.writeFileSync(agentsPath, buildAgentsMd(config.dataDir));
+      harnessFiles.push(agentsPath);
+    } else {
+      const existing = fs.readFileSync(agentsPath, "utf-8");
+      if (!existing.includes("DatasynxOpenCRM")) {
+        fs.appendFileSync(agentsPath, "\n\n---\n\n" + buildAgentsMd(config.dataDir));
+        harnessFiles.push(agentsPath + " (appended)");
+      }
+    }
+
+    // 4. Skill: ~/.gemini/antigravity-cli/skills/datasynx-crm/SKILL.md
+    //    Antigravity Skills sind Verzeichnisse mit SKILL.md (nicht einzelne .md-Dateien wie Hermes)
+    const skillDir = path.join(AGY_SKILLS_DIR, "datasynx-crm");
+    fs.mkdirSync(skillDir, { recursive: true });
+    const skillPath = path.join(skillDir, "SKILL.md");
+    fs.writeFileSync(skillPath, buildAgySkillMd());
+    harnessFiles.push(skillPath);
+
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: SHARED_MCP_CONFIG,
+      harnessFiles,
+      notes: "Shared config (~/.gemini/config/mcp_config.json) covers both CLI and IDE. Skill registered. GEMINI.md updated.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    for (const configPath of [SHARED_MCP_CONFIG, AGY_MCP_CONFIG]) {
+      if (!fs.existsSync(configPath)) continue;
+      try {
+        const json = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        delete json?.mcpServers?.["datasynx-opencrm"];
+        fs.writeFileSync(configPath, JSON.stringify(json, null, 2));
+      } catch {}
+    }
+    // Skill-Verzeichnis entfernen
+    const skillDir = path.join(AGY_SKILLS_DIR, "datasynx-crm");
+    if (fs.existsSync(skillDir)) fs.rmSync(skillDir, { recursive: true });
+  }
+
+  private writeMcpEntry(configPath: string, config: InstallConfig): void {
+    let json: { mcpServers?: Record<string, unknown> } = { mcpServers: {} };
+    if (fs.existsSync(configPath)) {
+      try {
+        json = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        json.mcpServers ??= {};
+      } catch {}
+    }
+    // stdio-Transport
+    json.mcpServers!["datasynx-opencrm"] = {
+      command: process.execPath,
+      args: [config.mcpServerPath],
+      env: { DXCRM_DATA_DIR: config.dataDir },
+    };
+    // HTTP-Transport (disabled — aktivierbar wenn dxcrm mcp start --http läuft)
+    // Antigravity nutzt "serverUrl" statt "url"!
+    json.mcpServers!["datasynx-opencrm-http"] = {
+      serverUrl: `http://localhost:${config.httpPort}/mcp`,
+      // disabled via Abwesenheit — einfach nicht referenzieren
+    };
+    fs.writeFileSync(configPath, JSON.stringify(json, null, 2));
+  }
+}
+
+function buildAgyGeminiMd(dataDir: string): string {
+  return `# DatasynxOpenCRM — Agent Context
+
+You have access to a local CRM via MCP tools (server: datasynx-opencrm).
+
+## Workflow
+- Before any customer conversation: call \`get_customer_context(slug)\`
+- After calls/meetings/emails: call \`log_interaction()\`
+- For historical research: call \`search_customer_knowledge(slug, query)\`
+- Pipeline update: call \`update_deal()\`
+
+## Data: ${dataDir}
+`.trim();
+}
+
+function buildAgyGeminiMdAppend(): string {
+  return `## DatasynxOpenCRM
+CRM MCP tools available: get_customer_context, search_customer_knowledge,
+list_customers, log_interaction, update_deal. Always load context first.`;
+}
+
+function buildAgySkillMd(): string {
+  return `---
+name: datasynx-crm
+version: 1.0.0
+description: CRM workflow for DatasynxOpenCRM
+triggers:
+  - customer
+  - client
+  - deal
+  - pipeline
+---
+
+# DatasynxOpenCRM Skill
+
+## When a customer is mentioned
+Call \`get_customer_context(slug)\` before discussing anything.
+
+## After every interaction
+Call \`log_interaction(slug, type, summary, nextSteps)\`.
+
+## For research
+\`search_customer_knowledge(slug, query)\` — searches emails + transcripts.
+
+## Pipeline
+\`update_deal(slug, dealName, { stage, value, probability })\` after deal talk.
+
+## Overview
+\`list_customers()\` for morning briefing.
+\`get_capabilities()\` for full tool reference.
+`.trim();
+}
+```
+
+---
+
+### Tier 2 — Windsurf + Cline (Config-Writer, kein volles Adapter-Konzept)
+
+IDE-basierte Tools ohne CLI-Binary. Kein Skills- oder Harness-System.
+Wir schreiben nur die MCP-Config-Datei — keine SOUL.md, keine AGENTS.md.
+
+```typescript
+// src/setup/adapters/windsurf.ts
+const WINDSURF_CONFIG = path.join(os.homedir(), ".codeium", "windsurf", "mcp_config.json");
+
+export class WindsurfAdapter implements FrameworkAdapter {
+  readonly name = "Windsurf";
+
+  detect(): boolean {
+    // Kein CLI-Binary — nur Dateisystem-Check
+    return fs.existsSync(path.join(os.homedir(), ".codeium", "windsurf"))
+        || fs.existsSync(WINDSURF_CONFIG);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(WINDSURF_CONFIG)) return false;
+    try {
+      const json = JSON.parse(fs.readFileSync(WINDSURF_CONFIG, "utf-8"));
+      return !!json?.mcpServers?.["datasynx-opencrm"];
+    } catch { return false; }
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(path.dirname(WINDSURF_CONFIG), { recursive: true });
+    let json: { mcpServers?: Record<string, unknown> } = { mcpServers: {} };
+    if (fs.existsSync(WINDSURF_CONFIG)) {
+      try { json = JSON.parse(fs.readFileSync(WINDSURF_CONFIG, "utf-8")); json.mcpServers ??= {}; } catch {}
+    }
+    // Windsurf unterstützt ${env:VAR} Interpolation — wir nutzen direkten Pfad
+    json.mcpServers!["datasynx-opencrm"] = {
+      command: process.execPath,
+      args: [config.mcpServerPath],
+      env: { DXCRM_DATA_DIR: config.dataDir },
+    };
+    fs.writeFileSync(WINDSURF_CONFIG, JSON.stringify(json, null, 2));
+    return {
+      framework: this.name, success: true, transport: "stdio",
+      configPath: WINDSURF_CONFIG, harnessFiles: [],
+      notes: "No harness files for IDE-based tools. Restart Windsurf to activate.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(WINDSURF_CONFIG)) return;
+    const json = JSON.parse(fs.readFileSync(WINDSURF_CONFIG, "utf-8"));
+    delete json?.mcpServers?.["datasynx-opencrm"];
+    fs.writeFileSync(WINDSURF_CONFIG, JSON.stringify(json, null, 2));
+  }
+}
+
+// src/setup/adapters/cline.ts
+const CLINE_CONFIG = path.join(os.homedir(), ".cline", "data", "settings", "cline_mcp_settings.json");
+
+export class ClineAdapter implements FrameworkAdapter {
+  readonly name = "Cline";
+
+  detect(): boolean {
+    return fs.existsSync(path.join(os.homedir(), ".cline"))
+        || fs.existsSync(CLINE_CONFIG);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(CLINE_CONFIG)) return false;
+    try {
+      const json = JSON.parse(fs.readFileSync(CLINE_CONFIG, "utf-8"));
+      return !!json?.mcpServers?.["datasynx-opencrm"];
+    } catch { return false; }
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(path.dirname(CLINE_CONFIG), { recursive: true });
+    let json: { mcpServers?: Record<string, unknown> } = { mcpServers: {} };
+    if (fs.existsSync(CLINE_CONFIG)) {
+      try { json = JSON.parse(fs.readFileSync(CLINE_CONFIG, "utf-8")); json.mcpServers ??= {}; } catch {}
+    }
+    json.mcpServers!["datasynx-opencrm"] = {
+      command: process.execPath,
+      args: [config.mcpServerPath],
+      env: { DXCRM_DATA_DIR: config.dataDir },
+      // Cline: absoluter Pfad erforderlich — relative Pfade scheitern lautlos!
+    };
+    fs.writeFileSync(CLINE_CONFIG, JSON.stringify(json, null, 2));
+    return {
+      framework: this.name, success: true, transport: "stdio",
+      configPath: CLINE_CONFIG, harnessFiles: [],
+      notes: "Cline requires absolute paths. No harness files for VSCode extensions.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(CLINE_CONFIG)) return;
+    const json = JSON.parse(fs.readFileSync(CLINE_CONFIG, "utf-8"));
+    delete json?.mcpServers?.["datasynx-opencrm"];
+    fs.writeFileSync(CLINE_CONFIG, JSON.stringify(json, null, 2));
+  }
+}
+```
+
+### Registry Update — Alle 7 Adapter
+
+```typescript
+// src/setup/framework-registry.ts (aktualisiert)
+export const FRAMEWORK_ADAPTERS: FrameworkAdapter[] = [
+  new ClaudeCodeAdapter(),
+  new CodexAdapter(),
+  new OpenClawAdapter(),
+  new HermesAdapter(),
+  new AntigravityAdapter(),   // NEU
+  new WindsurfAdapter(),      // NEU (Tier 2)
+  new ClineAdapter(),         // NEU (Tier 2)
+];
+```
+
+---
+
+### Vollständige Framework-Vergleichstabelle (alle 7)
+
+| | Claude Code | Codex | OpenClaw | Hermes | **Antigravity** | Windsurf | Cline |
+|---|---|---|---|---|---|---|---|
+| **Config-Datei** | `~/.claude.json` | `~/.codex/config.toml` | `~/.openclaw/openclaw.json` | `~/.hermes/config.yaml` | `~/.gemini/config/mcp_config.json` | `~/.codeium/windsurf/mcp_config.json` | `~/.cline/data/settings/cline_mcp_settings.json` |
+| **Format** | JSON | TOML | JSON | YAML | JSON | JSON | JSON |
+| **HTTP-Field** | `url` | `url` | `url` | `url` | **`serverUrl`** | `url` | `url` |
+| **Hot-Reload** | nein | nein | **ja** | nein | nein | nein | nein |
+| **Harness-Datei** | CLAUDE.md + settings.json | AGENTS.md | SOUL.md + AGENTS.md + TOOLS.md | SOUL.md + Skill | GEMINI.md + AGENTS.md + Skill-Dir | **keine** | **keine** |
+| **Skills-System** | nein | nein | `~/.openclaw/workspace/skills/` | `~/.hermes/skills/<name>.md` | `~/.gemini/antigravity-cli/skills/<name>/SKILL.md` | nein | nein |
+| **Skill-Format** | — | — | `SKILL.md` in Workspace | Single `.md` (agentskills.io) | **Verzeichnis** mit `SKILL.md` | — | — |
+| **alwaysAllow** | `.claude/settings.json` | kein | in `openclaw.json` (approved_tools) | `tools.include` | kein stabiles API | kein | kein |
+| **Binary** | `claude` | `codex` | `openclaw` | `hermes` | **`agy`** | kein CLI | kein CLI |
+| **Detection** | `which claude` \| `~/.claude.json` | `which codex` \| `~/.codex/` | `which openclaw` \| `~/.openclaw/` | `which hermes` \| `~/.hermes/` | `~/.gemini/` | `~/.codeium/windsurf/` | `~/.cline/` |
+| **Tier** | 1 | 1 | 1 | 1 | **1** | 2 | 2 |
+| **Besonderheit** | alwaysAllow Bug | TOML-Append | Hot-Reload | SOUL slot #1 | `serverUrl` ≠ `url` | `${env:VAR}` Interpolation | Absolute Paths |
+
+---
+
+### Antigravity-spezifische Harness-Inhalte (ergänzt in `harness-content.ts`)
+
+```typescript
+// Antigravity SKILL.md ist directory-based (nicht single-file wie Hermes)
+// ~/.gemini/antigravity-cli/skills/datasynx-crm/SKILL.md
+export function buildAgySkillMd(): string { ... } // bereits oben dokumentiert
+
+// GEMINI.md: kurz halten — wird bei jeder Session geladen (Token-Budget!)
+// Empfohlen: max 50 Zeilen global, Rest in AGENTS.md im Workspace
+export function buildAgyGeminiMd(dataDir: string): string { ... }
+```
+
+---
+
+### Tests für neue Adapter
+
+```typescript
+// __tests__/setup/antigravity-adapter.test.ts
+describe("AntigravityAdapter", () => {
+  it("detect() returns true when ~/.gemini/ exists", () => { ... });
+  it("detect() returns true when agy binary found", () => { ... });
+  it("install() writes to shared config (~/.gemini/config/mcp_config.json)", async () => { ... });
+  it("install() uses 'command'/'args' not 'serverUrl' for stdio", async () => { ... });
+  it("install() creates skill directory with SKILL.md", async () => { ... });
+  it("install() writes/appends GEMINI.md", async () => { ... });
+  it("install() writes AGENTS.md to dataDir", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("uninstall() removes mcpServers entry and skill dir", async () => { ... });
+});
+
+describe("WindsurfAdapter", () => {
+  it("detect() returns true when ~/.codeium/windsurf/ exists", () => { ... });
+  it("install() writes to ~/.codeium/windsurf/mcp_config.json", async () => { ... });
+  it("install() uses absolute path (no relative paths)", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("writes no harness files", async () => { ... });
+});
+
+describe("ClineAdapter", () => {
+  it("detect() returns true when ~/.cline/ exists", () => { ... });
+  it("install() writes to cline_mcp_settings.json", async () => { ... });
+  it("install() uses absolute paths — never relative", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+});
+```
+
+---
+
+### Zusätzliche Gotchas (Framework Integration — Antigravity/Windsurf/Cline)
+
+| # | Framework | Problem | Lösung |
+|---|---|---|---|
+| 33 | Antigravity | Binary heißt `agy` — NICHT `antigravity` oder `gemini` | `which agy` + `~/.local/bin/agy` prüfen |
+| 34 | Antigravity | HTTP-Field heißt `serverUrl` — nicht `url` (alle anderen nutzen `url`) | Immer `serverUrl` für Antigravity HTTP-Einträge |
+| 35 | Antigravity | Shared config (`~/.gemini/config/`) gilt für CLI + IDE — individuelle CLI-Config ist Fallback | Shared Config bevorzugen für maximale Reichweite |
+| 36 | Antigravity | SKILL.md ist directory-based (`skills/<name>/SKILL.md`) — nicht single-file wie Hermes | `fs.mkdirSync(skillDir)` dann `SKILL.md` darin schreiben |
+| 37 | Antigravity | GEMINI.md global wird bei jeder Session geladen → Token-Budget | Max 50 Zeilen global, Details in AGENTS.md im Workspace |
+| 38 | Antigravity | `~/.gemini/` existiert auch bei alten Gemini CLI Nutzern — kein Beweis für Antigravity | Zusätzlich `agy` binary prüfen für echte Antigravity-Nutzer |
+| 39 | Windsurf | Erstellt `mcp_config.json` nicht automatisch — muss explizit angelegt werden | `fs.mkdirSync` + JSON-File schreiben wenn nicht vorhanden |
+| 40 | Windsurf | IDE-Neustart erforderlich nach Config-Änderung (kein Hot-Reload) | Install-Output: "Restart Windsurf to activate" |
+| 41 | Cline | Relative Pfade in `args` scheitern lautlos | Immer `process.execPath` (absolut) für `command` |
+| 42 | Cline | VSCode-Extension vs CLI — CLI-Config-Pfad weicht ab | `~/.cline/data/settings/` für CLI, VSCode nutzt globalStorage |
+
+---
+
 *plan-1.md — Technischer Implementierungsplan Phase 1*
 *Basiert auf Deep-Search-Recherche Mai 2026 · Nächstes Update: nach Woche 1 abgeschlossen*
 
@@ -2671,9 +3098,14 @@ Sources:
 - [MCP · OpenClaw](https://docs.openclaw.ai/cli/mcp)
 - [Configuration reference · OpenClaw](https://docs.openclaw.ai/gateway/configuration-reference)
 - [Agent workspace · OpenClaw](https://docs.openclaw.ai/concepts/agent-workspace)
-- [awesome-openclaw-agents · GitHub](https://github.com/mergisi/awesome-openclaw-agents)
-- [MCP (Model Context Protocol) · Hermes Agent](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp)
 - [NousResearch/hermes-agent · GitHub](https://github.com/NousResearch/hermes-agent)
 - [hermes-agent cli-config.yaml.example](https://github.com/NousResearch/hermes-agent/blob/main/cli-config.yaml.example)
+- [Google Launches Antigravity 2.0 at I/O 2026 — MarkTechPost](https://www.marktechpost.com/2026/05/19/google-launches-antigravity-2-0-at-i-o-2026-a-standalone-agent-first-platform-with-cli-sdk-managed-execution-and-enterprise-support/)
+- [Antigravity CLI: Gemini CLI Alternative — ScriptByAI](https://www.scriptbyai.com/antigravity-cli/)
+- [Configuring MCP Servers and Skills for Antigravity CLI — Google Cloud Blog (Medium)](https://medium.com/google-cloud/configuring-mcp-servers-and-skills-for-antigravity-cli-and-ide-a938c7eebb78)
+- [GitHub MCP Server: Install Antigravity Guide](https://github.com/github/github-mcp-server/blob/main/docs/installation-guides/install-antigravity.md)
+- [antigravity-awesome-skills · GitHub](https://github.com/sickn33/antigravity-awesome-skills)
+- [Windsurf MCP Cascade Integration](https://docs.windsurf.com/windsurf/cascade/mcp)
+- [Cline MCP Setup Guide 2026 — agensi.io](https://www.agensi.io/learn/cline-mcp-setup-guide)
+- [Gemini CLI → Antigravity Migration Guide](https://agentpedia.codes/blog/gemini-cli-to-antigravity-cli-migration)
 - [Hermes Agent MCP Integration Guide · Lushbinary](https://lushbinary.com/blog/hermes-agent-mcp-integration-complete-guide/)
-- [OpenClaw Config Best Practices](https://eastondev.com/blog/en/posts/ai/20260205-openclaw-config-guide/)
