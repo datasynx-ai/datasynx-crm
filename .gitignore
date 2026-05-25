@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.bak
+.env
+.env.*
+*.local
+coverage/
+.cache/
+*.js.map
