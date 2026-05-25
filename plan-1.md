@@ -1793,5 +1793,887 @@ Tag 5: Merge zu main
 
 ---
 
+## Framework Integration Layer
+
+### Architektonische Entscheidung
+
+**Kein postinstall. Kein automatisches Schreiben beim npm install.**
+Stattdessen: `dxcrm init` ist der einzige Entry-Point für Framework-Integration.
+Jedes Framework bekommt einen dedizierten `FrameworkAdapter` — gleiche Schnittstelle, framework-spezifische Implementierung.
+
+Das Pattern geht über MCP-Registrierung hinaus: Jeder Adapter injiziert auch **Harness-Dateien** (SOUL.md, AGENTS.md, CLAUDE.md etc.), damit der Agent von Anfang an weiß wie er das CRM optimal nutzt — ohne manuelle Einrichtung.
+
+---
+
+### Adapter-Interface (TypeScript)
+
+```typescript
+// src/setup/framework-adapter.ts
+
+export interface InstallConfig {
+  mcpServerPath: string;    // absoluter Pfad zu dist/mcp.js
+  dataDir: string;          // CRM-Root-Verzeichnis (wo customers/ liegt)
+  httpPort: number;         // für HTTP-Transport (default: 3847)
+  serverName: string;       // MCP-Server-Name (default: "datasynx-opencrm")
+}
+
+export interface InstallResult {
+  framework: string;
+  success: boolean;
+  transport: "stdio" | "http";
+  configPath: string;
+  harnessFiles: string[];   // alle geschriebenen Harness-Dateien
+  notes?: string;
+}
+
+export interface FrameworkAdapter {
+  readonly name: string;
+  detect(): boolean;                                    // sync, kein IO außer FS-Checks
+  install(config: InstallConfig): Promise<InstallResult>;
+  uninstall(): Promise<void>;
+  isInstalled(): boolean;                               // prüft ob MCP-Config schon vorhanden
+}
+```
+
+---
+
+### Registry — Alle Adapter gesammelt
+
+```typescript
+// src/setup/framework-registry.ts
+import { ClaudeCodeAdapter } from "./adapters/claude-code.js";
+import { CodexAdapter } from "./adapters/codex.js";
+import { OpenClawAdapter } from "./adapters/openclaw.js";
+import { HermesAdapter } from "./adapters/hermes.js";
+import type { FrameworkAdapter } from "./framework-adapter.js";
+
+export const FRAMEWORK_ADAPTERS: FrameworkAdapter[] = [
+  new ClaudeCodeAdapter(),
+  new CodexAdapter(),
+  new OpenClawAdapter(),
+  new HermesAdapter(),
+];
+
+export async function installAllDetected(config: InstallConfig): Promise<InstallResult[]> {
+  const results: InstallResult[] = [];
+  for (const adapter of FRAMEWORK_ADAPTERS) {
+    if (!adapter.detect()) continue;
+    try {
+      const result = await adapter.install(config);
+      results.push(result);
+    } catch (err) {
+      results.push({
+        framework: adapter.name,
+        success: false,
+        transport: "stdio",
+        configPath: "",
+        harnessFiles: [],
+        notes: (err as Error).message,
+      });
+    }
+  }
+  return results;
+}
+```
+
+---
+
+### Harness-Inhalte — Single Source of Truth
+
+Alle Harness-Texte kommen aus einer Datei. Kein doppeltes Pflegen.
+
+```typescript
+// src/setup/harness-content.ts
+
+// Für Claude Code: CLAUDE.md im CRM-Root
+export function buildClaudeMd(dataDir: string): string {
+  return `# DatasynxOpenCRM — Agent Instructions
+
+## MCP Tools verfügbar
+Dieser Workspace ist mit DatasynxOpenCRM verbunden. Du hast Zugriff auf 8 MCP-Tools.
+
+## Pflicht-Workflow
+1. **Vor jedem Kundengespräch:** \`get_customer_context("slug")\` aufrufen
+2. **Nach jedem Call/Meeting/Email:** \`log_interaction()\` aufrufen
+3. **Für historische Fragen:** \`search_customer_knowledge()\` nutzen
+4. **Pipeline-Update:** \`update_deal()\` nach Deal-Diskussionen
+
+## Kunden auflisten
+\`list_customers()\` → Übersicht mit letztem Touchpoint und Deal-Health
+
+## Nicht fragen — einfach tun
+- Immer Context laden bevor über einen Kunden gesprochen wird
+- Immer Interaktionen loggen — auch kurze Slack-Nachrichten
+- Niemals Kontext manuell aus Emails kopieren — der CRM macht das automatisch
+
+## Datenverzeichnis
+${dataDir}
+`.trim();
+}
+
+// Für OpenClaw: SOUL.md im Workspace
+export function buildSoulMd(framework: "openclaw" | "hermes"): string {
+  return `# Identity
+I am a CRM-integrated AI assistant. My purpose is to help manage customer relationships
+using structured data from DatasynxOpenCRM.
+
+# Values
+- Customer context before action. I never discuss a customer without first loading their context.
+- Log everything. Every interaction goes into the CRM — calls, emails, meetings, Slack threads.
+- Cite sources. When I reference customer information, I cite the source (gmail://, file://).
+- Brevity with completeness. Short answers that include all relevant next steps.
+
+# Boundaries
+- I do not invent customer information. If I don't know, I say so and suggest syncing.
+- I do not discuss customers without their context loaded via get_customer_context().
+- I do not skip logging interactions, even if asked to summarize quickly.
+
+# Communication Style
+Direct. Action-oriented. I lead with the most important insight, then supporting detail.
+I use bullet points for next steps. I end every customer summary with open questions.
+`.trim();
+}
+
+// Für OpenClaw: AGENTS.md im Workspace
+export function buildAgentsMd(dataDir: string): string {
+  return `# DatasynxOpenCRM Agent
+
+## Role
+You are a CRM assistant with access to structured customer data via MCP tools.
+
+## Available Tools
+- \`get_customer_context(slug?)\` — Full briefing for a customer. Call this first.
+- \`search_customer_knowledge(slug, query)\` — Search emails + transcripts.
+- \`list_customers()\` — All customers with status and last touchpoint.
+- \`log_interaction(slug, type, summary)\` — Write back to CRM after every interaction.
+- \`update_deal(slug, dealName, fields)\` — Update pipeline stage/value/probability.
+- \`get_capabilities()\` — Full tool reference.
+
+## Mandatory Workflow
+1. Customer mentioned → get_customer_context() immediately
+2. Interaction complete → log_interaction() before ending session
+3. Deal discussed → update_deal() with new stage/probability
+
+## Data Location
+${dataDir}
+
+## Never
+- Discuss a customer without loading context first
+- Skip logging — every touchpoint matters
+- Invent information — sync if data is missing
+`.trim();
+}
+
+// Für Hermes: SOUL.md (gleicher Inhalt wie OpenClaw, Hermes liest dasselbe Format)
+export const buildHermesSoulMd = buildSoulMd;
+
+// Für Hermes: Skill-Datei (agentskills.io Standard)
+export function buildHermesSkillMd(): string {
+  return `---
+name: datasynx-crm
+version: 1.0.0
+description: CRM workflow skill for DatasynxOpenCRM
+triggers:
+  - "customer"
+  - "client"
+  - "deal"
+  - "pipeline"
+  - "sync"
+---
+
+# DatasynxOpenCRM Skill
+
+## When a customer is mentioned
+Always call \`get_customer_context(slug)\` first.
+Never assume you know the current state — always load fresh context.
+
+## After every interaction
+Call \`log_interaction()\` with:
+- type: Call | Meeting | Email | Note | Demo | Proposal
+- summary: 2-5 sentences on what happened
+- nextSteps: concrete actions as array
+
+## For historical research
+Use \`search_customer_knowledge(slug, query)\` — searches emails AND transcripts.
+
+## Pipeline updates
+After any deal discussion: \`update_deal(slug, dealName, { stage, probability, value })\`
+
+## Quick reference
+\`list_customers()\` for morning briefing or pipeline overview.
+\`get_capabilities()\` if unsure which tool to use.
+`.trim();
+}
+```
+
+---
+
+### Adapter 1 — Claude Code
+
+```typescript
+// src/setup/adapters/claude-code.ts
+import fs from "fs";
+import path from "path";
+import os from "os";
+import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
+import { buildClaudeMd } from "../harness-content.js";
+
+const CLAUDE_JSON = path.join(os.homedir(), ".claude.json");
+const CLAUDE_DIR = path.join(os.homedir(), ".claude");
+
+export class ClaudeCodeAdapter implements FrameworkAdapter {
+  readonly name = "Claude Code";
+
+  detect(): boolean {
+    try { execSync("which claude", { stdio: "ignore" }); return true; } catch {}
+    return fs.existsSync(CLAUDE_JSON) || fs.existsSync(CLAUDE_DIR);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(CLAUDE_JSON)) return false;
+    try {
+      const json = JSON.parse(fs.readFileSync(CLAUDE_JSON, "utf-8"));
+      return !!json?.mcpServers?.["datasynx-opencrm"];
+    } catch { return false; }
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    const harnessFiles: string[] = [];
+
+    // 1. MCP-Server in ~/.claude.json registrieren (User-Scope)
+    this.writeMcpConfig(config);
+
+    // 2. alwaysAllow in ~/.claude/settings.json
+    this.writeSettings();
+
+    // 3. CLAUDE.md im CRM-Datenverzeichnis
+    const claudeMdPath = path.join(config.dataDir, "CLAUDE.md");
+    fs.writeFileSync(claudeMdPath, buildClaudeMd(config.dataDir));
+    harnessFiles.push(claudeMdPath);
+
+    // 4. .claude/settings.json im CRM-Verzeichnis (Project-Scope alwaysAllow)
+    const projectSettingsDir = path.join(config.dataDir, ".claude");
+    fs.mkdirSync(projectSettingsDir, { recursive: true });
+    const projectSettings = {
+      permissions: {
+        allow: [
+          "mcp__datasynx-opencrm__get_capabilities",
+          "mcp__datasynx-opencrm__get_active_session",
+          "mcp__datasynx-opencrm__get_customer_context",
+          "mcp__datasynx-opencrm__search_customer_knowledge",
+          "mcp__datasynx-opencrm__list_customers",
+          "mcp__datasynx-opencrm__log_interaction",
+          "mcp__datasynx-opencrm__update_deal",
+          "mcp__datasynx-opencrm__export_customer",
+        ],
+      },
+    };
+    const settingsPath = path.join(projectSettingsDir, "settings.json");
+    fs.writeFileSync(settingsPath, JSON.stringify(projectSettings, null, 2));
+    harnessFiles.push(settingsPath);
+
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: CLAUDE_JSON,
+      harnessFiles,
+      notes: "alwaysAllow set for all 8 MCP tools. CLAUDE.md written to CRM root.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(CLAUDE_JSON)) return;
+    const json = JSON.parse(fs.readFileSync(CLAUDE_JSON, "utf-8"));
+    delete json?.mcpServers?.["datasynx-opencrm"];
+    fs.writeFileSync(CLAUDE_JSON, JSON.stringify(json, null, 2));
+  }
+
+  private writeMcpConfig(config: InstallConfig): void {
+    let json: Record<string, any> = {};
+    if (fs.existsSync(CLAUDE_JSON)) {
+      try { json = JSON.parse(fs.readFileSync(CLAUDE_JSON, "utf-8")); } catch {}
+    }
+    json.mcpServers ??= {};
+    json.mcpServers[config.serverName] = {
+      type: "stdio",
+      command: process.execPath,
+      args: [config.mcpServerPath],
+      env: { DXCRM_DATA_DIR: config.dataDir },
+    };
+    fs.writeFileSync(CLAUDE_JSON, JSON.stringify(json, null, 2));
+  }
+
+  private writeSettings(): void {
+    // Globale ~/.claude/settings.json (falls vorhanden, mergen)
+    fs.mkdirSync(CLAUDE_DIR, { recursive: true });
+    const settingsPath = path.join(CLAUDE_DIR, "settings.json");
+    let settings: Record<string, any> = {};
+    if (fs.existsSync(settingsPath)) {
+      try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8")); } catch {}
+    }
+    settings.permissions ??= {};
+    settings.permissions.allow ??= [];
+    const newPerms = ["mcp__datasynx-opencrm__*"];
+    for (const p of newPerms) {
+      if (!settings.permissions.allow.includes(p)) {
+        settings.permissions.allow.push(p);
+      }
+    }
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+  }
+}
+```
+
+---
+
+### Adapter 2 — Codex
+
+```typescript
+// src/setup/adapters/codex.ts
+import fs from "fs";
+import path from "path";
+import os from "os";
+import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
+
+const CODEX_DIR = path.join(os.homedir(), ".codex");
+const CODEX_CONFIG = path.join(CODEX_DIR, "config.toml");
+
+export class CodexAdapter implements FrameworkAdapter {
+  readonly name = "Codex";
+
+  detect(): boolean {
+    try { execSync("which codex", { stdio: "ignore" }); return true; } catch {}
+    return fs.existsSync(CODEX_DIR);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(CODEX_CONFIG)) return false;
+    return fs.readFileSync(CODEX_CONFIG, "utf-8").includes("[mcp_servers.datasynx-opencrm]");
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(CODEX_DIR, { recursive: true });
+
+    // Idempotenz-Check
+    if (this.isInstalled()) {
+      return {
+        framework: this.name, success: true, transport: "stdio",
+        configPath: CODEX_CONFIG, harnessFiles: [],
+        notes: "Already configured — skipped.",
+      };
+    }
+
+    // TOML-Block appenden (kein vollständiger Parser nötig)
+    const block = [
+      ``,
+      `[mcp_servers.${config.serverName}]`,
+      `command = ${JSON.stringify(process.execPath)}`,
+      `args = [${JSON.stringify(config.mcpServerPath)}]`,
+      `env = { DXCRM_DATA_DIR = ${JSON.stringify(config.dataDir)} }`,
+      `startup_timeout_sec = 30`,
+      `tool_timeout_sec = 120`,
+      `enabled = true`,
+      ``,
+    ].join("\n");
+
+    fs.appendFileSync(CODEX_CONFIG, block, "utf-8");
+
+    // Codex hat keine SOUL.md / AGENTS.md — Instructions gehen in die Tool-Descriptions
+    // Codex liest AGENTS.md im Working-Directory wenn vorhanden:
+    const agentsPath = path.join(config.dataDir, "AGENTS.md");
+    const harnessFiles: string[] = [];
+    if (!fs.existsSync(agentsPath)) {
+      // Codex-spezifisches AGENTS.md (schlichter als OpenClaw-Format)
+      fs.writeFileSync(agentsPath, buildCodexAgentsMd(config.dataDir));
+      harnessFiles.push(agentsPath);
+    }
+
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: CODEX_CONFIG,
+      harnessFiles,
+      notes: `startup_timeout_sec=30, tool_timeout_sec=120. AGENTS.md written to CRM root.`,
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(CODEX_CONFIG)) return;
+    const content = fs.readFileSync(CODEX_CONFIG, "utf-8");
+    // Entferne den gesamten [mcp_servers.datasynx-opencrm] Block
+    const cleaned = content.replace(
+      /\n?\[mcp_servers\.datasynx-opencrm\][^\[]*/g, ""
+    );
+    fs.writeFileSync(CODEX_CONFIG, cleaned);
+  }
+}
+
+function buildCodexAgentsMd(dataDir: string): string {
+  return `# CRM Agent Instructions
+
+You have access to DatasynxOpenCRM via MCP tools.
+
+## Workflow
+1. Before discussing any customer: call get_customer_context(slug)
+2. After every call/meeting/email: call log_interaction()
+3. For historical questions: call search_customer_knowledge(slug, query)
+4. After deal updates: call update_deal()
+
+## Available MCP Tools
+- get_customer_context(slug?) — Full briefing, triggers Gmail sync
+- search_customer_knowledge(slug, query) — Search emails + transcripts
+- list_customers() — All customers with pipeline health
+- log_interaction(slug, type, summary, nextSteps) — Write to CRM
+- update_deal(slug, dealName, fields) — Update pipeline
+- get_capabilities() — Full tool reference
+
+## Data: ${dataDir}
+`;
+}
+```
+
+---
+
+### Adapter 3 — OpenClaw
+
+**OpenClaw-Besonderheiten:**
+- Config: `~/.openclaw/openclaw.json` — JSON-Format
+- MCP-Server: `mcpServers` auf Agent-Ebene (unter `agents.list[].mcpServers`) ODER global
+- Workspace: `~/.openclaw/workspace/` — enthält SOUL.md, AGENTS.md, TOOLS.md etc.
+- Gateway: Port 18789 (WebSocket + HTTP) — bevorzugt **HTTP-Transport** für OpenClaw
+- Auto-Reload: Gateway überwacht `openclaw.json` und lädt Änderungen live
+
+```typescript
+// src/setup/adapters/openclaw.ts
+import fs from "fs";
+import path from "path";
+import os from "os";
+import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
+import { buildSoulMd, buildAgentsMd } from "../harness-content.js";
+
+const OPENCLAW_DIR = path.join(os.homedir(), ".openclaw");
+const OPENCLAW_JSON = path.join(OPENCLAW_DIR, "openclaw.json");
+const OPENCLAW_WORKSPACE = path.join(OPENCLAW_DIR, "workspace");
+
+export class OpenClawAdapter implements FrameworkAdapter {
+  readonly name = "OpenClaw";
+
+  detect(): boolean {
+    try { execSync("which openclaw", { stdio: "ignore" }); return true; } catch {}
+    return fs.existsSync(OPENCLAW_DIR) || fs.existsSync(OPENCLAW_JSON);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(OPENCLAW_JSON)) return false;
+    try {
+      const json = JSON.parse(fs.readFileSync(OPENCLAW_JSON, "utf-8"));
+      return !!json?.mcpServers?.["datasynx-opencrm"];
+    } catch { return false; }
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(OPENCLAW_DIR, { recursive: true });
+    fs.mkdirSync(OPENCLAW_WORKSPACE, { recursive: true });
+
+    const harnessFiles: string[] = [];
+
+    // 1. openclaw.json — MCP-Server registrieren
+    // OpenClaw bevorzugt HTTP-Transport (Gateway läuft sowieso auf Port 18789)
+    // → wir registrieren BEIDE: stdio für lokalen Betrieb, HTTP-URL für Gateway-Modus
+    let json: Record<string, any> = {};
+    if (fs.existsSync(OPENCLAW_JSON)) {
+      try { json = JSON.parse(fs.readFileSync(OPENCLAW_JSON, "utf-8")); } catch {}
+    }
+
+    // Globale mcpServers (verfügbar für alle Agents)
+    json.mcpServers ??= {};
+    json.mcpServers[config.serverName] = {
+      command: process.execPath,
+      args: [config.mcpServerPath],
+      transport: "stdio",
+      env: { DXCRM_DATA_DIR: config.dataDir },
+    };
+
+    // Alternativ HTTP-Transport wenn Gateway läuft:
+    json.mcpServers[`${config.serverName}-http`] = {
+      url: `http://localhost:${config.httpPort}/mcp`,
+      transport: "streamable-http",
+      // Wird nur aktiv wenn dxcrm mcp start --http läuft
+      enabled: false,   // Default off — User aktiviert wenn HTTP-Daemon läuft
+    };
+
+    fs.writeFileSync(OPENCLAW_JSON, JSON.stringify(json, null, 2));
+    // Gateway lädt Config automatisch neu — kein Restart nötig
+
+    // 2. SOUL.md im OpenClaw Workspace
+    const soulPath = path.join(OPENCLAW_WORKSPACE, "SOUL.md");
+    if (!fs.existsSync(soulPath)) {
+      fs.writeFileSync(soulPath, buildSoulMd("openclaw"));
+      harnessFiles.push(soulPath);
+    } else {
+      // Existiert → CRM-Abschnitt appenden ohne zu überschreiben
+      const existing = fs.readFileSync(soulPath, "utf-8");
+      if (!existing.includes("DatasynxOpenCRM")) {
+        fs.appendFileSync(soulPath, "\n\n---\n\n" + buildCrmSoulAppend());
+        harnessFiles.push(soulPath + " (appended)");
+      }
+    }
+
+    // 3. AGENTS.md im OpenClaw Workspace
+    const agentsPath = path.join(OPENCLAW_WORKSPACE, "AGENTS.md");
+    if (!fs.existsSync(agentsPath)) {
+      fs.writeFileSync(agentsPath, buildAgentsMd(config.dataDir));
+      harnessFiles.push(agentsPath);
+    } else {
+      const existing = fs.readFileSync(agentsPath, "utf-8");
+      if (!existing.includes("DatasynxOpenCRM")) {
+        fs.appendFileSync(agentsPath, "\n\n---\n\n" + buildAgentsMd(config.dataDir));
+        harnessFiles.push(agentsPath + " (appended)");
+      }
+    }
+
+    // 4. TOOLS.md — Hinweis auf CRM-Tools
+    const toolsPath = path.join(OPENCLAW_WORKSPACE, "TOOLS.md");
+    const toolsContent = buildOpenClawToolsMd();
+    if (!fs.existsSync(toolsPath)) {
+      fs.writeFileSync(toolsPath, toolsContent);
+    } else if (!fs.readFileSync(toolsPath, "utf-8").includes("datasynx-opencrm")) {
+      fs.appendFileSync(toolsPath, "\n\n" + toolsContent);
+    }
+    harnessFiles.push(toolsPath);
+
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: OPENCLAW_JSON,
+      harnessFiles,
+      notes: "Config hot-reloaded by Gateway. SOUL.md + AGENTS.md + TOOLS.md written to workspace.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(OPENCLAW_JSON)) return;
+    const json = JSON.parse(fs.readFileSync(OPENCLAW_JSON, "utf-8"));
+    delete json?.mcpServers?.["datasynx-opencrm"];
+    delete json?.mcpServers?.["datasynx-opencrm-http"];
+    fs.writeFileSync(OPENCLAW_JSON, JSON.stringify(json, null, 2));
+  }
+}
+
+function buildCrmSoulAppend(): string {
+  return `## CRM Integration
+I have access to DatasynxOpenCRM. I always load customer context before discussing customers.
+I log every interaction without being asked. I cite sources when referencing customer data.`;
+}
+
+function buildOpenClawToolsMd(): string {
+  return `## datasynx-opencrm MCP Tools
+- get_customer_context(slug) — load full customer briefing
+- search_customer_knowledge(slug, query) — search emails + transcripts
+- list_customers() — pipeline overview
+- log_interaction(slug, type, summary) — write to CRM
+- update_deal(slug, dealName, fields) — pipeline update
+- get_capabilities() — full reference
+`;
+}
+```
+
+---
+
+### Adapter 4 — Hermes Agent
+
+**Hermes-Besonderheiten:**
+- Config: `~/.hermes/config.yaml` — YAML-Format
+- MCP-Server: unter `mcp_servers:` (top-level in config.yaml)
+- Home: `~/.hermes/`
+- SOUL.md: `~/.hermes/SOUL.md` — Slot #1 im System-Prompt, immer injiziert
+- Skills: `~/.hermes/skills/` — agentskills.io Standard, Markdown-Dateien
+- Tool-Naming: `mcp_<server_name>_<tool_name>` (z.B. `mcp_datasynx_opencrm_get_customer_context`)
+- `hermes config set KEY VAL` für programmatische Änderungen
+- Binary: `hermes`
+
+```typescript
+// src/setup/adapters/hermes.ts
+import fs from "fs";
+import path from "path";
+import os from "os";
+import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
+import { buildHermesSoulMd, buildHermesSkillMd } from "../harness-content.js";
+
+const HERMES_HOME = process.env.HERMES_HOME ?? path.join(os.homedir(), ".hermes");
+const HERMES_CONFIG = path.join(HERMES_HOME, "config.yaml");
+const HERMES_SOUL = path.join(HERMES_HOME, "SOUL.md");
+const HERMES_SKILLS = path.join(HERMES_HOME, "skills");
+
+export class HermesAdapter implements FrameworkAdapter {
+  readonly name = "Hermes Agent";
+
+  detect(): boolean {
+    try { execSync("which hermes", { stdio: "ignore" }); return true; } catch {}
+    return fs.existsSync(HERMES_HOME) || fs.existsSync(HERMES_CONFIG);
+  }
+
+  isInstalled(): boolean {
+    if (!fs.existsSync(HERMES_CONFIG)) return false;
+    return fs.readFileSync(HERMES_CONFIG, "utf-8").includes("datasynx");
+  }
+
+  async install(config: InstallConfig): Promise<InstallResult> {
+    fs.mkdirSync(HERMES_HOME, { recursive: true });
+    fs.mkdirSync(HERMES_SKILLS, { recursive: true });
+
+    const harnessFiles: string[] = [];
+
+    // 1. config.yaml — mcp_servers Block schreiben/mergen
+    this.writeMcpConfig(config);
+
+    // 2. SOUL.md — Slot #1 im System-Prompt
+    if (!fs.existsSync(HERMES_SOUL)) {
+      fs.writeFileSync(HERMES_SOUL, buildHermesSoulMd("hermes"));
+      harnessFiles.push(HERMES_SOUL);
+    } else {
+      const existing = fs.readFileSync(HERMES_SOUL, "utf-8");
+      if (!existing.includes("DatasynxOpenCRM")) {
+        fs.appendFileSync(HERMES_SOUL, "\n\n---\n\n## CRM Integration\nI have access to DatasynxOpenCRM MCP tools.\nI always load customer context before discussing customers.\nI log every interaction automatically via log_interaction().");
+        harnessFiles.push(HERMES_SOUL + " (appended)");
+      }
+    }
+
+    // 3. Skill-Datei — agentskills.io Standard
+    // Hermes liest alle .md-Dateien in ~/.hermes/skills/ als Skills
+    const skillPath = path.join(HERMES_SKILLS, "datasynx-crm.md");
+    fs.writeFileSync(skillPath, buildHermesSkillMd());
+    harnessFiles.push(skillPath);
+
+    return {
+      framework: this.name,
+      success: true,
+      transport: "stdio",
+      configPath: HERMES_CONFIG,
+      harnessFiles,
+      notes: "SOUL.md updated (Slot #1 system prompt). Skill registered in ~/.hermes/skills/.",
+    };
+  }
+
+  async uninstall(): Promise<void> {
+    if (!fs.existsSync(HERMES_CONFIG)) return;
+    const content = fs.readFileSync(HERMES_CONFIG, "utf-8");
+    // mcp_servers.datasynx_opencrm Block entfernen
+    const cleaned = content.replace(
+      /\n  datasynx[_-]opencrm:[\s\S]*?(?=\n  \w|\n[a-z]|$)/,
+      ""
+    );
+    fs.writeFileSync(HERMES_CONFIG, cleaned);
+    // Skill-Datei entfernen
+    const skillPath = path.join(HERMES_SKILLS, "datasynx-crm.md");
+    if (fs.existsSync(skillPath)) fs.unlinkSync(skillPath);
+  }
+
+  private writeMcpConfig(config: InstallConfig): void {
+    // Hermes config.yaml: YAML-Format, mcp_servers Section
+    // Kein vollständiger YAML-Parser — wir appenden nur den neuen Block
+    // wenn er noch nicht existiert
+    let content = fs.existsSync(HERMES_CONFIG)
+      ? fs.readFileSync(HERMES_CONFIG, "utf-8")
+      : "";
+
+    if (content.includes("datasynx")) return; // Idempotent
+
+    const mcpBlock = [
+      ``,
+      `# DatasynxOpenCRM MCP Server (added by dxcrm init)`,
+      `mcp_servers:`,
+      `  datasynx_opencrm:`,
+      `    command: ${JSON.stringify(process.execPath)}`,
+      `    args: [${JSON.stringify(config.mcpServerPath)}]`,
+      `    env:`,
+      `      DXCRM_DATA_DIR: ${JSON.stringify(config.dataDir)}`,
+      `    timeout: 120`,
+      `    connect_timeout: 30`,
+      `    enabled: true`,
+      `    tools:`,
+      `      include:`,
+      `        - get_capabilities`,
+      `        - get_active_session`,
+      `        - get_customer_context`,
+      `        - search_customer_knowledge`,
+      `        - list_customers`,
+      `        - log_interaction`,
+      `        - update_deal`,
+      `        - export_customer`,
+      `      prompts: false`,
+      `      resources: false`,
+      ``,
+    ].join("\n");
+
+    // Falls mcp_servers: Section existiert → Block darunter einfügen
+    if (content.includes("mcp_servers:")) {
+      content = content.replace(
+        "mcp_servers:",
+        `mcp_servers:\n  datasynx_opencrm:\n    command: ${JSON.stringify(process.execPath)}\n    args: [${JSON.stringify(config.mcpServerPath)}]\n    env:\n      DXCRM_DATA_DIR: ${JSON.stringify(config.dataDir)}\n    timeout: 120\n    connect_timeout: 30\n    enabled: true\n    tools:\n      include: [get_capabilities, get_active_session, get_customer_context, search_customer_knowledge, list_customers, log_interaction, update_deal, export_customer]\n      prompts: false\n      resources: false`
+      );
+      fs.writeFileSync(HERMES_CONFIG, content);
+    } else {
+      fs.appendFileSync(HERMES_CONFIG, mcpBlock);
+    }
+  }
+}
+```
+
+---
+
+### `dxcrm init` — Vollständiger Flow
+
+```typescript
+// src/commands/init.ts
+export async function runInit(opts: { force?: boolean } = {}): Promise<void> {
+  const spinner = new Spinner("Detecting AI frameworks...").start();
+
+  // 1. Framework Detection
+  const results = await installAllDetected({
+    mcpServerPath: resolveMcpServerPath(),   // abs Pfad zu dist/mcp.js
+    dataDir: process.cwd(),
+    httpPort: 3847,
+    serverName: "datasynx-opencrm",
+  });
+
+  spinner.stop();
+
+  // 2. .agentic/ Verzeichnis + sources.json
+  await initAgentic();
+
+  // 3. Ergebnis anzeigen
+  console.log(ansis.bold("\n DatasynxOpenCRM initialized\n"));
+
+  const table = new Table({ head: ["Framework", "Status", "Transport", "Config"] });
+  for (const r of results) {
+    table.push([
+      r.framework,
+      r.success ? ansis.green("✓ registered") : ansis.red("✗ failed"),
+      r.transport,
+      ansis.dim(path.relative(os.homedir(), r.configPath) || r.configPath),
+    ]);
+  }
+  if (results.length === 0) {
+    console.log(ansis.yellow("  No AI frameworks detected."));
+    console.log(ansis.dim("  Install Claude Code, Codex, OpenClaw, or Hermes and run dxcrm init again."));
+  } else {
+    console.log(table.toString());
+  }
+
+  // 4. Harness-Dateien zusammenfassen
+  const allHarness = results.flatMap(r => r.harnessFiles);
+  if (allHarness.length > 0) {
+    console.log(ansis.dim(`\n  Context files written:`));
+    for (const f of allHarness) {
+      console.log(ansis.dim(`    ${f}`));
+    }
+  }
+
+  console.log(`\n  Next: ${ansis.cyan("dxcrm create")} ${ansis.dim('"Acme Corp" --domain acme.com')}\n`);
+}
+```
+
+---
+
+### Framework-Vergleich — Entscheidungen dokumentiert
+
+| | Claude Code | Codex | OpenClaw | Hermes |
+|---|---|---|---|---|
+| **Config-Datei** | `~/.claude.json` | `~/.codex/config.toml` | `~/.openclaw/openclaw.json` | `~/.hermes/config.yaml` |
+| **Format** | JSON | TOML | JSON | YAML |
+| **Transport** | stdio | stdio | stdio + optional HTTP | stdio oder HTTP |
+| **Hot-Reload** | nein | nein | **ja** (Gateway überwacht JSON) | nein (hermes restart) |
+| **Harness-Datei** | CLAUDE.md | AGENTS.md | SOUL.md + AGENTS.md + TOOLS.md | SOUL.md + Skill-Datei |
+| **alwaysAllow** | `.claude/settings.json` `permissions.allow` | kein Equivalent | `approved_tools` in openclaw.json | `tools.include` in mcp_servers |
+| **Skills-System** | nein | nein | `~/.openclaw/workspace/skills/` | `~/.hermes/skills/` (agentskills.io) |
+| **Personality-Injection** | CLAUDE.md (context) | kein | SOUL.md (Slot #1 jede Session) | SOUL.md (Slot #1 jede Session) |
+| **Tool-Prefix** | `mcp__datasynx-opencrm__*` | kein bekanntes Prefix | direkt via `mcpServers` | `mcp_datasynx_opencrm_*` |
+| **Binary** | `claude` | `codex` | `openclaw` | `hermes` |
+| **Detection** | `which claude` \| `~/.claude.json` | `which codex` \| `~/.codex/` | `which openclaw` \| `~/.openclaw/` | `which hermes` \| `~/.hermes/` |
+
+---
+
+### Tests für den Integration Layer
+
+```typescript
+// __tests__/setup/framework-adapters.test.ts
+describe("ClaudeCodeAdapter", () => {
+  it("detect() returns true when ~/.claude.json exists", () => { ... });
+  it("install() writes mcpServers entry to ~/.claude.json", async () => { ... });
+  it("install() deep-merges without overwriting existing mcpServers", async () => { ... });
+  it("install() writes CLAUDE.md to dataDir", async () => { ... });
+  it("install() writes .claude/settings.json with alwaysAllow", async () => { ... });
+  it("install() is idempotent — calling twice produces same config", async () => { ... });
+  it("uninstall() removes only datasynx-opencrm entry", async () => { ... });
+});
+
+describe("CodexAdapter", () => {
+  it("detect() returns true when ~/.codex/ exists", () => { ... });
+  it("install() appends [mcp_servers.datasynx-opencrm] block to config.toml", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("install() writes AGENTS.md to dataDir", async () => { ... });
+  it("uninstall() removes only the datasynx block", async () => { ... });
+});
+
+describe("OpenClawAdapter", () => {
+  it("detect() returns true when ~/.openclaw/ exists", () => { ... });
+  it("install() writes mcpServers to openclaw.json", async () => { ... });
+  it("install() creates SOUL.md in workspace", async () => { ... });
+  it("install() appends to existing SOUL.md without overwriting", async () => { ... });
+  it("install() creates AGENTS.md in workspace", async () => { ... });
+  it("install() creates TOOLS.md in workspace", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+});
+
+describe("HermesAdapter", () => {
+  it("detect() returns true when ~/.hermes/ exists", () => { ... });
+  it("install() writes mcp_servers block to config.yaml", async () => { ... });
+  it("install() creates SOUL.md at ~/.hermes/SOUL.md", async () => { ... });
+  it("install() creates skill at ~/.hermes/skills/datasynx-crm.md", async () => { ... });
+  it("install() appends to existing config.yaml mcp_servers section", async () => { ... });
+  it("install() is idempotent", async () => { ... });
+  it("uninstall() removes mcp block and skill file", async () => { ... });
+});
+
+describe("installAllDetected", () => {
+  it("installs only detected frameworks", async () => { ... });
+  it("returns failure result when adapter throws — does not abort others", async () => { ... });
+});
+```
+
+---
+
+### Erweiterter Gotchas-Anhang (Framework Integration)
+
+| # | Framework | Problem | Lösung |
+|---|---|---|---|
+| 23 | Claude Code | `~/.claude/claude_desktop_config.json` existiert nicht — korrekt: `~/.claude.json` | Immer `~/.claude.json` |
+| 24 | Claude Code | `alwaysAllow` in Claude Desktop resettet bei Neustart (Bug #24433) | `.claude/settings.json` `permissions.allow` als Fix |
+| 25 | Codex | Vollständiger TOML-Parser für Merge nötig wenn Section schon existiert | `@iarna/toml` als Dev-Dep, Idempotenz-Check vor Append |
+| 26 | OpenClaw | `openclaw.json` wird live neu geladen — kein Restart nötig | Gateway-Hot-Reload nutzen, kein `openclaw restart` nötig |
+| 27 | OpenClaw | SOUL.md wird bei jedem Session-Start geladen → Größe begrenzen | Max 200 Zeilen, CRM-Abschnitt kompakt halten |
+| 28 | Hermes | Tool-Namen bekommen `mcp_<server_name>_` Prefix → Underscores in Server-Name | Server-Name `datasynx_opencrm` (Underscore) statt Bindestrich |
+| 29 | Hermes | `HERMES_HOME` Env-Variable kann abweichen — nicht immer `~/.hermes` | Immer `process.env.HERMES_HOME ?? path.join(home, ".hermes")` |
+| 30 | Hermes | Skills werden nur beim Start geladen — neu installierte Skills brauchen Neustart | In Install-Output dokumentieren |
+| 31 | Alle | Gleichzeitig mehrere Frameworks erkannt → alle installieren, Fehler isolieren | `installAllDetected` catcht pro Adapter |
+| 32 | Alle | `process.execPath` zeigt auf aktuelle Node-Binary, nicht auf `npx dxcrm` | Richtig so — absoluter Pfad ist stabiler als `npx` |
+
+---
+
 *plan-1.md — Technischer Implementierungsplan Phase 1*
 *Basiert auf Deep-Search-Recherche Mai 2026 · Nächstes Update: nach Woche 1 abgeschlossen*
+
+Sources:
+- [MCP · OpenClaw](https://docs.openclaw.ai/cli/mcp)
+- [Configuration reference · OpenClaw](https://docs.openclaw.ai/gateway/configuration-reference)
+- [Agent workspace · OpenClaw](https://docs.openclaw.ai/concepts/agent-workspace)
+- [awesome-openclaw-agents · GitHub](https://github.com/mergisi/awesome-openclaw-agents)
+- [MCP (Model Context Protocol) · Hermes Agent](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp)
+- [NousResearch/hermes-agent · GitHub](https://github.com/NousResearch/hermes-agent)
+- [hermes-agent cli-config.yaml.example](https://github.com/NousResearch/hermes-agent/blob/main/cli-config.yaml.example)
+- [Hermes Agent MCP Integration Guide · Lushbinary](https://lushbinary.com/blog/hermes-agent-mcp-integration-complete-guide/)
+- [OpenClaw Config Best Practices](https://eastondev.com/blog/en/posts/ai/20260205-openclaw-config-guide/)
