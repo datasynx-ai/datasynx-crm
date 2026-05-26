@@ -104,6 +104,23 @@ dxcrm mcp docs   # MCP tool reference only
 
 ---
 
+## dxcrm mcp
+
+MCP server management and documentation.
+
+```bash
+dxcrm mcp docs                         # Print MCP tool reference
+dxcrm mcp start                        # Start MCP server (stdio transport)
+dxcrm mcp start --http                 # Start MCP server (HTTP transport, port 3847)
+dxcrm mcp start --http --port 4000    # HTTP on custom port
+```
+
+HTTP mode exposes `POST /mcp` (StreamableHTTP) and `GET /health`.
+Set `DXCRM_MCP_MODE=http` + `DXCRM_MCP_PORT=3847` env vars to configure
+when using the server as a subprocess.
+
+---
+
 ## dxcrm daemon
 
 Manage the background sync daemon.

@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { registerGetCapabilities } from "./tools/get-capabilities.js";
 import { registerGetActiveSession } from "./tools/get-active-session.js";
 import { registerGetCustomerContext } from "./tools/get-customer-context.js";
@@ -37,8 +39,42 @@ export async function startStdio(): Promise<void> {
   console.error("DatasynxOpenCRM MCP Server running via stdio");
 }
 
+export async function startHttp(port = 3847): Promise<void> {
+  const { default: express } = await import("express");
+  const app = express();
+  app.use(express.json());
+
+  const server = createMcpServer();
+
+  app.post("/mcp", async (req, res) => {
+    const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
+    // Ensure onclose is always a function (required by Transport interface with exactOptionalPropertyTypes)
+    transport.onclose = () => { /* no-op */ };
+    res.on("close", () => { void transport.close(); });
+    await server.connect(transport as unknown as Transport);
+    await transport.handleRequest(req, res, req.body as Record<string, unknown>);
+  });
+
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", server: "datasynx-opencrm", version: "0.1.0" });
+  });
+
+  app.listen(port, () => {
+    console.error(`DatasynxOpenCRM MCP Server running on http://0.0.0.0:${port}/mcp`);
+  });
+}
+
 // Entry point when run directly (e.g. node dist/mcp.js)
-startStdio().catch((err: unknown) => {
-  console.error("MCP Server fatal error:", (err as Error).message);
-  process.exit(1);
-});
+const mode = process.env["DXCRM_MCP_MODE"] ?? "stdio";
+if (mode === "http") {
+  const port = parseInt(process.env["DXCRM_MCP_PORT"] ?? "3847", 10);
+  startHttp(port).catch((err: unknown) => {
+    console.error("MCP Server fatal error:", (err as Error).message);
+    process.exit(1);
+  });
+} else {
+  startStdio().catch((err: unknown) => {
+    console.error("MCP Server fatal error:", (err as Error).message);
+    process.exit(1);
+  });
+}

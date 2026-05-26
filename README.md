@@ -35,6 +35,8 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm validate` | Validate all customer data |
 | `dxcrm guide` | Full documentation in terminal |
 | `dxcrm mcp docs` | MCP tool reference |
+| `dxcrm mcp start` | Start MCP server (stdio) |
+| `dxcrm mcp start --http [--port 3847]` | Start MCP server in HTTP mode |
 | `dxcrm daemon start` | Start background sync daemon |
 | `dxcrm daemon stop` | Stop daemon |
 | `dxcrm daemon status` | Check daemon status |
