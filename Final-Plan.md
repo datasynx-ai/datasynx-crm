@@ -490,3 +490,63 @@ Von den **6 Dominoes** des ursprünglichen Plans sind **5 vollständig** und **1
 2. GDPR-LanceDB-Cleanup (2 Tage) — ohne das ist GDPR-Compliance unvollständig
 
 **Gesamtaufwand für vollständige Spec-Erfüllung:** ~32 Arbeitstage (Sprints 6–8 + Backlog)
+
+---
+
+## TEIL 6: SPRINT 9 — End-to-End Testing + Endnutzer-Dokumentation
+
+**Ziel:** Das npm-Package als fertiges Produkt validieren und dokumentieren — für echte User, nicht nur Entwickler.
+
+### 6.1 End-to-End Tests (`__tests__/e2e/`)
+
+Smoke-Tests des kompletten CLI- und MCP-Stacks mit realem Dateisystem (memfs), ohne gemockte Implementierungen. Testet den gesamten User-Journey vom ersten `dxcrm init` bis zur MCP-Tool-Antwort.
+
+**Abzudeckende Workflows:**
+1. Init → Create → List (kompletter Onboarding-Pfad)
+2. Create → log_interaction → get_customer_context (Core Loop)
+3. Create → update_deal → export_customer (Pipeline-Workflow)
+4. Import (CSV) → list_customers → search_customer_knowledge
+5. rbac set → rbac check (Permissions-Flow)
+6. gdpr erase dry-run → gdpr erase --confirm (Compliance-Flow)
+7. backup → restore (Datensicherungs-Flow)
+
+**Dateien:**
+- `__tests__/e2e/cli-workflow.test.ts` — CLI-Befehle als Black-Box
+- `__tests__/e2e/mcp-workflow.test.ts` — MCP-Tool-Kette end-to-end
+- `__tests__/e2e/import-workflow.test.ts` — Import + Search
+
+### 6.2 README.md (Endnutzer-facing, Repo-Startseite)
+
+Vollständige, copy-paste-fähige Anleitung. Ersetzt die aktuelle README mit:
+- 5-Minuten-Quickstart (3 Befehle bis zum ersten Agenten)
+- Vollständige CLI-Command-Referenz mit Beispielen
+- Alle 9 MCP-Tools mit Input/Output-Beispielen
+- Framework-Integration-Snippets (Claude Code, Codex, Cursor, Claude Desktop)
+- Team-Setup-Anleitung (VM + HTTP-Server)
+- Enterprise-Features (RBAC, GDPR, Security-Report)
+- Integrations-Matrix (Gmail, Outlook, Salesforce, Pipedrive)
+
+### 6.3 `docs/index.html` (Standalone HTML-Dokumentation)
+
+Einzelne HTML-Datei, die man ohne Server öffnen kann (`file:///` protocol). Kein Build-Tool, keine externen CDN-Abhängigkeiten — alles inline.
+
+**Inhalt:**
+- Navigation (Sidebar oder Tabs)
+- Getting Started
+- CLI Reference (alle Commands, Flags, Beispiele)
+- MCP Tools Reference (alle 9 Tools, Schemas, Response-Beispiele)
+- Framework Integration (Code-Snippets)
+- Schemas (main_facts, interactions, pipeline, sources)
+- Team & Enterprise (RBAC, GDPR, Deployment)
+- Changelog
+
+### 6.4 Agent-Kontext-Datei (`src/core/agent-context.ts`)
+
+Vollständiger, maschinenlesbarer Funktionsumfang des CRM. Wird in alle Framework-Harness-Dateien eingebettet (CLAUDE.md, AGENTS.md, SOUL.md). Enthält:
+- Alle 9 MCP-Tools mit vollständigen Schemas und Beispiel-Aufrufen
+- Workflow-Anleitungen (wann welches Tool, in welcher Reihenfolge)
+- Datenstruktur und Dateipfade
+- Einschränkungen und Fehlerbehandlung
+- RBAC-Matrix
+
+**Status:** ✅ IMPLEMENTIERT (Sprint 9 abgeschlossen, siehe unten)

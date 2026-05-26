@@ -21,43 +21,98 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 
 ---
 
+## Why DatasynxOpenCRM?
+
+| Problem | HubSpot | dxcrm |
+|---|---|---|
+| Monthly cost | €90–900/seat | Free (self-hosted) |
+| AI integration | Plugin/API only | Native MCP, works in Claude Code/Codex/Cursor |
+| Data ownership | Their cloud | Your machine, your files |
+| Offline access | No | Yes — pure markdown |
+| Privacy/GDPR | Complex | Full GDPR erasure built-in |
+| Customization | Limited | Fork it, it's TypeScript |
+
+---
+
 ## CLI Commands
+
+### Core
 
 | Command | Description |
 |---|---|
 | `dxcrm init` | Initialize CRM, detect & configure all AI frameworks |
 | `dxcrm create <name>` | Create new customer (`--domain`, `--email`) |
 | `dxcrm list [--filter <q>]` | List all customers |
-| `dxcrm sync <slug>` | Sync Gmail + transcripts for a customer |
+| `dxcrm validate` | Validate all customer data files |
+| `dxcrm guide` | Full documentation in terminal |
+| `dxcrm mcp docs` | MCP tool reference in terminal |
+
+### MCP Server
+
+| Command | Description |
+|---|---|
+| `dxcrm mcp start` | Start MCP server (stdio mode, for Claude Code / Codex) |
+| `dxcrm mcp start --http [--port 3847]` | Start MCP server in HTTP mode (for team sharing) |
+
+### Session Management
+
+| Command | Description |
+|---|---|
 | `dxcrm session open <slug>` | Set active customer session |
 | `dxcrm session close` | Clear active session |
 | `dxcrm session status` | Show current session |
-| `dxcrm validate` | Validate all customer data |
-| `dxcrm guide` | Full documentation in terminal |
-| `dxcrm mcp docs` | MCP tool reference |
-| `dxcrm mcp start` | Start MCP server (stdio) |
-| `dxcrm mcp start --http [--port 3847]` | Start MCP server in HTTP mode |
+
+### Sync
+
+| Command | Description |
+|---|---|
+| `dxcrm sync <slug>` | Sync Gmail + transcripts for a customer |
+| `dxcrm sync --provider microsoft` | Sync Outlook via Microsoft Graph API |
 | `dxcrm daemon start` | Start background sync daemon |
 | `dxcrm daemon stop` | Stop daemon |
 | `dxcrm daemon status` | Check daemon status |
 | `dxcrm status` | Show daemon, sync state, customer counts |
 | `dxcrm status --unmatched` | List unmatched transcript queue |
+
+### Import
+
+| Command | Description |
+|---|---|
+| `dxcrm import <file>` | Import from HubSpot/CSV (`--from hubspot\|csv`, `--dry-run`) |
+| `dxcrm import --from salesforce --mode api` | Import Salesforce contacts + activities |
+| `dxcrm import --from pipedrive --mode api` | Import Pipedrive persons + activities |
+
+### Agents
+
+| Command | Description |
+|---|---|
 | `dxcrm agent spawn <slug>` | Spawn wake-triggered agent (Telegram on new email) |
 | `dxcrm agent status` | Show all configured agents |
 | `dxcrm agent remove <slug>` | Remove agent config |
-| `dxcrm import <file>` | Import from HubSpot/CSV (`--from hubspot\|csv`, `--dry-run`) |
+
+### Team / Server
+
+| Command | Description |
+|---|---|
 | `dxcrm server start` | Start HTTP MCP server (`--data <dir>`, `--port 3847`) |
 | `dxcrm server status` | Check if HTTP server is running |
 | `dxcrm audit` | Show audit trail (`--slug`, `--actor`, `--limit`) |
+
+### Security & Compliance
+
+| Command | Description |
+|---|---|
 | `dxcrm rbac set <actor> <role>` | Assign role (admin/manager/rep) |
 | `dxcrm rbac show` | List configured roles |
 | `dxcrm rbac check <actor> <tool>` | Check if actor can call a tool |
 | `dxcrm gdpr erase <slug> [--confirm]` | GDPR erasure (dry-run without --confirm) |
 | `dxcrm gdpr list-erasures` | Show erasure log |
 | `dxcrm security-report [--output <file>]` | Generate Markdown security questionnaire |
-| `dxcrm sync --provider microsoft` | Sync Outlook emails via Graph API |
-| `dxcrm import --from salesforce --mode api` | Import Salesforce contacts + activities |
-| `dxcrm import --from pipedrive --mode api` | Import Pipedrive persons + activities |
+
+### Backup & Restore
+
+| Command | Description |
+|---|---|
 | `dxcrm backup [path]` | Backup customers/ directory |
 | `dxcrm backup schedule --every day --keep 7` | Schedule automatic backups |
 | `dxcrm restore <path>` | Restore from backup |
@@ -66,17 +121,51 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 
 ## MCP Tools (for AI Agents)
 
-| Tool | Description |
-|---|---|
-| `get_capabilities` | Full tool list + CRM workflow guide |
-| `get_customer_context` | Complete customer brief (facts + interactions + pipeline) |
-| `search_customer_knowledge` | Semantic search through customer history |
-| `list_customers` | All customers with stage + deal value |
-| `log_interaction` | Record call/email/meeting |
-| `update_deal` | Update pipeline deal stage/value |
-| `update_customer_facts` | Update customer profile (name, domain, contact, stage, tags) |
-| `export_customer` | Export customer data as JSON/Markdown |
-| `get_active_session` | Current active customer session |
+These tools are available to any AI agent connected via MCP (Claude Code, Codex, Cursor, etc.):
+
+| Tool | Description | RBAC |
+|---|---|---|
+| `get_capabilities` | Full tool list + CRM workflow guide | any |
+| `get_active_session` | Current active customer session | any |
+| `get_customer_context` | Complete customer brief (facts + interactions + pipeline) | any |
+| `search_customer_knowledge` | Semantic search through customer history | any |
+| `list_customers` | All customers with stage + deal value | any |
+| `log_interaction` | Record call/email/meeting | rep+ |
+| `update_deal` | Update pipeline deal stage/value | rep+ |
+| `update_customer_facts` | Update customer profile (name, domain, contact, stage, tags) | admin |
+| `export_customer` | Export customer data as JSON/Markdown | any |
+
+### Tool Examples
+
+```json
+// Get customer context before a meeting
+get_customer_context({ "slug": "acme-corp" })
+
+// Log a call after it ends
+log_interaction({
+  "slug": "acme-corp",
+  "type": "Call",
+  "summary": "Discussed Q3 renewal. Budget confirmed at €50k.",
+  "with": "Max Müller",
+  "nextSteps": ["Send proposal by Friday"],
+  "direction": "inbound"
+})
+
+// Update deal stage
+update_deal({
+  "slug": "acme-corp",
+  "dealName": "Q3 Renewal",
+  "stage": "negotiation",
+  "value": 50000,
+  "probability": 75
+})
+
+// Search historical emails
+search_customer_knowledge({
+  "slug": "acme-corp",
+  "query": "pricing negotiation budget"
+})
+```
 
 ---
 
@@ -101,24 +190,57 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 ## Data Structure
 
 ```
-customers/
-└── acme-corp/
-    ├── main_facts.md        # Customer profile (YAML frontmatter)
-    ├── interactions.md      # All calls/emails/meetings (newest first)
-    ├── pipeline.md          # Deal stages
-    ├── sources.json         # Gmail query, transcript paths
-    ├── attachments/
-    └── transcripts/
-
-.agentic/
-├── config.json              # CRM configuration
-├── sources.json             # Global sync sources
-├── audit.log                # Append-only audit trail (Phase 3)
-├── agents/                  # Per-customer agent configs (Phase 2)
-└── server.pid               # HTTP server PID (Phase 3)
+~/.dxcrm/
+├── customers/
+│   └── acme-corp/
+│       ├── main_facts.md        # Customer profile (YAML frontmatter)
+│       ├── interactions.md      # All calls/emails/meetings (newest first)
+│       ├── pipeline.md          # Deal stages
+│       ├── sources.json         # Gmail query, transcript paths
+│       ├── attachments/
+│       └── transcripts/
+└── .agentic/
+    ├── config.json              # CRM configuration
+    ├── sources.json             # Global sync sources
+    ├── rbac.json                # Role assignments
+    ├── audit.log                # Append-only audit trail
+    ├── agents/                  # Per-customer agent configs
+    └── server.pid               # HTTP server PID (team mode)
 ```
 
-## Security & Compliance (Phase 4)
+### Customer Profile Schema (`main_facts.md`)
+
+```yaml
+---
+name: Acme Corp
+domain: acme.com
+email: ceo@acme.com
+phone: +49 89 12345678
+industry: SaaS
+primary_contact: Max Müller
+relationship_stage: active   # prospect | active | churned | paused
+deal_value: 50000
+tags: [enterprise, strategic]
+created: 2026-01-15
+updated: 2026-05-26
+---
+
+## Quick Reference
+Key facts in 2-3 bullet points.
+
+## Contacts
+- Max Müller (CEO) — max@acme.com
+
+## Critical Context
+Any blocking facts the agent must know before every conversation.
+
+## Open Questions
+Outstanding items needing follow-up.
+```
+
+---
+
+## Security & Compliance
 
 ```bash
 # Role-Based Access Control
@@ -137,40 +259,88 @@ dxcrm security-report                          # Print to terminal
 dxcrm security-report --output sec-report.md  # Write to file
 ```
 
-**Token files** (written by external OAuth apps):
-- `.agentic/microsoft-token.json` — Microsoft Graph API token (`accessToken` or `access_token`)
-
-**Sync providers:**
-```bash
-dxcrm sync --provider gmail        # Gmail (default)
-dxcrm sync --provider microsoft    # Outlook via Graph API
-```
-
-**Salesforce import:**
-```bash
-dxcrm import --from salesforce --mode api --token <tok> --url https://myco.salesforce.com
-```
-Two-pass import: contacts → customers, tasks → interactions (linked via WhoId).
+**RBAC roles:**
+- `admin` — full access including `update_customer_facts`
+- `manager` — all read + write tools except profile updates
+- `rep` — read tools + `log_interaction` + `update_deal`
 
 ---
 
-## Team Setup (Phase 3)
+## Sync Setup
 
-Run on a shared VM:
+### Gmail
+
 ```bash
+dxcrm init   # Sets up Gmail OAuth
+dxcrm sync acme-corp   # Sync emails for one customer
+dxcrm daemon start     # Background sync every 15 min
+```
+
+### Microsoft Outlook
+
+Write token file, then sync:
+
+```bash
+# Write token (from your OAuth app)
+echo '{"accessToken":"<token>"}' > ~/.dxcrm/.agentic/microsoft-token.json
+
+dxcrm sync --provider microsoft
+```
+
+### Salesforce Import
+
+```bash
+dxcrm import --from salesforce --mode api \
+  --token <access_token> \
+  --url https://myco.salesforce.com
+```
+
+Two-pass: contacts → customers, tasks → interactions (linked via WhoId).
+
+### Pipedrive Import
+
+```bash
+dxcrm import --from pipedrive --mode api \
+  --token <api_token> \
+  --url https://myco.pipedrive.com
+```
+
+Two-pass: persons → customers, activities → interactions.
+
+---
+
+## Team Setup
+
+Run on a shared VM — all team members share one data directory:
+
+```bash
+# On the VM
 dxcrm server start --data /mnt/crm-data --port 3847
 ```
-Each team member adds to their AI framework config:
+
+Each team member's framework config:
+
+```json
+{
+  "mcpServers": {
+    "datasynx-opencrm": {
+      "url": "http://vm-ip:3847/mcp"
+    }
+  }
+}
 ```
-url: http://vm-ip:3847/mcp
+
+Set actor identity per session:
+```bash
+export DXCRM_ACTOR=alice
 ```
-Set actor identity: `export DXCRM_ACTOR=alice`
 
 ---
 
 ## Manual MCP Configuration
 
 ### Claude Code
+
 ```json
 // ~/.claude.json
 {
@@ -185,6 +355,7 @@ Set actor identity: `export DXCRM_ACTOR=alice`
 ```
 
 ### Claude Desktop
+
 ```json
 // macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
 // Windows: %APPDATA%\Claude\claude_desktop_config.json
@@ -197,6 +368,14 @@ Set actor identity: `export DXCRM_ACTOR=alice`
     }
   }
 }
+```
+
+### Cursor / Windsurf / Cline
+
+Use the HTTP server URL after `dxcrm mcp start --http`:
+
+```
+http://localhost:3847/mcp
 ```
 
 ---
@@ -212,6 +391,15 @@ npm run build     # tsdown → dist/
 npm run typecheck # TypeScript strict check
 ```
 
+### Running Tests
+
+```bash
+npm test                           # All tests
+npm test -- --run src/__tests__    # Unit tests only
+npm test -- --run __tests__/e2e    # E2E tests only
+npm test -- --reporter verbose     # Verbose output
+```
+
 ---
 
 ## Docs
@@ -221,3 +409,4 @@ npm run typecheck # TypeScript strict check
 - [Schemas](./docs/schemas.md)
 - [Framework Integrations](./docs/integrations.md)
 - [Deployment](./docs/deployment.md)
+- [HTML Docs](./docs/index.html) — open locally in browser

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DatasynxOpenCRM — Documentation</title>
+  <style>
+    :root {
+      --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+      --border: #30363d; --text: #e6edf3; --muted: #8b949e;
+      --accent: #58a6ff; --green: #3fb950; --yellow: #d29922;
+      --red: #f85149; --purple: #bc8cff; --orange: #ffa657;
+      --code-bg: #1f2937; --sidebar-w: 260px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .layout { display: flex; min-height: 100vh; }
+    nav { width: var(--sidebar-w); background: var(--bg2); border-right: 1px solid var(--border);
+          position: fixed; top: 0; bottom: 0; overflow-y: auto; padding: 24px 0; z-index: 10; }
+    main { margin-left: var(--sidebar-w); padding: 40px 48px; max-width: 900px; width: 100%; }
+
+    /* Nav */
+    .nav-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .nav-logo h1 { font-size: 14px; font-weight: 700; color: var(--text); }
+    .nav-logo span { font-size: 12px; color: var(--muted); }
+    .nav-section { padding: 8px 20px 4px; font-size: 11px; font-weight: 600;
+                   text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    nav a { display: block; padding: 5px 20px; font-size: 13px; color: var(--muted);
+             border-left: 3px solid transparent; transition: all .15s; }
+    nav a:hover, nav a.active { color: var(--text); border-left-color: var(--accent);
+                                  background: rgba(88,166,255,.06); text-decoration: none; }
+
+    /* Typography */
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 12px; padding-top: 40px; }
+    h2 { font-size: 20px; font-weight: 600; margin: 40px 0 12px;
+         padding-top: 24px; border-top: 1px solid var(--border); color: var(--accent); }
+    h3 { font-size: 16px; font-weight: 600; margin: 28px 0 8px; color: var(--orange); }
+    h4 { font-size: 14px; font-weight: 600; margin: 20px 0 6px; color: var(--purple); }
+    p { margin-bottom: 12px; color: var(--text); }
+    ul, ol { margin: 8px 0 12px 20px; }
+    li { margin-bottom: 4px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+    /* Code */
+    code { background: var(--code-bg); color: var(--green); padding: 1px 6px;
+           border-radius: 4px; font-size: 13px; font-family: "SF Mono", monospace; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+          padding: 16px 20px; overflow-x: auto; margin: 12px 0 20px; }
+    pre code { background: none; padding: 0; color: var(--text); font-size: 13px; }
+    .cmd { color: var(--green); }
+    .flag { color: var(--yellow); }
+    .comment { color: var(--muted); }
+    .str { color: var(--orange); }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13px; }
+    th { background: var(--bg3); text-align: left; padding: 8px 12px;
+         border: 1px solid var(--border); font-weight: 600; color: var(--muted); }
+    td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px;
+             font-size: 11px; font-weight: 600; margin-right: 4px; }
+    .badge-green { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .badge-blue  { background: rgba(88,166,255,.15); color: var(--accent); border: 1px solid rgba(88,166,255,.3); }
+    .badge-yellow{ background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+    .badge-red   { background: rgba(248,81,73,.15);  color: var(--red);    border: 1px solid rgba(248,81,73,.3); }
+
+    /* Cards */
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+            padding: 20px; margin: 12px 0; }
+    .card h4 { margin-top: 0; }
+
+    /* Alert */
+    .alert { padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 13px; }
+    .alert-blue  { background: rgba(88,166,255,.1);  border-left: 3px solid var(--accent); }
+    .alert-green { background: rgba(63,185,80,.1);   border-left: 3px solid var(--green); }
+    .alert-yellow{ background: rgba(210,153,34,.1);  border-left: 3px solid var(--yellow); }
+
+    /* Section anchor */
+    section { scroll-margin-top: 24px; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav>
+  <div class="nav-logo">
+    <h1>DatasynxOpenCRM</h1>
+    <span>dxcrm · v0.1.0</span>
+  </div>
+  <div class="nav-section">Getting Started</div>
+  <a href="#quickstart">Quickstart</a>
+  <a href="#install">Installation</a>
+  <a href="#structure">Data Structure</a>
+
+  <div class="nav-section">CLI Reference</div>
+  <a href="#cli-init">dxcrm init</a>
+  <a href="#cli-create">dxcrm create</a>
+  <a href="#cli-sync">dxcrm sync</a>
+  <a href="#cli-session">dxcrm session</a>
+  <a href="#cli-import">dxcrm import</a>
+  <a href="#cli-status">dxcrm status</a>
+  <a href="#cli-agent">dxcrm agent</a>
+  <a href="#cli-server">dxcrm server</a>
+  <a href="#cli-audit">dxcrm audit</a>
+  <a href="#cli-rbac">dxcrm rbac</a>
+  <a href="#cli-gdpr">dxcrm gdpr</a>
+  <a href="#cli-backup">dxcrm backup</a>
+
+  <div class="nav-section">MCP Tools</div>
+  <a href="#mcp-capabilities">get_capabilities</a>
+  <a href="#mcp-context">get_customer_context</a>
+  <a href="#mcp-search">search_customer_knowledge</a>
+  <a href="#mcp-list">list_customers</a>
+  <a href="#mcp-log">log_interaction</a>
+  <a href="#mcp-deal">update_deal</a>
+  <a href="#mcp-facts">update_customer_facts</a>
+  <a href="#mcp-export">export_customer</a>
+  <a href="#mcp-session">get_active_session</a>
+
+  <div class="nav-section">Integrations</div>
+  <a href="#int-gmail">Gmail</a>
+  <a href="#int-microsoft">Microsoft Outlook</a>
+  <a href="#int-salesforce">Salesforce</a>
+  <a href="#int-pipedrive">Pipedrive</a>
+  <a href="#int-frameworks">AI Frameworks</a>
+
+  <div class="nav-section">Team &amp; Enterprise</div>
+  <a href="#team-setup">Team Setup</a>
+  <a href="#rbac">RBAC</a>
+  <a href="#gdpr">GDPR</a>
+  <a href="#security">Security</a>
+
+  <div class="nav-section">Schemas</div>
+  <a href="#schema-facts">main_facts</a>
+  <a href="#schema-interactions">interactions</a>
+  <a href="#schema-pipeline">pipeline</a>
+</nav>
+
+<!-- MAIN -->
+<main>
+
+<!-- HERO -->
+<section id="quickstart">
+<h1>DatasynxOpenCRM</h1>
+<p>
+  <span class="badge badge-green">local-first</span>
+  <span class="badge badge-blue">MCP-native</span>
+  <span class="badge badge-yellow">open source</span>
+</p>
+<p>A CRM that lives entirely on your machine as Markdown files. No cloud, no SaaS pricing, no vendor lock-in. Your AI agents read and write it directly via MCP.</p>
+
+<div class="alert alert-green">
+  <strong>5-Minute Quickstart</strong> — 3 commands to your first AI-powered customer brief.
+</div>
+
+<pre><code><span class="comment"># 1. Install globally</span>
+<span class="cmd">npm install -g datasynx-opencrm</span>
+
+<span class="comment"># 2. Initialize (auto-detects Claude Code, Codex, Cursor, ...)</span>
+<span class="cmd">dxcrm init</span>
+
+<span class="comment"># 3. Create your first customer</span>
+<span class="cmd">dxcrm create <span class="str">"Acme Corp"</span> --domain acme.com --email ceo@acme.com</span>
+
+<span class="comment"># Your AI agent can now answer:</span>
+<span class="comment"># "What's going on with Acme Corp?" → answer in &lt;3 seconds</span></code></pre>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+<h2>Installation</h2>
+
+<h3>Requirements</h3>
+<ul>
+  <li>Node.js 18+ (for native <code>fetch</code>)</li>
+  <li>An AI framework: Claude Code, Codex CLI, Cursor, or any MCP-compatible client</li>
+</ul>
+
+<h3>Install</h3>
+<pre><code><span class="comment"># Global install (recommended)</span>
+<span class="cmd">npm install -g datasynx-opencrm</span>
+
+<span class="comment"># Or local to a project</span>
+<span class="cmd">npm install datasynx-opencrm</span>
+<span class="cmd">npx dxcrm init</span></code></pre>
+
+<h3>Initialize</h3>
+<pre><code><span class="comment"># Solo developer</span>
+<span class="cmd">dxcrm init</span>
+
+<span class="comment"># Team (connects to shared HTTP server)</span>
+<span class="cmd">dxcrm init --team http://vm-ip:3847/mcp</span></code></pre>
+
+<p><code>dxcrm init</code> auto-detects installed AI frameworks and registers the MCP server in all of them. No manual config needed.</p>
+</section>
+
+<!-- DATA STRUCTURE -->
+<section id="structure">
+<h2>Data Structure</h2>
+<pre><code>your-project/
+├── customers/
+│   └── acme-corp/
+│       ├── main_facts.md      <span class="comment"># Customer profile (YAML frontmatter)</span>
+│       ├── interactions.md    <span class="comment"># All calls/emails/meetings (newest first)</span>
+│       ├── pipeline.md        <span class="comment"># Deal stages</span>
+│       ├── sources.json       <span class="comment"># Gmail query, transcript paths</span>
+│       ├── attachments/       <span class="comment"># PDFs, contracts, proposals</span>
+│       └── transcripts/       <span class="comment"># Meeting recordings</span>
+│
+└── .agentic/
+    ├── config.json            <span class="comment"># CRM configuration</span>
+    ├── sources.json           <span class="comment"># Global sync sources</span>
+    ├── audit.log              <span class="comment"># Append-only audit trail</span>
+    ├── rbac.json              <span class="comment"># Role assignments</span>
+    ├── gdpr-erasures.json     <span class="comment"># Erasure protocol</span>
+    ├── server.pid             <span class="comment"># HTTP server PID (team mode)</span>
+    ├── lancedb/               <span class="comment"># Vector search index (auto-managed)</span>
+    └── agents/                <span class="comment"># Per-customer agent configs</span>
+        └── acme-corp.agent.json</code></pre>
+
+<div class="alert alert-blue">
+  All data is plain text. You can read, edit, and back it up with standard tools. <code>git add customers/</code> is a valid backup strategy.
+</div>
+</section>
+
+<!-- CLI: INIT -->
+<section id="cli-init">
+<h2>dxcrm init</h2>
+<p>Initialize DatasynxOpenCRM. Detects AI frameworks and registers the MCP server in all of them.</p>
+<pre><code><span class="cmd">dxcrm init</span>
+<span class="cmd">dxcrm init --team http://vm-ip:3847/mcp</span>   <span class="comment"># Team mode</span></code></pre>
+
+<table>
+<tr><th>Framework</th><th>Config written</th></tr>
+<tr><td>Claude Code</td><td><code>~/.claude.json</code> + <code>CLAUDE.md</code></td></tr>
+<tr><td>Codex CLI</td><td><code>~/.codex/config.yaml</code> + <code>AGENTS.md</code></td></tr>
+<tr><td>OpenClaw</td><td><code>SOUL.md</code> + <code>AGENTS.md</code> + <code>TOOLS.md</code></td></tr>
+<tr><td>Hermes Agent</td><td><code>SOUL.md</code> + Skill</td></tr>
+<tr><td>Cursor</td><td><code>.cursor/rules/datasynx-crm.mdc</code></td></tr>
+<tr><td>Windsurf</td><td><code>.windsurf/mcp.json</code></td></tr>
+<tr><td>Cline</td><td>MCP config</td></tr>
+<tr><td>Claude Desktop</td><td>Platform-specific config</td></tr>
+</table>
+</section>
+
+<!-- CLI: CREATE -->
+<section id="cli-create">
+<h2>dxcrm create</h2>
+<pre><code><span class="cmd">dxcrm create <span class="str">"Acme Corp"</span> --domain acme.com --email ceo@acme.com</span></code></pre>
+<p>Creates <code>customers/acme-corp/</code> with all required files. Slug is auto-generated from the name.</p>
+</section>
+
+<!-- CLI: SYNC -->
+<section id="cli-sync">
+<h2>dxcrm sync</h2>
+<p>Sync emails and transcripts for all customers.</p>
+<pre><code><span class="cmd">dxcrm sync</span>                             <span class="comment"># Gmail (default)</span>
+<span class="cmd">dxcrm sync --provider gmail</span>            <span class="comment"># Explicit Gmail</span>
+<span class="cmd">dxcrm sync --provider microsoft</span>        <span class="comment"># Outlook via Graph API</span>
+<span class="cmd">dxcrm sync --provider transcripts</span>      <span class="comment"># Process local transcripts</span></code></pre>
+
+<h4>Microsoft Outlook Prerequisites</h4>
+<pre><code><span class="comment"># Write your token to:</span>
+<span class="cmd">echo <span class="str">'{"accessToken":"ey..."}'</span> &gt; .agentic/microsoft-token.json</span></code></pre>
+</section>
+
+<!-- CLI: SESSION -->
+<section id="cli-session">
+<h2>dxcrm session</h2>
+<pre><code><span class="cmd">dxcrm session open acme-corp</span>           <span class="comment"># Set active customer</span>
+<span class="cmd">dxcrm session open acme-corp --owner alice</span>
+<span class="cmd">dxcrm session close</span>
+<span class="cmd">dxcrm session status</span></code></pre>
+<p>The active session is returned by <code>get_active_session()</code>. Set <code>DXCRM_ACTOR</code> to attribute writes to a team member.</p>
+</section>
+
+<!-- CLI: IMPORT -->
+<section id="cli-import">
+<h2>dxcrm import</h2>
+<p>Import from HubSpot, Salesforce, Pipedrive, or any CSV. Two-pass: creates customers first, then imports activities. Idempotent.</p>
+<pre><code><span class="comment"># CSV / HubSpot export</span>
+<span class="cmd">dxcrm import contacts.csv</span>
+<span class="cmd">dxcrm import hubspot-export.csv --from hubspot</span>
+<span class="cmd">dxcrm import hubspot-export.csv --from hubspot --dry-run</span>
+
+<span class="comment"># Salesforce REST API</span>
+<span class="cmd">dxcrm import --from salesforce --mode api \</span>
+<span class="cmd">  --token $SFDC_TOKEN --url https://myco.salesforce.com</span>
+
+<span class="comment"># Pipedrive REST API</span>
+<span class="cmd">dxcrm import --from pipedrive --mode api \</span>
+<span class="cmd">  --token $PIPEDRIVE_TOKEN --url https://myco.pipedrive.com</span></code></pre>
+
+<table>
+<tr><th>Source</th><th>sourceRef format</th><th>Dedup key</th></tr>
+<tr><td>HubSpot</td><td><code>hubspot://activity/&lt;id&gt;</code></td><td>Record ID</td></tr>
+<tr><td>Salesforce</td><td><code>salesforce://task/&lt;id&gt;</code></td><td>Task ID</td></tr>
+<tr><td>Pipedrive</td><td><code>pipedrive://activity/&lt;id&gt;</code></td><td>Activity ID</td></tr>
+<tr><td>CSV</td><td><code>csv://row/&lt;hash&gt;</code></td><td>Row hash</td></tr>
+</table>
+</section>
+
+<!-- CLI: STATUS -->
+<section id="cli-status">
+<h2>dxcrm status</h2>
+<pre><code><span class="cmd">dxcrm status</span>                <span class="comment"># Daemon state, sync ages, customer count</span>
+<span class="cmd">dxcrm status --unmatched</span>    <span class="comment"># List unmatched transcript queue</span></code></pre>
+</section>
+
+<!-- CLI: AGENT -->
+<section id="cli-agent">
+<h2>dxcrm agent</h2>
+<p>Spawn a wake-triggered agent that sends Telegram notifications on new email activity.</p>
+<pre><code><span class="cmd">dxcrm agent spawn acme-corp --channel telegram</span>
+<span class="cmd">dxcrm agent spawn acme-corp --channel telegram --chat-id 12345</span>
+<span class="cmd">dxcrm agent status</span>
+<span class="cmd">dxcrm agent remove acme-corp</span></code></pre>
+<p>Requires: <code>TELEGRAM_BOT_TOKEN</code> + <code>TELEGRAM_CHAT_ID</code> environment variables.</p>
+<p>The daemon checks for new emails every 30 minutes and sends a Telegram message with the email summary and customer context.</p>
+</section>
+
+<!-- CLI: SERVER -->
+<section id="cli-server">
+<h2>dxcrm server</h2>
+<p>Start a shared HTTP MCP server for team use.</p>
+<pre><code><span class="cmd">dxcrm server start</span>                                <span class="comment"># Port 3847</span>
+<span class="cmd">dxcrm server start --port 3847 --data /mnt/crm-data</span>
+<span class="cmd">dxcrm server status</span></code></pre>
+<p>Each team member adds <code>url: http://vm-ip:3847/mcp</code> to their framework config, then sets <code>export DXCRM_ACTOR=alice</code>.</p>
+</section>
+
+<!-- CLI: AUDIT -->
+<section id="cli-audit">
+<h2>dxcrm audit</h2>
+<p>Append-only audit trail. Every write operation is logged with actor, tool, customer, and summary.</p>
+<pre><code><span class="cmd">dxcrm audit</span>                          <span class="comment"># Last 20 entries</span>
+<span class="cmd">dxcrm audit --slug acme-corp</span>         <span class="comment"># Filter by customer</span>
+<span class="cmd">dxcrm audit --actor alice</span>            <span class="comment"># Filter by actor</span>
+<span class="cmd">dxcrm audit --limit 100</span>
+
+<span class="comment"># Log format:</span>
+<span class="comment"># 2026-06-01T09:14:00Z | alice | log_interaction | acme-corp | Renewal call</span></code></pre>
+</section>
+
+<!-- CLI: RBAC -->
+<section id="cli-rbac">
+<h2>dxcrm rbac</h2>
+<p>Role-based access control. Roles are stored in <code>.agentic/rbac.json</code>.</p>
+<pre><code><span class="cmd">dxcrm rbac set alice admin</span>
+<span class="cmd">dxcrm rbac set bob rep</span>
+<span class="cmd">dxcrm rbac show</span>
+<span class="cmd">dxcrm rbac check alice update_deal</span>    <span class="comment"># Exit 0 = allowed</span></code></pre>
+
+<table>
+<tr><th>Role</th><th>log_interaction</th><th>update_deal</th><th>update_customer_facts</th><th>export_customer</th></tr>
+<tr><td><code>admin</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td><code>manager</code></td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td><code>rep</code></td><td>✓</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+
+<p>Actor identity: <code>export DXCRM_ACTOR=alice</code>. Default role when not configured: <code>rep</code>.</p>
+</section>
+
+<!-- CLI: GDPR -->
+<section id="cli-gdpr">
+<h2>dxcrm gdpr</h2>
+<p>GDPR erasure with dry-run safety. Always run without <code>--confirm</code> first.</p>
+<pre><code><span class="cmd">dxcrm gdpr erase acme-corp</span>              <span class="comment"># Dry-run: shows plan</span>
+<span class="cmd">dxcrm gdpr erase acme-corp --confirm</span>    <span class="comment"># Permanent deletion</span>
+<span class="cmd">dxcrm gdpr list-erasures</span>               <span class="comment"># Erasure history</span></code></pre>
+<p>On confirmed erasure: deletes <code>customers/&lt;slug&gt;/</code>, writes audit entry, appends to <code>gdpr-erasures.json</code>.</p>
+</section>
+
+<!-- CLI: BACKUP -->
+<section id="cli-backup">
+<h2>dxcrm backup / restore</h2>
+<pre><code><span class="cmd">dxcrm backup</span>                                  <span class="comment"># ./backup-YYYY-MM-DD.zip</span>
+<span class="cmd">dxcrm backup ./my-backup.zip</span>
+<span class="cmd">dxcrm backup schedule --every day --keep 7</span>   <span class="comment"># Auto-backup via daemon</span>
+<span class="cmd">dxcrm backup schedule --status</span>
+<span class="cmd">dxcrm restore ./backup.zip</span></code></pre>
+</section>
+
+<hr>
+
+<!-- MCP TOOLS -->
+<section id="mcp-capabilities">
+<h2>MCP Tool: get_capabilities</h2>
+<p>Returns the complete tool guide. Call this first in a new session.</p>
+<pre><code>get_capabilities()
+<span class="comment">// Returns: this documentation as a string</span></code></pre>
+</section>
+
+<section id="mcp-context">
+<h2>MCP Tool: get_customer_context</h2>
+<p>Full customer brief in under 3 seconds. Triggers Gmail sync automatically if data is >30 min old.</p>
+<pre><code>get_customer_context({ slug: <span class="str">"acme-corp"</span> })
+
+<span class="comment">// Returns: structured Markdown with:</span>
+<span class="comment">// - Quick Reference (name, domain, stage, deal value)</span>
+<span class="comment">// - Contacts</span>
+<span class="comment">// - Critical Context</span>
+<span class="comment">// - Recent Activity (last 10 interactions)</span>
+<span class="comment">// - Pipeline (all deals)</span>
+<span class="comment">// - Open Questions / Next Steps</span></code></pre>
+</section>
+
+<section id="mcp-search">
+<h2>MCP Tool: search_customer_knowledge</h2>
+<p>Semantic + full-text hybrid search across all emails and transcripts for a customer.</p>
+<pre><code>search_customer_knowledge({
+  slug: <span class="str">"acme-corp"</span>,
+  query: <span class="str">"pricing discussion Q3"</span>,
+  limit: 5   <span class="comment">// optional, default 5</span>
+})
+
+<span class="comment">// Returns: { results: [{ content, score, source }] }</span></code></pre>
+</section>
+
+<section id="mcp-list">
+<h2>MCP Tool: list_customers</h2>
+<pre><code>list_customers({ filter: <span class="str">"acme"</span> })   <span class="comment">// filter is optional</span>
+
+<span class="comment">// Returns: [{ slug, name, stage, lastInteraction, dealValue }]</span></code></pre>
+</section>
+
+<section id="mcp-log">
+<h2>MCP Tool: log_interaction</h2>
+<p>Record a call, email, or meeting. Use after every customer touchpoint.</p>
+<pre><code>log_interaction({
+  slug: <span class="str">"acme-corp"</span>,
+  type: <span class="str">"Call"</span>,              <span class="comment">// Call | Email | Meeting | Note | Demo | Proposal | Contract | Other</span>
+  summary: <span class="str">"Discussed renewal. Budget confirmed at €50k."</span>,
+  with: <span class="str">"Alice Smith"</span>,
+  nextSteps: [<span class="str">"Send proposal by Friday"</span>, <span class="str">"CC legal team"</span>],
+  direction: <span class="str">"inbound"</span>      <span class="comment">// inbound | outbound — optional</span>
+})
+
+<span class="comment">// Returns: { success: boolean, path: string, entry: string }</span>
+<span class="comment">// Side effects: updates last_touchpoint, writes audit entry</span></code></pre>
+</section>
+
+<section id="mcp-deal">
+<h2>MCP Tool: update_deal</h2>
+<p>Update or create a pipeline deal. Upserts by deal name.</p>
+<pre><code>update_deal({
+  slug: <span class="str">"acme-corp"</span>,
+  dealName: <span class="str">"Enterprise License 2026"</span>,
+  stage: <span class="str">"negotiation"</span>,     <span class="comment">// lead | qualified | proposal | negotiation | won | lost</span>
+  value: 75000,              <span class="comment">// EUR</span>
+  probability: 75,           <span class="comment">// 0-100</span>
+  closeDate: <span class="str">"2026-09-30"</span>,  <span class="comment">// YYYY-MM-DD</span>
+  notes: <span class="str">"Legal review pending"</span>
+})
+
+<span class="comment">// Returns: { success: boolean, deal: object }</span></code></pre>
+</section>
+
+<section id="mcp-facts">
+<h2>MCP Tool: update_customer_facts</h2>
+<p>Update fields in a customer's profile. Merges patch into existing data.</p>
+<pre><code>update_customer_facts({
+  slug: <span class="str">"acme-corp"</span>,
+  domain: <span class="str">"new-acme.io"</span>,
+  primaryContact: <span class="str">"Bob Jones"</span>,
+  relationshipStage: <span class="str">"active"</span>,  <span class="comment">// prospect | active | churned | paused</span>
+  tags: [<span class="str">"enterprise"</span>, <span class="str">"strategic"</span>],
+  industry: <span class="str">"SaaS"</span>
+})
+
+<span class="comment">// Returns: { success: boolean, facts: object }</span>
+<span class="comment">// Requires: admin role (RBAC)</span></code></pre>
+</section>
+
+<section id="mcp-export">
+<h2>MCP Tool: export_customer</h2>
+<pre><code>export_customer({ slug: <span class="str">"acme-corp"</span>, format: <span class="str">"json"</span> })  <span class="comment">// json | markdown</span>
+
+<span class="comment">// JSON returns: { slug, exportedAt, mainFacts, interactionsCount, pipeline }</span>
+<span class="comment">// Markdown returns: formatted briefing document</span></code></pre>
+</section>
+
+<section id="mcp-session">
+<h2>MCP Tool: get_active_session</h2>
+<pre><code>get_active_session()
+
+<span class="comment">// Returns: { hasSession: boolean, customerSlug?, customerName?, startedAt?, owner? }</span></code></pre>
+</section>
+
+<hr>
+
+<!-- INTEGRATIONS -->
+<section id="int-gmail">
+<h2>Gmail Integration</h2>
+<div class="alert alert-yellow">Requires Google OAuth2 credentials.</div>
+<pre><code><span class="comment"># Place OAuth credentials:</span>
+.agentic/gmail-credentials.json   <span class="comment"># OAuth2 client credentials</span>
+.agentic/gmail-token.json         <span class="comment"># Access token (auto-refreshed)</span>
+
+<span class="comment"># Per-customer Gmail query (in customers/acme-corp/sources.json):</span>
+{ "gmail": { "query": "from:acme.com OR to:acme.com", "enabled": true } }</code></pre>
+</section>
+
+<section id="int-microsoft">
+<h2>Microsoft Outlook Integration</h2>
+<pre><code><span class="comment"># Write your Microsoft Graph access token:</span>
+echo <span class="str">'{"accessToken":"ey..."}'</span> &gt; .agentic/microsoft-token.json
+
+<span class="cmd">dxcrm sync --provider microsoft</span>
+
+<span class="comment"># sourceRef format: microsoft://message/&lt;message-id&gt;</span></code></pre>
+</section>
+
+<section id="int-salesforce">
+<h2>Salesforce Integration</h2>
+<pre><code><span class="comment"># API import (contacts + tasks)</span>
+<span class="cmd">dxcrm import --from salesforce --mode api \</span>
+<span class="cmd">  --token $SFDC_TOKEN --url https://myco.salesforce.com</span>
+
+<span class="comment"># Or use env vars:</span>
+export SFDC_TOKEN=<span class="str">"your-token"</span>
+export SFDC_URL=<span class="str">"https://myco.salesforce.com"</span>
+<span class="cmd">dxcrm import --from salesforce --mode api</span>
+
+<span class="comment"># sourceRef format: salesforce://task/&lt;task-id&gt;</span></code></pre>
+</section>
+
+<section id="int-pipedrive">
+<h2>Pipedrive Integration</h2>
+<pre><code><span class="cmd">dxcrm import --from pipedrive --mode api \</span>
+<span class="cmd">  --token $PIPEDRIVE_TOKEN --url https://myco.pipedrive.com</span>
+
+<span class="comment"># sourceRef format: pipedrive://activity/&lt;activity-id&gt;</span></code></pre>
+</section>
+
+<section id="int-frameworks">
+<h2>AI Framework Configuration</h2>
+<p><code>dxcrm init</code> handles this automatically. Manual config if needed:</p>
+
+<h4>Claude Code (~/.claude.json)</h4>
+<pre><code>{
+  "mcpServers": {
+    "datasynx-opencrm": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"]
+    }
+  }
+}</code></pre>
+
+<h4>Team / HTTP Mode</h4>
+<pre><code>{
+  "mcpServers": {
+    "datasynx-opencrm": {
+      "type": "http",
+      "url": "http://vm-ip:3847/mcp"
+    }
+  }
+}</code></pre>
+</section>
+
+<hr>
+
+<!-- TEAM & ENTERPRISE -->
+<section id="team-setup">
+<h2>Team Setup</h2>
+<div class="alert alert-blue">Run one shared server on a VM. All team members connect via URL.</div>
+
+<h3>1. Start Server (VM)</h3>
+<pre><code><span class="cmd">dxcrm server start --data /mnt/crm-data --port 3847</span></code></pre>
+
+<h3>2. Configure Roles</h3>
+<pre><code><span class="cmd">dxcrm rbac set alice admin</span>
+<span class="cmd">dxcrm rbac set bob manager</span>
+<span class="cmd">dxcrm rbac set carol rep</span></code></pre>
+
+<h3>3. Each Team Member</h3>
+<pre><code><span class="cmd">dxcrm init --team http://vm-ip:3847/mcp</span>
+export DXCRM_ACTOR=alice   <span class="comment"># Add to ~/.bashrc or ~/.zshrc</span></code></pre>
+</section>
+
+<section id="rbac">
+<h2>Role-Based Access Control</h2>
+<p>Config: <code>.agentic/rbac.json</code>. Actor: <code>DXCRM_ACTOR</code> env var. Default role: <code>rep</code>.</p>
+<pre><code>{ "actors": { "alice": "admin", "bob": "rep" }, "default": "rep" }</code></pre>
+</section>
+
+<section id="gdpr">
+<h2>GDPR Compliance</h2>
+<p>DatasynxOpenCRM never sends data to external servers. All data stays on your machine — eliminating the cloud GDPR risk that affects every SaaS CRM.</p>
+<pre><code><span class="comment"># Always dry-run first:</span>
+<span class="cmd">dxcrm gdpr erase acme-corp</span>
+
+<span class="comment"># Permanent deletion after review:</span>
+<span class="cmd">dxcrm gdpr erase acme-corp --confirm</span>
+
+<span class="comment"># Audit trail of all erasures:</span>
+<span class="cmd">dxcrm gdpr list-erasures</span></code></pre>
+</section>
+
+<section id="security">
+<h2>Security Report</h2>
+<pre><code><span class="cmd">dxcrm security-report</span>
+<span class="cmd">dxcrm security-report --output sec-report.md</span></code></pre>
+<p>Generates a Markdown questionnaire covering: data storage location, authentication, encryption at rest, audit trail, network calls, GDPR controls, SOC 2 readiness, and dependency management. Useful for procurement and internal security reviews.</p>
+</section>
+
+<hr>
+
+<!-- SCHEMAS -->
+<section id="schema-facts">
+<h2>Schema: main_facts.md</h2>
+<pre><code>---
+name: Acme Corp              <span class="comment"># required</span>
+domain: acme.com
+email: ceo@acme.com
+phone: "+1 555 0100"
+industry: SaaS
+relationship_stage: active   <span class="comment"># prospect | active | churned | paused</span>
+deal_value: 50000
+currency: EUR
+primary_contact: Alice Smith
+timezone: Europe/Berlin
+tags: [enterprise, strategic]
+created: 2026-01-15
+updated: 2026-05-26
+---
+
+# Customer: Acme Corp
+
+Any free-form notes here are preserved.</code></pre>
+</section>
+
+<section id="schema-interactions">
+<h2>Schema: interactions.md</h2>
+<pre><code>## 2026-05-26 · Call · inbound
+**With:** Alice Smith
+**Summary:** Discussed Q3 renewal. Budget confirmed at €50k.
+**Next Steps:**
+- [ ] Send proposal by Friday
+- [ ] CC legal team
+**Source:** gmail://message/abc123
+**Synced:** 2026-05-26T09:14:00Z
+---</code></pre>
+<p>Entries are newest-first. Automatically written by <code>log_interaction()</code> and all sync engines.</p>
+</section>
+
+<section id="schema-pipeline">
+<h2>Schema: pipeline.md</h2>
+<pre><code>## Deals
+
+| Name | Stage | Value | Probability | Close | Updated |
+|---|---|---|---|---|---|
+| Enterprise License 2026 | negotiation | €75,000 | 75% | 2026-09-30 | 2026-05-26 |</code></pre>
+<p>Stages: <code>lead</code> · <code>qualified</code> · <code>discovery</code> · <code>proposal</code> · <code>negotiation</code> · <code>won</code> · <code>lost</code></p>
+</section>
+
+</main>
+</div>
+
+<script>
+  // Active nav highlighting
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a[href^="#"]');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
