@@ -29,7 +29,11 @@ export const listCommand = new Command("list")
         const facts = await readMainFacts(dataDir, slug);
         if (opts.filter) {
           const q = opts.filter.toLowerCase();
-          if (!facts.name.toLowerCase().includes(q) && !slug.includes(q)) continue;
+          if (
+            !facts.name.toLowerCase().includes(q) &&
+            !slug.includes(q) &&
+            !(facts.relationship_stage ?? "").toLowerCase().includes(q)
+          ) continue;
         }
         customers.push({ slug, facts });
       } catch {

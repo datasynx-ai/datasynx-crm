@@ -78,12 +78,13 @@ export async function handleListCustomers(
         ...(dealValue !== undefined ? { dealValue } : {}),
       };
 
-      // Apply filter if provided
+      // Apply filter if provided (name, slug, or stage)
       if (input.filter) {
         const filterLower = input.filter.toLowerCase();
         const matches =
           name.toLowerCase().includes(filterLower) ||
-          entry.toLowerCase().includes(filterLower);
+          entry.toLowerCase().includes(filterLower) ||
+          stage.toLowerCase().includes(filterLower);
         if (!matches) continue;
       }
 
