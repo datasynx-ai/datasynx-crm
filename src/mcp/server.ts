@@ -11,6 +11,7 @@ import { registerListCustomers } from "./tools/list-customers.js";
 import { registerLogInteraction } from "./tools/log-interaction.js";
 import { registerUpdateDeal } from "./tools/update-deal.js";
 import { registerExportCustomer } from "./tools/export-customer.js";
+import { registerUpdateCustomerFacts } from "./tools/update-customer-facts.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -18,7 +19,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 8 tools
+  // Register all 9 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -28,6 +29,7 @@ export function createMcpServer(): McpServer {
   registerLogInteraction(server);
   registerUpdateDeal(server);
   registerExportCustomer(server);
+  registerUpdateCustomerFacts(server);
 
   return server;
 }

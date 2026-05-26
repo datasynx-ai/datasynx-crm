@@ -114,9 +114,12 @@ export async function runImport(
   const dir = dataDir ?? process.cwd();
   const result: ImportResult = { customersCreated: 0, interactionsImported: 0, skipped: 0, errors: [] };
 
-  // Salesforce API mode — bypass file reading
+  // API import modes — bypass file reading
   if (opts.from === "salesforce" && opts.mode === "api") {
     return runSalesforceApiImport(opts, dir);
+  }
+  if (opts.from === "pipedrive" && opts.mode === "api") {
+    return runPipedriveApiImport(opts, dir);
   }
 
   if (!fs.existsSync(sourcePath)) {
@@ -307,14 +310,104 @@ async function runSalesforceApiImport(
   return result;
 }
 
+export async function runPipedriveApiImport(
+  opts: { token?: string; url?: string; dryRun?: boolean },
+  dir: string = process.cwd()
+): Promise<ImportResult> {
+  const result: ImportResult = { customersCreated: 0, interactionsImported: 0, skipped: 0, errors: [] };
+  const token = opts.token ?? process.env["PIPEDRIVE_TOKEN"] ?? "";
+  const instanceUrl = opts.url ?? process.env["PIPEDRIVE_URL"] ?? "";
+
+  if (!token || !instanceUrl) {
+    result.errors.push("Pipedrive API mode requires --token and --url (or PIPEDRIVE_TOKEN + PIPEDRIVE_URL env vars)");
+    return result;
+  }
+
+  const { fetchPipedrivePersons, fetchPipedriveActivities } = await import("../sync/pipedrive-client.js");
+
+  let persons: Awaited<ReturnType<typeof fetchPipedrivePersons>>;
+  let activities: Awaited<ReturnType<typeof fetchPipedriveActivities>>;
+
+  try {
+    [persons, activities] = await Promise.all([
+      fetchPipedrivePersons(instanceUrl, token),
+      fetchPipedriveActivities(instanceUrl, token),
+    ]);
+  } catch (err) {
+    result.errors.push(`Pipedrive API: ${(err as Error).message}`);
+    return result;
+  }
+
+  if (opts.dryRun) {
+    console.log(info(`Dry run — ${persons.length} persons, ${activities.length} activities from Pipedrive`));
+    return result;
+  }
+
+  // Pass 1: persons → customers
+  const slugByPersonId = new Map<number, string>();
+  const slugByOrgId = new Map<number, string>();
+
+  for (const person of persons) {
+    const name = (person.org_name ?? person.name ?? "").trim();
+    if (!name) continue;
+    const email = person.primary_email ?? "";
+    try {
+      const { slug, created } = ensureCustomer(dir, name, "", email, false);
+      if (person.id) slugByPersonId.set(person.id, slug);
+      if (person.org_id?.value) slugByOrgId.set(person.org_id.value, slug);
+      if (created) result.customersCreated++;
+    } catch (err) {
+      result.errors.push(`Person '${name}': ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 2: activities → interactions
+  for (const activity of activities) {
+    const slug = (activity.person_id && slugByPersonId.get(activity.person_id))
+      ?? (activity.org_id && slugByOrgId.get(activity.org_id))
+      ?? undefined;
+    if (!slug) continue;
+
+    const sourceRef = `pipedrive://activity/${activity.id}`;
+    const { readInteractions } = await import("../fs/interactions-writer.js");
+    const existing = await readInteractions(dir, slug).catch(() => "");
+    if (existing.includes(sourceRef)) { result.skipped++; continue; }
+
+    const date = activity.due_date ?? new Date().toISOString().slice(0, 10);
+    const notes = (activity.note ?? activity.subject ?? "").slice(0, 500);
+    const t = (activity.type ?? "").toLowerCase();
+    const type = t === "call" ? "Call" as const
+      : t === "email" ? "Email" as const
+      : t === "meeting" ? "Meeting" as const
+      : "Note" as const;
+
+    try {
+      await appendInteraction(dir, slug, {
+        date,
+        type,
+        with: slug,
+        summary: `${activity.subject ?? type}: ${notes}`,
+        nextSteps: [],
+        sourceRef,
+        synced: new Date().toISOString(),
+      });
+      result.interactionsImported++;
+    } catch (err) {
+      result.errors.push(`Activity ${activity.id}: ${(err as Error).message}`);
+    }
+  }
+
+  return result;
+}
+
 export const importCommand = new Command("import")
-  .description("Import customers and interactions from HubSpot, Salesforce, or CSV")
-  .argument("<path>", "Path to export file (CSV)")
-  .option("--from <source>", "Source CRM: hubspot | csv | salesforce", "csv")
+  .description("Import customers and interactions from HubSpot, Salesforce, Pipedrive, or CSV")
+  .argument("[path]", "Path to export file (CSV), optional for API modes")
+  .option("--from <source>", "Source CRM: hubspot | csv | salesforce | pipedrive", "csv")
   .option("--dry-run", "Preview what would be imported without writing")
-  .option("--mode <mode>", "Import mode: file | api (salesforce only)")
-  .option("--token <token>", "API token (Salesforce)")
-  .option("--url <url>", "Instance URL (Salesforce, e.g. https://mycompany.my.salesforce.com)")
+  .option("--mode <mode>", "Import mode: file | api")
+  .option("--token <token>", "API token (Salesforce, Pipedrive)")
+  .option("--url <url>", "Instance URL (e.g. https://myco.salesforce.com or https://myco.pipedrive.com)")
   .action(async (sourcePath: string, opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string }) => {
     const dryRun = opts.dryRun ?? false;
 
