@@ -241,10 +241,12 @@
 
 <table>
 <tr><th>Framework</th><th>Config written</th></tr>
-<tr><td>Claude Code</td><td><code>~/.claude.json</code> + <code>CLAUDE.md</code></td></tr>
-<tr><td>Codex CLI</td><td><code>~/.codex/config.yaml</code> + <code>AGENTS.md</code></td></tr>
+<tr><td>Claude Code</td><td><code>~/.claude.json</code> + <code>CLAUDE.md</code> + <code>.claude/settings.json</code></td></tr>
+<tr><td>Codex CLI</td><td><code>~/.codex/config.toml</code> + <code>AGENTS.md</code></td></tr>
+<tr><td><strong>Grok Build</strong> (xAI)</td><td><code>~/.grok/user-settings.json</code> + <code>.grok/settings.json</code> + <code>AGENTS.md</code></td></tr>
 <tr><td>OpenClaw</td><td><code>SOUL.md</code> + <code>AGENTS.md</code> + <code>TOOLS.md</code></td></tr>
 <tr><td>Hermes Agent</td><td><code>SOUL.md</code> + Skill</td></tr>
+<tr><td>Antigravity CLI</td><td><code>GEMINI.md</code> + <code>AGENTS.md</code> + <code>SKILL.md</code></td></tr>
 <tr><td>Cursor</td><td><code>.cursor/rules/datasynx-crm.mdc</code></td></tr>
 <tr><td>Windsurf</td><td><code>.windsurf/mcp.json</code></td></tr>
 <tr><td>Cline</td><td>MCP config</td></tr>
@@ -556,6 +558,23 @@ export SFDC_URL=<span class="str">"https://myco.salesforce.com"</span>
     }
   }
 }</code></pre>
+
+<h4>Grok Build (~/.grok/user-settings.json)</h4>
+<p><strong>Note:</strong> Grok uses an <strong>array</strong> for <code>mcpServers</code>, not an object map.</p>
+<pre><code>{
+  "mcpServers": [
+    {
+      "name": "datasynx-opencrm",
+      "transport": {
+        "type": "stdio",
+        "command": "node",
+        "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"],
+        "env": { "DXCRM_DATA_DIR": "/path/to/.dxcrm" }
+      }
+    }
+  ]
+}</code></pre>
+<p>Run <code>grok inspect</code> to verify. Grok Build reads <code>AGENTS.md</code> and <code>CLAUDE.md</code> natively — both written by <code>dxcrm init</code>.</p>
 
 <h4>Team / HTTP Mode</h4>
 <pre><code>{

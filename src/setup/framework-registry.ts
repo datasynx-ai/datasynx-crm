@@ -8,12 +8,14 @@ import { AntigravityAdapter } from "./adapters/antigravity.js";
 import { CursorAdapter } from "./adapters/cursor.js";
 import { WindsurfAdapter } from "./adapters/windsurf.js";
 import { ClineAdapter } from "./adapters/cline.js";
+import { GrokAdapter } from "./adapters/grok.js";
 import type { FrameworkAdapter, InstallConfig, InstallResult } from "./framework-adapter.js";
 
 export const FRAMEWORK_ADAPTERS: FrameworkAdapter[] = [
   // Tier 1 — full adapter (CLI binary detectable, harness injection)
   new ClaudeCodeAdapter(),
   new CodexAdapter(),
+  new GrokAdapter(),
   new OpenClawAdapter(),
   new HermesAdapter(),
   new AntigravityAdapter(),

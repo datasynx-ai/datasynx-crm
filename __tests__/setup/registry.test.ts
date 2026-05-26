@@ -23,8 +23,8 @@ beforeEach(() => {
 });
 
 describe("FRAMEWORK_ADAPTERS", () => {
-  it("exports an array of 9 adapters", () => {
-    expect(FRAMEWORK_ADAPTERS).toHaveLength(9);
+  it("exports an array of 10 adapters", () => {
+    expect(FRAMEWORK_ADAPTERS).toHaveLength(10);
   });
 
   it("contains all expected framework names", () => {
@@ -32,6 +32,7 @@ describe("FRAMEWORK_ADAPTERS", () => {
     expect(names).toContain("Claude Code");
     expect(names).toContain("Claude Desktop");
     expect(names).toContain("Codex");
+    expect(names).toContain("Grok Build");
     expect(names).toContain("OpenClaw");
     expect(names).toContain("Hermes Agent");
     expect(names).toContain("Antigravity CLI");

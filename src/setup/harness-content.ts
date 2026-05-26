@@ -180,6 +180,24 @@ log_interaction · update_deal · get_capabilities · get_active_session · expo
 ## Data: ${dataDir}`.trim();
 }
 
+/** Grok Build: .grok/settings.json — project-level MCP config (array format) */
+export function buildGrokSettingsJson(config: { serverName: string; mcpServerPath: string; dataDir: string }): string {
+  const entry = {
+    mcpServers: [
+      {
+        name: config.serverName,
+        transport: {
+          type: "stdio",
+          command: "node",
+          args: [config.mcpServerPath],
+          env: { DXCRM_DATA_DIR: config.dataDir },
+        },
+      },
+    ],
+  };
+  return JSON.stringify(entry, null, 2);
+}
+
 /** Cursor: .cursor/rules/datasynx-crm.mdc (MDC format with frontmatter) */
 export function buildCursorRulesMdc(dataDir: string): string {
   return `---

@@ -175,8 +175,9 @@ search_customer_knowledge({
 
 | Framework | Tier | Harness |
 |---|---|---|
-| Claude Code | 1 | CLAUDE.md + settings.json |
-| Codex CLI | 1 | AGENTS.md |
+| Claude Code | 1 | CLAUDE.md + ~/.claude.json + .claude/settings.json |
+| Codex CLI | 1 | AGENTS.md + ~/.codex/config.toml |
+| Grok Build (xAI) | 1 | AGENTS.md + ~/.grok/user-settings.json + .grok/settings.json |
 | OpenClaw | 1 | SOUL.md + AGENTS.md + TOOLS.md |
 | Hermes Agent | 1 | SOUL.md + Skill |
 | Antigravity CLI (`agy`) | 1 | GEMINI.md + AGENTS.md + SKILL.md |
@@ -353,6 +354,28 @@ export DXCRM_ACTOR=alice
   }
 }
 ```
+
+### Grok Build (xAI)
+
+```json
+// ~/.grok/user-settings.json
+// NOTE: Grok uses an ARRAY for mcpServers (not an object/map like Claude)
+{
+  "mcpServers": [
+    {
+      "name": "datasynx-opencrm",
+      "transport": {
+        "type": "stdio",
+        "command": "node",
+        "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"],
+        "env": { "DXCRM_DATA_DIR": "/path/to/your/.dxcrm" }
+      }
+    }
+  ]
+}
+```
+
+Run `grok inspect` to verify the server is discovered. Grok Build reads `AGENTS.md` and `CLAUDE.md` natively — both are written by `dxcrm init`.
 
 ### Claude Desktop
 

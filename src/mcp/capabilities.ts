@@ -109,6 +109,40 @@ Customer data lives in \`customers/<slug>/\`:
 
 Always cite sources (gmail://thread/... or file://...) when available.
 
+## Framework Integration
+
+| Framework | Tier | Config |
+|---|---|---|
+| Claude Code | 1 | CLAUDE.md + ~/.claude.json + .claude/settings.json |
+| Codex CLI | 1 | AGENTS.md + ~/.codex/config.toml |
+| Grok Build (xAI) | 1 | AGENTS.md + ~/.grok/user-settings.json + .grok/settings.json |
+| OpenClaw | 1 | SOUL.md + AGENTS.md + TOOLS.md |
+| Hermes Agent | 1 | SOUL.md + Skill |
+| Antigravity CLI | 1 | GEMINI.md + AGENTS.md + SKILL.md |
+| Cursor | 2 | .cursor/rules/datasynx-crm.mdc |
+| Windsurf | 2 | MCP config only |
+| Cline | 2 | MCP config only |
+| Claude Desktop | 2 | MCP config only |
+
+### Manual Grok Build configuration
+\`\`\`json
+// ~/.grok/user-settings.json  (mcpServers is an ARRAY in Grok, not a map)
+{
+  "mcpServers": [
+    {
+      "name": "datasynx-opencrm",
+      "transport": {
+        "type": "stdio",
+        "command": "node",
+        "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"],
+        "env": { "DXCRM_DATA_DIR": "~/.dxcrm" }
+      }
+    }
+  ]
+}
+\`\`\`
+Run \`grok inspect\` to verify the server is discovered.
+
 ## CLI Reference (Phase 2)
 
 ### dxcrm status
