@@ -59,4 +59,12 @@ export async function processTranscriptFile(
     sourceRef: source,
     synced: new Date().toISOString(),
   });
+
+  const { indexInLanceDB } = await import("../core/lancedb.js");
+  await indexInLanceDB(dataDir, slug, content.slice(0, 2000), source, {
+    date,
+    type: "Meeting",
+  }).catch((err: unknown) => {
+    process.stderr.write(`[transcript-watcher] LanceDB index failed: ${(err as Error).message}\n`);
+  });
 }

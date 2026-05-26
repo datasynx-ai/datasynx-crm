@@ -67,6 +67,15 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
       synced: new Date().toISOString(),
     });
 
+    // Index into LanceDB for semantic search (non-blocking — don't fail sync if this fails)
+    const { indexInLanceDB } = await import("../core/lancedb.js");
+    await indexInLanceDB(opts.dataDir, opts.slug, `${subject}\n${snippet}`, source, {
+      date,
+      type: "Email",
+    }).catch((err: unknown) => {
+      process.stderr.write(`[gmail-sync] LanceDB index failed: ${(err as Error).message}\n`);
+    });
+
     synced++;
   }
 
