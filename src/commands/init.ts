@@ -7,7 +7,8 @@ import { success, error, info, bold } from "../ui/colors.js";
 
 export const initCommand = new Command("init")
   .description("Initialize CRM and configure AI frameworks")
-  .action(async () => {
+  .option("--team <url>", "Team mode: configure frameworks to connect to shared HTTP server at this URL (e.g. http://vm-ip:3847/mcp)")
+  .action(async (opts: { team?: string }) => {
     const dataDir = process.cwd();
 
     // 1. Create .agentic/ directory
@@ -72,11 +73,16 @@ export const initCommand = new Command("init")
       "../../dist/mcp.js"
     );
 
+    if (opts.team) {
+      console.log(info(`Team mode: connecting frameworks to ${bold(opts.team)}`));
+    }
+
     const results = await installAllDetected({
       mcpServerPath,
       dataDir,
       httpPort: 3847,
       serverName: "datasynx-opencrm",
+      ...(opts.team ? { httpUrl: opts.team } : {}),
     });
 
     if (results.length === 0) {
@@ -97,5 +103,10 @@ export const initCommand = new Command("init")
     }
 
     console.log(success(`\n✓ DatasynxOpenCRM initialized in ${bold(dataDir)}`));
-    console.log(info(`  Next: dxcrm create "Your Customer Name"`));
+    if (opts.team) {
+      console.log(info(`  Team server: ${opts.team}`));
+      console.log(info(`  Set identity: export DXCRM_ACTOR=<your-name>`));
+    } else {
+      console.log(info(`  Next: dxcrm create "Your Customer Name"`));
+    }
   });
