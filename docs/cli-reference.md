@@ -274,6 +274,113 @@ dxcrm audit --limit 100              # Show more entries
 
 ---
 
+## dxcrm rbac (Phase 4 — Role-Based Access Control)
+
+Manage per-actor permissions. Roles are enforced at MCP tool call time.
+
+```bash
+dxcrm rbac set alice admin        # Assign role: admin | manager | rep
+dxcrm rbac set bob rep
+dxcrm rbac show                   # List all configured roles
+dxcrm rbac check alice update_deal  # Exit 0 = allowed, exit 1 = denied
+```
+
+**Subcommands:**
+- `set <actor> <role>` — Assign a role to an actor. Valid roles: `admin`, `manager`, `rep`
+- `show` — List all configured roles from `.agentic/rbac.json`
+- `check <actor> <tool>` — Check if actor can call tool (exits 0/1)
+
+**Config file**: `.agentic/rbac.json`
+```json
+{ "actors": { "alice": "admin", "bob": "rep" }, "default": "rep" }
+```
+
+**Actor resolution**: `DXCRM_ACTOR` env var
+
+**Permission matrix:**
+| Role | log_interaction | update_deal | update_customer_facts | export_customer |
+|---|---|---|---|---|
+| admin | ✓ | ✓ | ✓ | ✓ |
+| manager | ✓ | ✓ | — | — |
+| rep | ✓ | — | — | — |
+
+---
+
+## dxcrm gdpr (Phase 4 — GDPR Erasure)
+
+Permanently erase a customer and all their data. Dry-run by default.
+
+```bash
+dxcrm gdpr erase acme-corp              # Dry-run: shows what would be deleted
+dxcrm gdpr erase acme-corp --confirm    # Permanent deletion
+dxcrm gdpr list-erasures                # Show all past erasures
+```
+
+**Subcommands:**
+- `erase <slug> [--confirm]` — Delete customer directory. Without `--confirm`, prints plan only.
+- `list-erasures` — Show `.agentic/gdpr-erasures.json`
+
+**On confirmed erasure:**
+1. Deletes `customers/<slug>/` recursively
+2. Writes audit entry to `.agentic/audit.log`
+3. Appends record to `.agentic/gdpr-erasures.json`
+
+---
+
+## dxcrm security-report (Phase 4 — Security Questionnaire)
+
+Generate a Markdown security questionnaire covering data storage, auth, encryption, audit trail, network calls, GDPR controls, and SOC 2 readiness.
+
+```bash
+dxcrm security-report                           # Print to stdout
+dxcrm security-report --output sec-report.md   # Write to file
+```
+
+**Options:**
+- `--output <file>` — Write report to file instead of stdout
+
+---
+
+## dxcrm sync (Phase 1 + Phase 4)
+
+Sync emails from Gmail or Microsoft Outlook.
+
+```bash
+dxcrm sync                                # Gmail sync (default)
+dxcrm sync --provider gmail               # Explicit Gmail
+dxcrm sync --provider microsoft           # Outlook via Microsoft Graph API
+dxcrm sync --provider transcripts        # Unmatched transcripts
+```
+
+**Microsoft sync prerequisites:**
+- Write access token to `.agentic/microsoft-token.json`:
+  ```json
+  { "accessToken": "ey..." }
+  ```
+- Token supports both `accessToken` (camelCase) and `access_token` (snake_case)
+
+**sourceRef format**: `microsoft://message/<message-id>`
+
+---
+
+## dxcrm import (Phase 2 + Phase 4)
+
+```bash
+dxcrm import --from csv --file contacts.csv          # CSV import
+dxcrm import --from transcripts --dir ./recordings   # Transcript import
+dxcrm import --from salesforce --mode api \
+  --token <access-token> \
+  --url https://myco.salesforce.com                   # Salesforce REST API
+```
+
+**Salesforce API import** (`--from salesforce --mode api`):
+- Pass 1: fetches contacts → creates customer records (slug from email domain or Name)
+- Pass 2: fetches tasks → creates interactions (linked via `WhoId`)
+- **sourceRef format**: `salesforce://task/<task-id>`
+- API version: v58.0 (SOQL via `/services/data/v58.0/query`)
+
+---
+
 ## dxcrm backup / restore
 
 ```bash

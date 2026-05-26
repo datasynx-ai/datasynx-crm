@@ -49,6 +49,14 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm server start` | Start HTTP MCP server (`--data <dir>`, `--port 3847`) |
 | `dxcrm server status` | Check if HTTP server is running |
 | `dxcrm audit` | Show audit trail (`--slug`, `--actor`, `--limit`) |
+| `dxcrm rbac set <actor> <role>` | Assign role (admin/manager/rep) |
+| `dxcrm rbac show` | List configured roles |
+| `dxcrm rbac check <actor> <tool>` | Check if actor can call a tool |
+| `dxcrm gdpr erase <slug> [--confirm]` | GDPR erasure (dry-run without --confirm) |
+| `dxcrm gdpr list-erasures` | Show erasure log |
+| `dxcrm security-report [--output <file>]` | Generate Markdown security questionnaire |
+| `dxcrm sync --provider microsoft` | Sync Outlook emails via Graph API |
+| `dxcrm import --from salesforce --mode api` | Import Salesforce contacts + activities |
 | `dxcrm backup [path]` | Backup customers/ directory |
 | `dxcrm backup schedule --every day --keep 7` | Schedule automatic backups |
 | `dxcrm restore <path>` | Restore from backup |
@@ -107,6 +115,42 @@ customers/
 ├── agents/                  # Per-customer agent configs (Phase 2)
 └── server.pid               # HTTP server PID (Phase 3)
 ```
+
+## Security & Compliance (Phase 4)
+
+```bash
+# Role-Based Access Control
+export DXCRM_ACTOR=alice
+dxcrm rbac set alice admin       # Roles: admin | manager | rep
+dxcrm rbac show                  # List all configured roles
+dxcrm rbac check alice update_deal  # Check permission
+
+# GDPR Erasure
+dxcrm gdpr erase acme-corp                # Dry-run (shows what would be deleted)
+dxcrm gdpr erase acme-corp --confirm      # Permanent deletion + audit entry
+dxcrm gdpr list-erasures                  # Erasure history
+
+# Security Questionnaire
+dxcrm security-report                          # Print to terminal
+dxcrm security-report --output sec-report.md  # Write to file
+```
+
+**Token files** (written by external OAuth apps):
+- `.agentic/microsoft-token.json` — Microsoft Graph API token (`accessToken` or `access_token`)
+
+**Sync providers:**
+```bash
+dxcrm sync --provider gmail        # Gmail (default)
+dxcrm sync --provider microsoft    # Outlook via Graph API
+```
+
+**Salesforce import:**
+```bash
+dxcrm import --from salesforce --mode api --token <tok> --url https://myco.salesforce.com
+```
+Two-pass import: contacts → customers, tasks → interactions (linked via WhoId).
+
+---
 
 ## Team Setup (Phase 3)
 

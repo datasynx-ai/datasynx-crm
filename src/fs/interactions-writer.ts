@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { InteractionEntry } from "../schemas/interaction.js";
+import { withFileQueue } from "./write-queue.js";
 
 const INTERACTION_SEPARATOR = "---";
 
@@ -37,26 +38,25 @@ export async function appendInteraction(
   entry: InteractionEntry
 ): Promise<void> {
   const filePath = path.join(dataDir, "customers", slug, "interactions.md");
-  const existing = fs.existsSync(filePath) ? (fs.readFileSync(filePath, "utf-8") as string) : "";
+  return withFileQueue(filePath, async () => {
+    const existing = fs.existsSync(filePath) ? (fs.readFileSync(filePath, "utf-8") as string) : "";
 
-  const formatted = formatInteractionEntry(entry);
+    const formatted = formatInteractionEntry(entry);
 
-  let newContent: string;
-  if (existing === "") {
-    // No existing file — just write the entry
-    newContent = formatted;
-  } else {
-    // Prepend after the header block (first blank line)
-    const headerEnd = existing.indexOf("\n\n");
-    if (headerEnd > -1) {
-      const header = existing.slice(0, headerEnd + 2);
-      const body = existing.slice(headerEnd + 2);
-      newContent = header + formatted + "\n" + body;
+    let newContent: string;
+    if (existing === "") {
+      newContent = formatted;
     } else {
-      // No blank line found — append at end
-      newContent = existing + "\n" + formatted;
+      const headerEnd = existing.indexOf("\n\n");
+      if (headerEnd > -1) {
+        const header = existing.slice(0, headerEnd + 2);
+        const body = existing.slice(headerEnd + 2);
+        newContent = header + formatted + "\n" + body;
+      } else {
+        newContent = existing + "\n" + formatted;
+      }
     }
-  }
 
-  fs.writeFileSync(filePath, newContent, "utf-8");
+    fs.writeFileSync(filePath, newContent, "utf-8");
+  });
 }
