@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { vol } from "memfs";
 
+vi.mock("../../src/core/lancedb.js", () => ({
+  indexInLanceDB: vi.fn().mockResolvedValue(undefined),
+  searchKnowledge: vi.fn().mockResolvedValue([]),
+  resetConnection: vi.fn(),
+}));
+
 vi.mock("chokidar", () => {
   const mockWatcher = {
     on: vi.fn().mockReturnThis(),

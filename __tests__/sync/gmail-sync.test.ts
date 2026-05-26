@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { vol } from "memfs";
 
+vi.mock("../../src/core/lancedb.js", () => ({
+  indexInLanceDB: vi.fn().mockResolvedValue(undefined),
+  searchKnowledge: vi.fn().mockResolvedValue([]),
+  resetConnection: vi.fn(),
+}));
+
 beforeEach(() => {
   vol.reset();
   vi.clearAllMocks();
