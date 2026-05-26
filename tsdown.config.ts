@@ -7,7 +7,7 @@ export default defineConfig({
     mcp: "src/mcp/server.ts",
     "daemon/worker": "src/daemon/worker.ts",
   },
-  format: ["esm", "cjs"],
+  format: ["esm"],
   dts: true,
   clean: true,
   sourcemap: true,

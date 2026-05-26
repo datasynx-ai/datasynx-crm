@@ -7,3 +7,4 @@ dist/
 coverage/
 .cache/
 *.js.map
+.claude/
