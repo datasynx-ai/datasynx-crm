@@ -108,11 +108,16 @@ function ensureCustomer(
 
 export async function runImport(
   sourcePath: string,
-  opts: { from: string; dryRun?: boolean },
+  opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string },
   dataDir?: string
 ): Promise<ImportResult> {
   const dir = dataDir ?? process.cwd();
   const result: ImportResult = { customersCreated: 0, interactionsImported: 0, skipped: 0, errors: [] };
+
+  // Salesforce API mode — bypass file reading
+  if (opts.from === "salesforce" && opts.mode === "api") {
+    return runSalesforceApiImport(opts, dir);
+  }
 
   if (!fs.existsSync(sourcePath)) {
     console.error(error(`✗ File not found: ${sourcePath}`));
@@ -220,12 +225,97 @@ export async function runImport(
   return result;
 }
 
+async function runSalesforceApiImport(
+  opts: { token?: string; url?: string; dryRun?: boolean },
+  dir: string
+): Promise<ImportResult> {
+  const result: ImportResult = { customersCreated: 0, interactionsImported: 0, skipped: 0, errors: [] };
+  const token = opts.token ?? process.env["SFDC_TOKEN"] ?? "";
+  const instanceUrl = opts.url ?? process.env["SFDC_URL"] ?? "";
+
+  if (!token || !instanceUrl) {
+    console.error(error("✗ Salesforce API mode requires --token and --url (or SFDC_TOKEN + SFDC_URL env vars)"));
+    process.exit(1);
+  }
+
+  const { fetchSalesforceContacts, fetchSalesforceTasks } = await import("../sync/salesforce-client.js");
+
+  let contacts: Awaited<ReturnType<typeof fetchSalesforceContacts>>;
+  let tasks: Awaited<ReturnType<typeof fetchSalesforceTasks>>;
+
+  try {
+    contacts = await fetchSalesforceContacts(instanceUrl, token);
+    tasks = await fetchSalesforceTasks(instanceUrl, token);
+  } catch (err) {
+    result.errors.push(`Salesforce API: ${(err as Error).message}`);
+    return result;
+  }
+
+  if (opts.dryRun) {
+    console.log(info(`Dry run — ${contacts.length} contacts, ${tasks.length} tasks from Salesforce`));
+    return result;
+  }
+
+  // Pass 1: contacts → customers
+  const slugMap = new Map<string, string>();
+  for (const contact of contacts) {
+    const name = contact.Name?.trim();
+    if (!name) continue;
+    const domain = contact.Account?.Website?.replace(/^https?:\/\//, "") ?? "";
+    const email = contact.Email ?? "";
+    try {
+      const { slug, created } = ensureCustomer(dir, name, domain, email, false);
+      slugMap.set(contact.Id, slug);
+      slugMap.set(name.toLowerCase(), slug);
+      if (created) result.customersCreated++;
+    } catch (err) {
+      result.errors.push(`Contact '${name}': ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 2: tasks → interactions
+  for (const task of tasks) {
+    const slug = task.WhoId ? slugMap.get(task.WhoId) : undefined;
+    if (!slug) continue;
+
+    const sourceRef = `salesforce://task/${task.Id}`;
+    const { readInteractions } = await import("../fs/interactions-writer.js");
+    const existing = await readInteractions(dir, slug).catch(() => "");
+    if (existing.includes(sourceRef)) { result.skipped++; continue; }
+
+    const date = task.ActivityDate ?? new Date().toISOString().slice(0, 10);
+    const notes = (task.Description ?? task.Subject ?? "").slice(0, 500);
+    const t = (task.Type ?? "").toLowerCase();
+    const type = t.includes("call") ? "Call" as const : t.includes("email") ? "Email" as const : t.includes("meeting") ? "Meeting" as const : "Note" as const;
+
+    try {
+      await appendInteraction(dir, slug, {
+        date,
+        type,
+        with: slug,
+        summary: notes,
+        nextSteps: [],
+        sourceRef,
+        synced: new Date().toISOString(),
+      });
+      result.interactionsImported++;
+    } catch (err) {
+      result.errors.push(`Task ${task.Id}: ${(err as Error).message}`);
+    }
+  }
+
+  return result;
+}
+
 export const importCommand = new Command("import")
   .description("Import customers and interactions from HubSpot, Salesforce, or CSV")
   .argument("<path>", "Path to export file (CSV)")
-  .option("--from <source>", "Source CRM: hubspot | csv", "csv")
+  .option("--from <source>", "Source CRM: hubspot | csv | salesforce", "csv")
   .option("--dry-run", "Preview what would be imported without writing")
-  .action(async (sourcePath: string, opts: { from: string; dryRun?: boolean }) => {
+  .option("--mode <mode>", "Import mode: file | api (salesforce only)")
+  .option("--token <token>", "API token (Salesforce)")
+  .option("--url <url>", "Instance URL (Salesforce, e.g. https://mycompany.my.salesforce.com)")
+  .action(async (sourcePath: string, opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string }) => {
     const dryRun = opts.dryRun ?? false;
 
     if (!dryRun) {

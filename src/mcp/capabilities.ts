@@ -158,4 +158,46 @@ dxcrm session open acme-corp --owner alice
 # or: DXCRM_ACTOR=alice dxcrm session open acme-corp
 \`\`\`
 \`get_active_session()\` returns \`{ owner: "alice", ... }\` when owner is set.
+
+## CLI Reference (Phase 4 — Enterprise)
+
+### dxcrm rbac
+Role-based access control. Roles: admin > manager > rep.
+\`\`\`
+dxcrm rbac set alice admin          # Assign role
+dxcrm rbac show                     # List all roles
+dxcrm rbac check alice update_deal  # Permission check
+\`\`\`
+Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
+Enforcement: per MCP tool call | Default role: rep
+
+### dxcrm gdpr
+GDPR erasure with dry-run safety and audit trail.
+\`\`\`
+dxcrm gdpr erase acme-corp           # Dry-run (shows plan)
+dxcrm gdpr erase acme-corp --confirm # Permanent deletion
+dxcrm gdpr list-erasures             # Erasure history
+\`\`\`
+On confirm: deletes customers/<slug>/, writes audit.log, appends gdpr-erasures.json
+
+### dxcrm security-report
+Generate Markdown security questionnaire for procurement/SOC2 review.
+\`\`\`
+dxcrm security-report
+dxcrm security-report --output sec-report.md
+\`\`\`
+
+### Microsoft Outlook Sync
+\`\`\`
+dxcrm sync --provider microsoft
+\`\`\`
+Prerequisites: write \`.agentic/microsoft-token.json\` with \`{ "accessToken": "..." }\`
+sourceRef: \`microsoft://message/<id>\` | API: Microsoft Graph v1.0
+
+### Salesforce Import
+\`\`\`
+dxcrm import --from salesforce --mode api --token <tok> --url https://myco.salesforce.com
+\`\`\`
+Two-pass: contacts → customers, tasks → interactions (WhoId attribution)
+sourceRef: \`salesforce://task/<id>\` | API: Salesforce REST v58.0
 `.trim();

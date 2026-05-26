@@ -9,7 +9,8 @@ export const syncCommand = new Command("sync")
   .option("--since <date>", "Only sync emails/files after this date (YYYY-MM-DD)")
   .option("--gmail", "Sync Gmail only")
   .option("--transcripts", "Sync transcripts only")
-  .action(async (slug: string, opts: { since?: string; gmail?: boolean; transcripts?: boolean }) => {
+  .option("--provider <provider>", "Sync provider: gmail | microsoft | transcripts")
+  .action(async (slug: string, opts: { since?: string; gmail?: boolean; transcripts?: boolean; provider?: string }) => {
     const dataDir = process.cwd();
     const customerDir = path.join(dataDir, "customers", slug);
 
@@ -29,8 +30,10 @@ export const syncCommand = new Command("sync")
     };
 
     const since = opts.since ? new Date(opts.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const syncGmail = !opts.transcripts; // sync gmail unless --transcripts only
-    const syncTranscripts = !opts.gmail; // sync transcripts unless --gmail only
+    const provider = opts.provider;
+    const syncGmail = !opts.transcripts && provider !== "microsoft" && provider !== "transcripts";
+    const syncMicrosoft = provider === "microsoft";
+    const syncTranscripts = !opts.gmail && provider !== "gmail" && provider !== "microsoft";
 
     let totalSynced = 0;
 
@@ -62,6 +65,25 @@ export const syncCommand = new Command("sync")
       }
     } else if (syncGmail) {
       console.log(info("  Gmail: not configured (add domain/email to sources.json)"));
+    }
+
+    // Microsoft sync
+    if (syncMicrosoft) {
+      try {
+        console.log(info(`  Syncing Microsoft Outlook for ${bold(slug)}...`));
+        const { getMicrosoftToken } = await import("../sync/microsoft-auth.js");
+        const token = await getMicrosoftToken(dataDir);
+        if (!token) {
+          console.log(info("  Microsoft: no token found (.agentic/microsoft-token.json)"));
+        } else {
+          const { syncMicrosoft: doMsSync } = await import("../sync/microsoft-sync.js");
+          const result = await doMsSync({ slug, dataDir, accessToken: token, since });
+          totalSynced += result.synced;
+          console.log(success(`  ✓ Microsoft: +${result.synced} synced, ${result.skipped} skipped`));
+        }
+      } catch (err) {
+        console.error(error(`  ✗ Microsoft sync failed: ${(err as Error).message}`));
+      }
     }
 
     // Transcript sync

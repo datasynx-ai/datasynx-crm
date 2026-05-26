@@ -14,6 +14,9 @@ import { agentCommand } from "./commands/agent.js";
 import { importCommand } from "./commands/import.js";
 import { serverCommand } from "./commands/server.js";
 import { auditCommand } from "./commands/audit.js";
+import { rbacCommand } from "./commands/rbac.js";
+import { gdprCommand } from "./commands/gdpr.js";
+import { securityReportCommand } from "./commands/security-report.js";
 
 const program = new Command();
 program
@@ -38,5 +41,8 @@ program.addCommand(agentCommand);
 program.addCommand(importCommand);
 program.addCommand(serverCommand);
 program.addCommand(auditCommand);
+program.addCommand(rbacCommand);
+program.addCommand(gdprCommand);
+program.addCommand(securityReportCommand);
 
 await program.parseAsync(process.argv);
