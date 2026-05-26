@@ -1,4 +1,6 @@
 import path from "path";
+import fs from "fs";
+import matter from "gray-matter";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { appendInteraction, formatInteractionEntry } from "../../fs/interactions-writer.js";
@@ -39,6 +41,20 @@ export async function handleLogInteraction(
 
   try {
     await appendInteraction(dataDir, input.slug, entry);
+
+    // Update last_touchpoint in main_facts.md
+    const mainFactsPath = path.join(dataDir, "customers", input.slug, "main_facts.md");
+    if (fs.existsSync(mainFactsPath)) {
+      const raw = matter(fs.readFileSync(mainFactsPath, "utf-8"));
+      raw.data.last_touchpoint = today;
+      // gray-matter/js-yaml quotes date-like strings; strip quotes from last_touchpoint
+      let serialized = matter.stringify(raw.content, raw.data);
+      serialized = serialized.replace(
+        /^(last_touchpoint:\s*)['"](\d{4}-\d{2}-\d{2})['"]/m,
+        "$1$2"
+      );
+      fs.writeFileSync(mainFactsPath, serialized, "utf-8");
+    }
 
     return {
       content: [

@@ -1,7 +1,11 @@
+import path from "path";
+import fs from "fs";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { buildContext } from "../../core/context-builder.js";
 import { getSession } from "../../core/session-store.js";
+import { getLastGmailSync, updateSlugSyncState } from "../../fs/sync-state.js";
+import { getGmailAuth } from "../../core/oauth-store.js";
 
 const DATA_DIR = process.cwd();
 
@@ -24,6 +28,35 @@ export async function handleGetCustomerContext(
       ],
       isError: true,
     };
+  }
+
+  // Fire-and-forget On-Query-Sync
+  const auth = getGmailAuth();
+  if (auth) {
+    const lastSync = getLastGmailSync(dataDir, targetSlug);
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+    if (!lastSync || lastSync < thirtyMinAgo) {
+      const sourcesPath = path.join(dataDir, "customers", targetSlug, "sources.json");
+      if (fs.existsSync(sourcesPath)) {
+        try {
+          const sources = JSON.parse(fs.readFileSync(sourcesPath, "utf-8")) as {
+            gmail?: { query?: string; enabled?: boolean };
+          };
+          if (sources.gmail?.enabled && sources.gmail.query) {
+            const { syncGmail } = await import("../../sync/gmail-sync.js");
+            void syncGmail({ slug: targetSlug, dataDir, auth, query: sources.gmail.query })
+              .then(() =>
+                updateSlugSyncState(dataDir, targetSlug, {
+                  lastGmailSync: new Date().toISOString(),
+                })
+              )
+              .catch(() => {});
+          }
+        } catch {
+          // non-critical
+        }
+      }
+    }
   }
 
   try {

@@ -1,4 +1,10 @@
 import { vi } from "vitest";
+import { vol } from "memfs";
+
+// Expose vol.fs so tests can do `const { fs } = vol` to read back written files.
+// In memfs v4, vol itself is the fs interface (no separate .fs sub-property).
+// We attach it as a convenience alias.
+(vol as Record<string, unknown>).fs = vol;
 
 vi.mock("fs", async () => {
   const { fs } = await import("memfs");
