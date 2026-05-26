@@ -123,3 +123,84 @@ export async function recognizeCustomer(
 export function resetLlmClient(): void {
   _client = null;
 }
+
+export type FieldMapping = Record<string, string | null>;
+
+// Alias table: CRM field name → list of CSV column patterns (lowercased substrings)
+const FIELD_ALIASES: Record<string, string[]> = {
+  name: ["company name", "company", "organization", "organisation", "account name", "name", "firma"],
+  email: ["email address", "e-mail", "email", "e-mail address", "mail"],
+  domain: ["company domain", "website", "domain", "url", "web", "homepage"],
+  phone: ["phone number", "phone", "tel", "telephone", "mobile", "cell"],
+  industry: ["industry", "sector", "branche", "vertical"],
+  primary_contact: ["contact name", "contact person", "contact", "ansprechpartner", "kontakt"],
+  timezone: ["timezone", "time zone", "tz"],
+};
+
+export function mapCsvFieldsHeuristic(
+  headers: string[],
+  targetFields: string[]
+): FieldMapping {
+  const result: FieldMapping = {};
+  const usedHeaders = new Set<string>();
+
+  for (const field of targetFields) {
+    const aliases = FIELD_ALIASES[field] ?? [field];
+    let matched: string | null = null;
+
+    for (const header of headers) {
+      if (usedHeaders.has(header)) continue;
+      const lower = header.toLowerCase();
+      if (aliases.some((alias) => lower === alias || lower.includes(alias))) {
+        matched = header;
+        break;
+      }
+    }
+
+    result[field] = matched;
+    if (matched) usedHeaders.add(matched);
+  }
+
+  return result;
+}
+
+export async function mapCsvFields(
+  headers: string[],
+  targetFields: string[],
+): Promise<FieldMapping> {
+  const client = getClient();
+  if (!client) return mapCsvFieldsHeuristic(headers, targetFields);
+
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 300,
+      system: [
+        {
+          type: "text",
+          text: `You are a CRM data mapping assistant. Map CSV column headers to CRM field names.
+Return ONLY valid JSON: { "<crmField>": "<csvColumn>" | null, ... }
+Use null when no column matches. Each CSV column may only be used once.`,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: `CSV columns: ${JSON.stringify(headers)}\nCRM fields to map: ${JSON.stringify(targetFields)}`,
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((b) => b.type === "text");
+    if (!textBlock || textBlock.type !== "text") return mapCsvFieldsHeuristic(headers, targetFields);
+
+    try {
+      return JSON.parse(textBlock.text) as FieldMapping;
+    } catch {
+      return mapCsvFieldsHeuristic(headers, targetFields);
+    }
+  } catch {
+    return mapCsvFieldsHeuristic(headers, targetFields);
+  }
+}

@@ -373,6 +373,11 @@ dxcrm import --from salesforce --mode api \
   --url https://myco.salesforce.com                   # Salesforce REST API
 ```
 
+**Pipedrive API import** (`--from pipedrive --mode api`):
+- Fetches persons → customers (org_name or name as company), activities → interactions
+- **sourceRef format**: `pipedrive://activity/<activity-id>`
+- Env vars: `PIPEDRIVE_TOKEN`, `PIPEDRIVE_URL`
+
 **Salesforce API import** (`--from salesforce --mode api`):
 - Pass 1: fetches contacts → creates customer records (slug from email domain or Name)
 - Pass 2: fetches tasks → creates interactions (linked via `WhoId`)

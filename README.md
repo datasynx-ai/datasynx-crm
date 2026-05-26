@@ -57,6 +57,7 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm security-report [--output <file>]` | Generate Markdown security questionnaire |
 | `dxcrm sync --provider microsoft` | Sync Outlook emails via Graph API |
 | `dxcrm import --from salesforce --mode api` | Import Salesforce contacts + activities |
+| `dxcrm import --from pipedrive --mode api` | Import Pipedrive persons + activities |
 | `dxcrm backup [path]` | Backup customers/ directory |
 | `dxcrm backup schedule --every day --keep 7` | Schedule automatic backups |
 | `dxcrm restore <path>` | Restore from backup |
@@ -73,6 +74,7 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `list_customers` | All customers with stage + deal value |
 | `log_interaction` | Record call/email/meeting |
 | `update_deal` | Update pipeline deal stage/value |
+| `update_customer_facts` | Update customer profile (name, domain, contact, stage, tags) |
 | `export_customer` | Export customer data as JSON/Markdown |
 | `get_active_session` | Current active customer session |
 

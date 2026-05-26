@@ -126,6 +126,31 @@ Update a pipeline deal.
 
 ---
 
+## update_customer_facts
+
+Update fields in a customer's `main_facts.md` profile. Merges patch into existing data; sets `updated` to today.
+
+```json
+// Input
+{
+  "slug": "acme-corp",
+  "domain": "new-acme.com",          // optional — any combination of fields
+  "primaryContact": "Bob Jones",
+  "relationshipStage": "active",     // prospect|active|churned|paused
+  "tags": ["enterprise", "pilot"],
+  "phone": "+1 555 0100",
+  "industry": "SaaS"
+}
+
+// Output
+{ "success": true, "facts": { "name": "Acme Corp", "domain": "new-acme.com", ... } }
+```
+
+**RBAC**: requires `admin` role (or above).
+**Audit**: writes entry to `.agentic/audit.log`.
+
+---
+
 ## export_customer
 
 Export customer data.

@@ -20,6 +20,7 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | list_customers | List all customers with pipeline health | Morning briefing, pipeline overview |
 | log_interaction | Write a new interaction entry | After every call/meeting/email |
 | update_deal | Update deal stage, value, probability | After pipeline discussions |
+| update_customer_facts | Update customer profile (domain, contact, stage, tags) | After learning new info |
 | export_customer | Export all customer data as JSON or Markdown | Reporting, backup |
 
 ## Tool Reference
@@ -77,6 +78,11 @@ Update or create a deal in pipeline.md. Upserts by deal name.
   closeDate?: Expected close date (YYYY-MM-DD)
   notes?: Free-text notes
 - Returns: { success: boolean, deal: object }
+
+### update_customer_facts({ slug, name?, domain?, email?, phone?, industry?, relationshipStage?, dealValue?, primaryContact?, timezone?, tags? })
+Update fields in a customer's main_facts.md profile. Merges patch into existing data. Sets updated = today.
+- Input: slug (required) + any combination of the optional fields
+- Returns: { success: boolean, facts: object }
 
 ### export_customer({ slug, format? })
 Export all customer data (main_facts + interactions count + pipeline).
@@ -158,6 +164,26 @@ dxcrm session open acme-corp --owner alice
 # or: DXCRM_ACTOR=alice dxcrm session open acme-corp
 \`\`\`
 \`get_active_session()\` returns \`{ owner: "alice", ... }\` when owner is set.
+
+## CLI Reference (Phase 5 — Migration)
+
+### dxcrm import — Pipedrive API
+\`\`\`
+dxcrm import --from pipedrive --mode api --token <tok> --url https://myco.pipedrive.com
+\`\`\`
+Two-pass: persons → customers, activities → interactions.
+sourceRef: \`pipedrive://activity/<id>\`
+
+### update_customer_facts (new MCP tool)
+Agents can now update customer profiles directly:
+\`\`\`
+update_customer_facts({ slug: "acme-corp", domain: "new-acme.com", primaryContact: "Bob" })
+\`\`\`
+Fields: name, domain, email, phone, industry, relationshipStage, dealValue, primaryContact, timezone, tags.
+Restricted to admin role (RBAC). Writes audit log entry.
+
+### CSV LLM Field Mapping
+Generic CSV imports now use LLM-assisted column detection (fallback to heuristics when ANTHROPIC_API_KEY is unset).
 
 ## CLI Reference (Phase 4 — Enterprise)
 
