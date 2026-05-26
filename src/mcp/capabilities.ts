@@ -132,4 +132,30 @@ dxcrm import hubspot-export.csv --from hubspot --dry-run
 - Two-pass: creates customers first, then imports activities
 - Idempotent: re-running skips already-imported rows
 - sourceRef format: \`hubspot://activity/<id>\` or \`csv://row/<hash>\`
+
+## CLI Reference (Phase 3 — Team)
+
+### dxcrm server start
+Start a shared HTTP MCP server. Multiple team members connect via URL.
+\`\`\`
+dxcrm server start --data /mnt/crm-data --port 3847
+dxcrm server status
+\`\`\`
+Set actor identity: \`export DXCRM_ACTOR=alice\`
+
+### dxcrm audit
+Show who changed what and when. Audit trail at \`.agentic/audit.log\`.
+\`\`\`
+dxcrm audit                       # Last 20 entries
+dxcrm audit --slug acme-corp      # Filter by customer
+dxcrm audit --actor alice         # Filter by actor
+\`\`\`
+Log format: \`2026-06-01T09:14:00Z | alice | log_interaction | acme-corp | summary\`
+
+### session ownership
+\`\`\`
+dxcrm session open acme-corp --owner alice
+# or: DXCRM_ACTOR=alice dxcrm session open acme-corp
+\`\`\`
+\`get_active_session()\` returns \`{ owner: "alice", ... }\` when owner is set.
 `.trim();

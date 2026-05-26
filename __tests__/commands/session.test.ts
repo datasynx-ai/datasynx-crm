@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { setSession, getSession, clearSession } from "../../src/core/session-store.js";
 
 describe("session store", () => {
@@ -34,5 +34,33 @@ describe("session store", () => {
   it("returns null when no session is active", () => {
     clearSession();
     expect(getSession()).toBeNull();
+  });
+
+  describe("owner field", () => {
+    beforeEach(() => {
+      clearSession();
+      delete process.env["DXCRM_ACTOR"];
+    });
+
+    afterEach(() => {
+      clearSession();
+      delete process.env["DXCRM_ACTOR"];
+    });
+
+    it("stores owner when provided", () => {
+      setSession({ customerSlug: "acme", customerName: "Acme", startedAt: "2026-01-01", owner: "alice" });
+      expect(getSession()?.owner).toBe("alice");
+    });
+
+    it("owner is undefined when not provided", () => {
+      setSession({ customerSlug: "acme", customerName: "Acme", startedAt: "2026-01-01" });
+      expect(getSession()?.owner).toBeUndefined();
+    });
+
+    it("owner can be overwritten in a new session", () => {
+      setSession({ customerSlug: "acme", customerName: "Acme", startedAt: "2026-01-01", owner: "alice" });
+      setSession({ customerSlug: "acme", customerName: "Acme", startedAt: "2026-01-02", owner: "bob" });
+      expect(getSession()?.owner).toBe("bob");
+    });
   });
 });

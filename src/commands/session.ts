@@ -7,17 +7,20 @@ export const sessionCommand = new Command("session");
 
 sessionCommand
   .command("open <slug>")
-  .action(async (slug: string) => {
+  .option("--owner <owner>", "Set the owner of this session")
+  .action(async (slug: string, opts: { owner?: string }) => {
     const dataDir = process.cwd();
     if (!customerExists(dataDir, slug)) {
       console.error(error(`✗ Customer not found: ${slug}`));
       process.exit(1);
     }
     const facts = await readMainFacts(dataDir, slug);
+    const owner = opts.owner ?? process.env["DXCRM_ACTOR"];
     setSession({
       customerSlug: slug,
       customerName: facts.name,
       startedAt: new Date().toISOString(),
+      ...(owner !== undefined ? { owner } : {}),
     });
     console.log(success(`✓ Session opened: ${facts.name}`));
   });

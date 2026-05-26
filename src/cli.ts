@@ -12,6 +12,8 @@ import { daemonCommand } from "./commands/daemon.js";
 import { statusCommand } from "./commands/status.js";
 import { agentCommand } from "./commands/agent.js";
 import { importCommand } from "./commands/import.js";
+import { serverCommand } from "./commands/server.js";
+import { auditCommand } from "./commands/audit.js";
 
 const program = new Command();
 program
@@ -34,5 +36,7 @@ program.addCommand(daemonCommand);
 program.addCommand(statusCommand);
 program.addCommand(agentCommand);
 program.addCommand(importCommand);
+program.addCommand(serverCommand);
+program.addCommand(auditCommand);
 
 await program.parseAsync(process.argv);

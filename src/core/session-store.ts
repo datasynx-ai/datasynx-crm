@@ -2,6 +2,7 @@ export interface Session {
   customerSlug: string;
   customerName: string;
   startedAt: string;
+  owner?: string;
 }
 
 let activeSession: Session | null = null;

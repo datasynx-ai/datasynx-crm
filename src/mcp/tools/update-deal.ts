@@ -2,6 +2,7 @@ import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { upsertDeal } from "../../fs/pipeline-writer.js";
 import type { PipelineDeal } from "../../schemas/pipeline.js";
+import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 
 const DATA_DIR = process.cwd();
 
@@ -34,6 +35,14 @@ export async function handleUpdateDeal(
 
   try {
     await upsertDeal(dataDir, input.slug, deal);
+
+    writeAuditEntry(dataDir, {
+      timestamp: new Date().toISOString(),
+      actor: getActor(),
+      tool: "update_deal",
+      slug: input.slug,
+      summary: input.dealName,
+    });
 
     return {
       content: [

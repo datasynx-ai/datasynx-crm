@@ -5,6 +5,7 @@ import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { appendInteraction, formatInteractionEntry } from "../../fs/interactions-writer.js";
 import type { InteractionEntry } from "../../schemas/interaction.js";
+import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 
 const DATA_DIR = process.cwd();
 
@@ -59,6 +60,14 @@ export async function handleLogInteraction(
         // non-critical — interaction is already written
       }
     }
+
+    writeAuditEntry(dataDir, {
+      timestamp: new Date().toISOString(),
+      actor: getActor(),
+      tool: "log_interaction",
+      slug: input.slug,
+      summary: input.summary,
+    });
 
     return {
       content: [

@@ -50,4 +50,41 @@ describe("get_active_session tool", () => {
     const parsed = JSON.parse(text) as { hasSession: boolean };
     expect(parsed.hasSession).toBe(false);
   });
+
+  it("returns owner when session has owner set", async () => {
+    setSession({
+      customerSlug: "acme-corp",
+      customerName: "Acme Corp",
+      startedAt: "2026-05-26T08:00:00.000Z",
+      owner: "alice",
+    });
+
+    const result = await handleGetActiveSession();
+    const text = (result.content[0] as { type: string; text: string }).text;
+    const parsed = JSON.parse(text) as {
+      hasSession: boolean;
+      customerSlug: string;
+      customerName: string;
+      startedAt: string;
+      owner: string;
+    };
+
+    expect(parsed.hasSession).toBe(true);
+    expect(parsed.owner).toBe("alice");
+  });
+
+  it("owner is absent in response when not set on session", async () => {
+    setSession({
+      customerSlug: "acme-corp",
+      customerName: "Acme Corp",
+      startedAt: "2026-05-26T08:00:00.000Z",
+    });
+
+    const result = await handleGetActiveSession();
+    const text = (result.content[0] as { type: string; text: string }).text;
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+
+    expect(parsed.hasSession).toBe(true);
+    expect(parsed["owner"]).toBeUndefined();
+  });
 });

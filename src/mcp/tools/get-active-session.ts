@@ -7,6 +7,7 @@ export interface ActiveSessionResult {
   customerSlug?: string;
   customerName?: string;
   startedAt?: string;
+  owner?: string;
 }
 
 export async function handleGetActiveSession(): Promise<{
@@ -20,6 +21,7 @@ export async function handleGetActiveSession(): Promise<{
         customerSlug: session.customerSlug,
         customerName: session.customerName,
         startedAt: session.startedAt,
+        ...(session.owner !== undefined ? { owner: session.owner } : {}),
       }
     : { hasSession: false };
 

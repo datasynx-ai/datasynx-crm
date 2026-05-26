@@ -4,6 +4,7 @@ import path from "path";
 import { success, error, info, bold } from "../ui/colors.js";
 import { readSyncState } from "../fs/sync-state.js";
 import { readUnmatched } from "../fs/unmatched-transcripts.js";
+import { getSession } from "../core/session-store.js";
 
 export function formatAge(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
@@ -86,6 +87,15 @@ export async function runStatus(
 
   // Customer count
   console.log(` Kunden:     ${slugs.length} aktiv`);
+
+  // Session line
+  const session = getSession();
+  if (session) {
+    const ownerPart = session.owner ? ` [${session.owner}]` : "";
+    console.log(` Session:    ${session.customerName} (${session.customerSlug})${ownerPart}`);
+  } else {
+    console.log(` Session:    keine`);
+  }
 
   // Sync lines
   if (slugs.length > 0) {

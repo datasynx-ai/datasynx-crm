@@ -46,6 +46,9 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm agent status` | Show all configured agents |
 | `dxcrm agent remove <slug>` | Remove agent config |
 | `dxcrm import <file>` | Import from HubSpot/CSV (`--from hubspot\|csv`, `--dry-run`) |
+| `dxcrm server start` | Start HTTP MCP server (`--data <dir>`, `--port 3847`) |
+| `dxcrm server status` | Check if HTTP server is running |
+| `dxcrm audit` | Show audit trail (`--slug`, `--actor`, `--limit`) |
 | `dxcrm backup [path]` | Backup customers/ directory |
 | `dxcrm backup schedule --every day --keep 7` | Schedule automatic backups |
 | `dxcrm restore <path>` | Restore from backup |
@@ -99,8 +102,23 @@ customers/
 
 .agentic/
 ├── config.json              # CRM configuration
-└── sources.json             # Global sync sources
+├── sources.json             # Global sync sources
+├── audit.log                # Append-only audit trail (Phase 3)
+├── agents/                  # Per-customer agent configs (Phase 2)
+└── server.pid               # HTTP server PID (Phase 3)
 ```
+
+## Team Setup (Phase 3)
+
+Run on a shared VM:
+```bash
+dxcrm server start --data /mnt/crm-data --port 3847
+```
+Each team member adds to their AI framework config:
+```
+url: http://vm-ip:3847/mcp
+```
+Set actor identity: `export DXCRM_ACTOR=alice`
 
 ---
 

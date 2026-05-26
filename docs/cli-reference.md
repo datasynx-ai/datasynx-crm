@@ -225,6 +225,55 @@ dxcrm import hubspot-export.csv --from hubspot --dry-run # Preview field mapping
 
 ---
 
+## dxcrm server (Phase 3 — Team Setup)
+
+Start a shared HTTP MCP server for team use. Multiple agents connect via `url: http://vm-ip:3847/mcp`.
+
+```bash
+dxcrm server start                              # Start on default port 3847
+dxcrm server start --port 3847 --data /mnt/crm-data   # With custom data dir
+dxcrm server status                             # Check if running + PID
+```
+
+**Options (start):**
+- `--port <port>` — HTTP port. Default: `3847`
+- `--data <dir>` — Data directory (sets `DXCRM_DATA_DIR`). Default: `process.cwd()`
+
+**PID file**: `.agentic/server.pid`
+
+**Team member setup** — add to AI framework config:
+```
+url: http://vm-ip:3847/mcp
+```
+Set actor identity in shell: `export DXCRM_ACTOR=alice`
+
+---
+
+## dxcrm audit (Phase 3 — Audit Trail)
+
+Show the append-only audit trail at `.agentic/audit.log`. Every `log_interaction` and `update_deal` call writes an attributed entry.
+
+```bash
+dxcrm audit                          # Last 20 entries
+dxcrm audit --slug acme-corp         # Filter by customer
+dxcrm audit --actor alice            # Filter by actor
+dxcrm audit --limit 100              # Show more entries
+```
+
+**Options:**
+- `--slug <slug>` — Filter by customer slug
+- `--actor <actor>` — Filter by actor (matches `DXCRM_ACTOR`)
+- `--limit <n>` — Number of entries (default: 20)
+
+**Log format** (one line per entry):
+```
+2026-06-01T09:14:00Z | alice | log_interaction | acme-corp | Called about Q3 renewal
+```
+
+**Actor resolution**: `DXCRM_ACTOR` env var → `"system"`
+
+---
+
 ## dxcrm backup / restore
 
 ```bash
