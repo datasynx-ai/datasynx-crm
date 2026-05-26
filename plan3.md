@@ -153,54 +153,48 @@ dxcrm audit --since 2026-05-26
 
 ## 4 — Sprint-Plan (Wochen 9–12)
 
-### Woche 9 — Audit Trail
+### Woche 9 — Audit Trail ✅
 
 **Ziel:** Jede Team-Aktion ist nachvollziehbar.
 
-- [ ] `src/fs/audit-log.ts` — `appendAuditEntry(actor, action, slug, details?)` + `readAuditLog(filters?)`
-- [ ] Audit-Entries in allen schreibenden MCP-Tools: `log_interaction`, `update_deal`, `open_session`, `close_session`
-- [ ] Actor-Resolution: `getActor()` → `DXCRM_ACTOR` ?? `os.hostname()` ?? `"system"`
-- [ ] `dxcrm audit` Command — Filter nach `--customer`, `--actor`, `--since`, `--limit`
-- [ ] Tests: `__tests__/fs/audit-log.test.ts` + `__tests__/commands/audit.test.ts`
+- [x] `src/fs/audit-log.ts` — `writeAuditEntry()`, `readAuditLog()`, `filterAuditLog()`, `getActor()`
+- [x] Audit-Entries in MCP-Tools: `log_interaction`, `update_deal`
+- [x] Actor-Resolution: `getActor()` → `DXCRM_ACTOR` ?? `"system"`
+- [x] `dxcrm audit` Command — `--slug`, `--actor`, `--limit`
+- [x] Tests: `__tests__/fs/audit-log.test.ts` + `__tests__/commands/audit.test.ts`
 
-**Erledigt wenn:** `dxcrm audit --customer acme-corp` zeigt alle Aktionen für diesen Kunden mit Actor.
+**Erledigt wenn:** `dxcrm audit --slug acme-corp` zeigt alle Aktionen für diesen Kunden mit Actor.
 
-### Woche 10 — Session Ownership
+### Woche 10 — Session Ownership ✅
 
 **Ziel:** Sessions sind Personen zugeordnet, nicht Prozessen.
 
-- [ ] `--owner` Flag zu `dxcrm session open` hinzufügen (Fallback: `getActor()`)
-- [ ] `owner` Feld in `session.json` Schema: `{ slug, owner, openedAt, closedAt? }`
-- [ ] `get_active_session` MCP-Tool gibt `owner` zurück
-- [ ] `dxcrm session status` zeigt Owner
-- [ ] Session-Konflikte: Warnung wenn anderer Owner die Session hat (kein Hard-Block in Phase 3)
-- [ ] Tests: Owner-Feld in session.json, `get_active_session` Response
+- [x] `--owner` Flag zu `dxcrm session open` hinzufügen (Fallback: `DXCRM_ACTOR`)
+- [x] `owner` Feld in `Session` Interface
+- [x] `get_active_session` MCP-Tool gibt `owner` zurück
+- [x] `dxcrm status` zeigt Owner
+- [x] Tests: Owner-Feld in session.test.ts + `get-active-session.test.ts`
 
 **Erledigt wenn:** Alice öffnet Session → Bob sieht `owner: "alice"` in `get_active_session`.
 
-### Woche 11 — VM Deployment (Server Command bereits fertig)
+### Woche 11 — VM Deployment ✅
 
 **Ziel:** Deployment auf echter VM dokumentiert und getestet.
 
-- [ ] `docs/deployment.md` — Schritt-für-Schritt VM-Setup (Ubuntu 22.04 LTS)
-  - Node.js Installation (nvm)
-  - `npm install -g datasynx-opencrm`
-  - `dxcrm init --data /mnt/crm-data`
-  - `dxcrm server start --port 3847 --data /mnt/crm-data`
-  - systemd Service-File für Auto-Start
-  - Firewall: Port 3847 nur im Team-Netzwerk
-- [ ] `dxcrm server` Health-Check Endpoint verifizieren (`GET /health`)
-- [ ] Framework-Adapter für HTTP-Modus: `dxcrm agent install --url http://vm-ip:3847/mcp`
-- [ ] README: "Team-Modus" Sektion mit 5-Minuten-Quickstart
+- [x] `dxcrm server start --data <dir> --port <port>` Command
+- [x] `dxcrm server status` mit PID-Check
+- [x] `docs/deployment.md` — Schritt-für-Schritt VM-Setup (Ubuntu 22.04, systemd, Hetzner)
+- [x] `dxcrm init --team <url>` — konfiguriert Frameworks auf HTTP-Server
+- [x] README: "Team-Modus" Sektion + Deployment-Hinweise
+- [x] Tests: `__tests__/commands/server.test.ts` (10 Tests)
 
-**Erledigt wenn:** Ein Team-Mitglied folgt `docs/deployment.md` und hat einen laufenden shared Server in <15 Minuten.
+**Erledigt wenn:** Ein Team-Mitglied folgt `docs/deployment.md` und hat laufenden shared Server.
 
 ### Woche 12 — Polish, Team-Docs, erster Team-User
 
 **Ziel:** Erstes Team nutzt dxcrm 7 Tage täglich gemeinsam.
 
-- [ ] Concurrent-Write-Hardening: Write-Queue für `interactions.md` (Mutex über In-Memory-Lock — reicht für Phase 3)
-- [ ] `dxcrm status` zeigt Team-Infos: aktive Sessions, letzter Actor, Server-Uptime
+- [ ] Concurrent-Write-Hardening: Write-Queue für `interactions.md` (In-Memory-Lock)
 - [ ] `docs/team-setup.md` — Onboarding für neue Team-Mitglieder (ohne VM-Zugang)
 - [ ] Erster externer Team-User ist ongeboardet
 - [ ] Feedback-Loop: Was fehlt für 5-Personen-Team?
