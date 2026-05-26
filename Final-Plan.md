@@ -14,7 +14,7 @@
 | Phase 4 | Enterprise | ⚠️ PARTIAL | RBAC-Enforcement und GDPR-LanceDB fehlen |
 | Phase 5 | Migration | ✅ VOLLSTÄNDIG | Pipedrive, Salesforce API, LLM-Feldmapping |
 
-**Test-Stand:** 551 Tests, 59 Dateien, alle grün  
+**Test-Stand:** 566 Tests, 60 Dateien, alle grün (inkl. 15 E2E-Tests)  
 **Kritische Lücken:** 4 (zwei davon sicherheitsrelevant)
 
 ---
@@ -549,4 +549,13 @@ Vollständiger, maschinenlesbarer Funktionsumfang des CRM. Wird in alle Framewor
 - Einschränkungen und Fehlerbehandlung
 - RBAC-Matrix
 
-**Status:** ✅ IMPLEMENTIERT (Sprint 9 abgeschlossen, siehe unten)
+**Status:** ✅ VOLLSTÄNDIG IMPLEMENTIERT
+
+**Geliefert:**
+- `__tests__/e2e/cli-workflow.test.ts` — 15 E2E-Tests, alle grün
+- `docs/index.html` — Standalone HTML-Docs (~680 Zeilen, kein CDN, file:/// kompatibel)
+- `src/core/agent-context.ts` — AgentContextSchema + AGENT_CONTEXT_TEXT für Framework-Injection
+- `README.md` — Vollständige Endnutzer-Dokumentation (ersetzt alte README)
+
+**Commit:** `feat(sprint9): E2E tests, HTML docs, agent context, updated README`
+**Merged:** main ✅
