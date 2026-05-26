@@ -51,6 +51,7 @@
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@huggingface/transformers": "^3.8.1",
     "@iarna/toml": "^2.2.5",
     "@lancedb/lancedb": "^0.29.0",
