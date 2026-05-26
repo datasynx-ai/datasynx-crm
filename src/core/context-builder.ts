@@ -45,7 +45,8 @@ export async function buildContext(dataDir: string, slug: string): Promise<strin
   let mainContent = "";
   let frontmatterStr = "";
   if (fs.existsSync(mainFactsPath)) {
-    const raw = matter.read(mainFactsPath);
+    const fileContent = fs.readFileSync(mainFactsPath, "utf-8") as string;
+    const raw = matter(fileContent);
     mainContent = raw.content ?? "";
     frontmatterStr = Object.entries(raw.data as Record<string, unknown>)
       .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
