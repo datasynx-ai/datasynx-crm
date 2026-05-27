@@ -32,6 +32,10 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | run_deal_agent | Analyze deal + generate action plan (observe/suggest/act) | rep+ |
 | approve_agent_action | Approve/reject queued agent action | rep+ |
 | simulate_revenue | Monte Carlo pipeline forecast (P10/P50/P90, sensitivity) | any |
+| get_playbook | Retrieve matching playbooks for a deal situation | any |
+| create_playbook | Create or update a playbook with trigger DSL | rep+ |
+| list_playbooks | List all playbooks for a customer | any |
+| distill_playbook | LLM-extract playbook from won/lost deal history | rep+ |
 
 ## Tool Reference
 
@@ -131,6 +135,29 @@ Monte Carlo simulation over all active deals. Adjusts probabilities via health s
 champion presence (D11). Returns P10/P50/P90 confidence interval + sensitivity map.
 horizon: "quarter" (default) | "year"
 - Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMonth, topRisks, sensitivityMap }, confidence, dealCount }
+
+### get_playbook({ slug, stage?, value?, healthScore?, daysSinceContact?, championPresent? })
+Returns playbooks matching the current deal situation. Without deal context, returns all playbooks.
+Playbooks are sorted by success rate (highest first). run_deal_agent uses playbooks automatically.
+- Input: slug (required) + optional deal context fields for trigger matching
+- Returns: { matches: [{ name, score, trigger, successRate, usedCount, content }], totalPlaybooks, slug }
+
+### create_playbook({ slug, name, trigger, content, successRate? })
+Create or update a playbook encoding proven tactics for a specific deal situation.
+Trigger DSL uses AND-only conditions: deal_stage_<s> | value > N | days_stalled > N | health < N | no_champion | has_champion
+- Input: slug, name, trigger (DSL string), content (markdown), successRate? (0–1, default 0.5)
+- Returns: { success: true, playbook: { name, trigger, successRate, path } }
+
+### list_playbooks({ slug })
+List all playbooks for a customer (metadata only — no body content for performance).
+- Input: { slug: string }
+- Returns: { playbooks: [{ name, trigger, successRate, usedCount, lastUpdated }], count, slug }
+
+### distill_playbook({ slug, dealName, outcome })
+LLM analyzes a deal's interaction history and extracts a reusable playbook.
+Run after every won or lost deal to build procedural memory.
+outcome: "won" | "lost"
+- Returns: { success: true, playbook: { name, trigger, successRate, path }, reasoning }
 
 ## Recommended Workflow
 

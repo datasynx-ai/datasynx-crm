@@ -22,6 +22,10 @@ import { registerGetRelationshipHealth } from "./tools/get-relationship-health.j
 import { registerRunDealAgent } from "./tools/run-deal-agent.js";
 import { registerApproveAgentAction } from "./tools/approve-agent-action.js";
 import { registerSimulateRevenue } from "./tools/simulate-revenue.js";
+import { registerGetPlaybook } from "./tools/get-playbook.js";
+import { registerCreatePlaybook } from "./tools/create-playbook.js";
+import { registerListPlaybooks } from "./tools/list-playbooks.js";
+import { registerDistillPlaybook } from "./tools/distill-playbook.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -29,7 +33,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 19 tools
+  // Register all 23 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -50,6 +54,10 @@ export function createMcpServer(): McpServer {
   registerRunDealAgent(server);
   registerApproveAgentAction(server);
   registerSimulateRevenue(server);
+  registerGetPlaybook(server);
+  registerCreatePlaybook(server);
+  registerListPlaybooks(server);
+  registerDistillPlaybook(server);
 
   return server;
 }

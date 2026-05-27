@@ -5,6 +5,7 @@ import { scoreDeal } from "../core/deal-health.js";
 import { computeCustomerHealth } from "../core/relationship-health.js";
 import { readGraph, getStakeholders } from "../core/graph.js";
 import { callLlm } from "../core/llm.js";
+import { listPlaybooks, matchPlaybooks, type PlaybookMatch } from "../core/playbooks.js";
 import type { PipelineDeal } from "../schemas/pipeline.js";
 import type { DealHealthScore } from "../core/deal-health.js";
 import type { HealthSnapshot } from "../core/relationship-health.js";
@@ -91,6 +92,7 @@ export interface DealObservation {
   championCount: number;
   recentInteractionsSummary: string;
   contextSummary: string;
+  matchingPlaybooks?: PlaybookMatch[]; // D15: procedural memory
 }
 
 export interface AgentQueue {
@@ -263,6 +265,22 @@ export async function observeDeal(
     contextSummary,
   };
   if (daysToClose !== undefined) obs.daysToClose = daysToClose;
+
+  // D15: load matching playbooks from procedural memory
+  const dealSnap = {
+    slug,
+    name: deal.name,
+    stage: deal.stage,
+    value: deal.value ?? 0,
+    probability: deal.probability ?? 50,
+    healthScore: health.overallHealth,
+    daysSinceContact: daysSinceLastActivity,
+    championPresent: championCount > 0,
+  };
+  const allPlaybooks = listPlaybooks(dataDir, slug);
+  const matchingPlaybooks = matchPlaybooks(allPlaybooks, dealSnap, daysSinceLastActivity);
+  if (matchingPlaybooks.length > 0) obs.matchingPlaybooks = matchingPlaybooks;
+
   return obs;
 }
 
@@ -270,10 +288,23 @@ export async function observeDeal(
 
 export function buildLlmPrompt(obs: DealObservation, config: DealAgentConfig): string {
   const instruction = config.instruction ?? "Analyze this deal and recommend next actions.";
+
+  const playbookSection =
+    obs.matchingPlaybooks && obs.matchingPlaybooks.length > 0
+      ? `\n## Matching Playbooks (${obs.matchingPlaybooks.length} found — apply these proven tactics)\n` +
+        obs.matchingPlaybooks
+          .slice(0, 2)
+          .map(
+            (m) =>
+              `### ${m.playbook.name} (${Math.round(m.playbook.frontmatter.successRate * 100)}% success rate, used ${m.playbook.frontmatter.usedCount}x)\n${m.playbook.content.slice(0, 500)}`
+          )
+          .join("\n\n")
+      : "";
+
   return `You are a CRM deal agent. Analyze the deal situation and return an action plan.
 Return ONLY valid JSON — no markdown, no explanation.
 
-${obs.contextSummary}
+${obs.contextSummary}${playbookSection}
 
 Instruction: ${instruction}
 
@@ -336,6 +367,29 @@ export function buildRuleBasedAnalysis(
   else if (obs.dealHealthScore.grade === "C") riskLevel = "medium";
 
   let step = 1;
+
+  // D15: Playbook alerts as first plan items
+  if (obs.matchingPlaybooks && obs.matchingPlaybooks.length > 0) {
+    for (const match of obs.matchingPlaybooks.slice(0, 2)) {
+      plan.push({
+        step: step++,
+        action: `Apply playbook: "${match.playbook.name}"`,
+        priority: "high",
+        reason: `Proven tactic (${Math.round(match.playbook.frontmatter.successRate * 100)}% success, used ${match.playbook.frontmatter.usedCount}x) — trigger: ${match.playbook.frontmatter.trigger}`,
+      });
+      actions.push({
+        type: "alert",
+        payload: {
+          slug: config.slug,
+          message: `Playbook available: "${match.playbook.name}" (${Math.round(match.playbook.frontmatter.successRate * 100)}% success rate)`,
+          playbookContent: match.playbook.content.slice(0, 1000),
+          urgency: "high",
+        },
+        confidence: match.playbook.frontmatter.successRate,
+        reasoning: `Trigger matched: ${match.playbook.frontmatter.trigger}`,
+      });
+    }
+  }
 
   if (obs.coldContacts.length > 0) {
     plan.push({

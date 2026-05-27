@@ -173,6 +173,10 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `run_deal_agent` | Analyze deal + generate action plan (observe/suggest/act modes) | rep+ |
 | `approve_agent_action` | Approve or reject a queued deal agent action | rep+ |
 | `simulate_revenue` | Monte Carlo pipeline forecast with P10/P50/P90 confidence intervals | any |
+| `get_playbook` | Retrieve matching playbooks for a deal situation | any |
+| `create_playbook` | Create or update a playbook with trigger DSL | rep+ |
+| `list_playbooks` | List all playbooks for a customer | any |
+| `distill_playbook` | LLM-extract reusable playbook from won/lost deal history | rep+ |
 
 ### Tool Examples
 
@@ -217,6 +221,30 @@ approve_agent_action({
   "slug": "acme-corp",
   "actionId": "da_1748346900000_a3f7x2",
   "approved": true
+})
+
+// Get matching playbook for a deal in negotiation
+get_playbook({
+  "slug": "acme-corp",
+  "stage": "negotiation",
+  "value": 75000,
+  "daysSinceContact": 10
+})
+
+// Create a playbook from proven tactics
+create_playbook({
+  "slug": "acme-corp",
+  "name": "enterprise-renewal",
+  "trigger": "deal_stage_negotiation AND value > 50000 AND days_stalled > 7",
+  "content": "# Enterprise Renewal\n\n## Steps\n1. Call economic buyer directly.",
+  "successRate": 0.73
+})
+
+// Extract playbook from a won deal
+distill_playbook({
+  "slug": "acme-corp",
+  "dealName": "Q3 Enterprise License",
+  "outcome": "won"
 })
 ```
 

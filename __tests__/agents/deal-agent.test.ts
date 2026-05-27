@@ -992,3 +992,60 @@ describe("runDealAgent — deal not found", () => {
     ).rejects.toThrow("Ghost Deal");
   });
 });
+
+// ─── D15 Playbook integration ─────────────────────────────────────────────────
+
+describe("observeDeal — D15 playbook integration", () => {
+  it("matchingPlaybooks is absent when no playbooks dir exists", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(),
+      [`${DATA_DIR}/customers/${SLUG}/interactions.md`]: makeInteractionsMd(),
+      [`${DATA_DIR}/customers/${SLUG}/health.json`]: makeHealthJson(),
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+    });
+    vi.resetModules();
+    const { observeDeal } = await import("../../src/agents/deal-agent.js");
+    const obs = await observeDeal(DATA_DIR, SLUG, "Q3 Renewal", TODAY);
+    expect(obs).not.toBeNull();
+    expect(obs!.matchingPlaybooks).toBeUndefined();
+  });
+
+  it("matchingPlaybooks populated when a playbook trigger matches", async () => {
+    // Q3 Renewal is in stage=negotiation, value=50000 — trigger matches value >= 50000
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(),
+      [`${DATA_DIR}/customers/${SLUG}/interactions.md`]: makeInteractionsMd(),
+      [`${DATA_DIR}/customers/${SLUG}/health.json`]: makeHealthJson(),
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+      [`${DATA_DIR}/customers/${SLUG}/playbooks/renewal.md`]:
+        "---\ntrigger: deal_stage_negotiation\nsuccessRate: 0.8\nusedCount: 5\nlastUpdated: 2026-05-20\n---\n\n# Renewal Playbook\n\n## Steps\n1. Call buyer.",
+    });
+    vi.resetModules();
+    const { observeDeal } = await import("../../src/agents/deal-agent.js");
+    const obs = await observeDeal(DATA_DIR, SLUG, "Q3 Renewal", TODAY);
+    expect(obs).not.toBeNull();
+    expect(obs!.matchingPlaybooks).toBeDefined();
+    expect(obs!.matchingPlaybooks!.length).toBeGreaterThan(0);
+    expect(obs!.matchingPlaybooks![0]!.playbook.name).toBe("renewal");
+  });
+
+  it("buildRuleBasedAnalysis includes playbook alert when matchingPlaybooks present", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(),
+      [`${DATA_DIR}/customers/${SLUG}/interactions.md`]: makeInteractionsMd(),
+      [`${DATA_DIR}/customers/${SLUG}/health.json`]: makeHealthJson(),
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+      [`${DATA_DIR}/customers/${SLUG}/playbooks/renewal.md`]:
+        "---\ntrigger: deal_stage_negotiation\nsuccessRate: 0.8\nusedCount: 5\nlastUpdated: 2026-05-20\n---\n\n# Renewal Playbook\n\n## Steps\n1. Call buyer.",
+    });
+    vi.resetModules();
+    const { observeDeal, buildRuleBasedAnalysis } = await import("../../src/agents/deal-agent.js");
+    const obs = await observeDeal(DATA_DIR, SLUG, "Q3 Renewal", TODAY);
+    expect(obs).not.toBeNull();
+    const analysis = buildRuleBasedAnalysis(obs!, makeConfig());
+    const hasPlaybookAlert = analysis.actions.some(
+      (a) => a.type === "alert" && JSON.stringify(a.payload).toLowerCase().includes("playbook")
+    );
+    expect(hasPlaybookAlert).toBe(true);
+  });
+});
