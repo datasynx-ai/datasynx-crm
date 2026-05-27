@@ -97,10 +97,20 @@ export function writePlaybook(dataDir: string, slug: string, playbook: Playbook)
   fs.writeFileSync(filePath, raw, "utf-8");
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function toKebabCase(name: string): string {
+  return name
+    .replace(/[^a-z0-9-]/gi, "-")
+    .toLowerCase()
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 // ─── Trigger DSL ──────────────────────────────────────────────────────────────
 
-export function parseTrigger(triggerStr: string): TriggerCondition[] {
-  if (!triggerStr.trim()) return [];
+export function parseTrigger(triggerStr: string | null | undefined): TriggerCondition[] {
+  if (!triggerStr?.trim()) return [];
   const tokens = triggerStr.split(/\s+AND\s+/).map((t) => t.trim()).filter(Boolean);
   return tokens.flatMap((token): TriggerCondition[] => {
     if (token.startsWith("deal_stage_")) {
@@ -147,7 +157,7 @@ export function evaluateCondition(
     case "health_gt":       return deal.healthScore > (cond.value ?? 0);
     case "no_champion":     return !deal.championPresent;
     case "has_champion":    return deal.championPresent;
-    default:                return true;
+    default:                return false;
   }
 }
 
@@ -171,9 +181,8 @@ export function matchPlaybooks(
     const conditions = parseTrigger(pb.frontmatter.trigger);
     if (conditions.length === 0) continue;
     const matched = conditions.filter((c) => evaluateCondition(c, deal, daysSinceContact));
-    const score = matched.length / conditions.length;
-    if (score === 1.0) {
-      results.push({ playbook: pb, score, matchedConditions: matched, totalConditions: conditions.length });
+    if (matched.length === conditions.length) {
+      results.push({ playbook: pb, score: 1.0, matchedConditions: matched, totalConditions: conditions.length });
     }
   }
   return results.sort((a, b) => {
@@ -274,11 +283,7 @@ export async function distillPlaybook(
   if (!distillation) return { ok: false, errorKind: "parse_failed" };
 
   const today = new Date().toISOString().slice(0, 10);
-  const name = distillation.name
-    .replace(/[^a-z0-9-]/gi, "-")
-    .toLowerCase()
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+  const name = toKebabCase(distillation.name);
 
   const playbook: Playbook = {
     slug,

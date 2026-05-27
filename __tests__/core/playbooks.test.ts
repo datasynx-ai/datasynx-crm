@@ -117,6 +117,19 @@ describe("parseTrigger", () => {
     expect(conds[1]).toEqual({ type: "value_gt", value: 50000 });
     expect(conds[2]).toEqual({ type: "days_stalled_gt", value: 7 });
   });
+
+  it("silently drops unknown tokens", async () => {
+    const { parseTrigger } = await import("../../src/core/playbooks.js");
+    const conds = parseTrigger("deal_stage_negotiation AND unknown_token AND value > 50000");
+    expect(conds).toHaveLength(2);
+    expect(conds.map((c) => c.type)).toEqual(["stage", "value_gt"]);
+  });
+
+  it("tolerates extra spaces around AND", async () => {
+    const { parseTrigger } = await import("../../src/core/playbooks.js");
+    const conds = parseTrigger("deal_stage_negotiation  AND  value > 50000");
+    expect(conds).toHaveLength(2);
+  });
 });
 
 // ─── evaluateCondition / evaluateTrigger ──────────────────────────────────────
@@ -359,6 +372,16 @@ describe("matchPlaybooks", () => {
     const matches = matchPlaybooks(pbs, makeDealSnap({ stage: "negotiation" }), 0);
     expect(matches[0]!.playbook.frontmatter.usedCount).toBe(20);
   });
+
+  it("skips playbook with empty trigger (no conditions to match)", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/playbooks/empty-trigger.md`]: makePlaybookMd({ trigger: "" }),
+    });
+    const { listPlaybooks, matchPlaybooks } = await import("../../src/core/playbooks.js");
+    const pbs = listPlaybooks(DATA_DIR, SLUG);
+    const matches = matchPlaybooks(pbs, makeDealSnap(), 0);
+    expect(matches).toHaveLength(0);
+  });
 });
 
 describe("getBestPlaybook", () => {
@@ -444,6 +467,35 @@ describe("parseLlmDistillation", () => {
   });
 });
 
+// ─── toKebabCase ──────────────────────────────────────────────────────────────
+
+describe("toKebabCase", () => {
+  it("converts spaces to hyphens", async () => {
+    const { toKebabCase } = await import("../../src/core/playbooks.js");
+    expect(toKebabCase("My Playbook Name")).toBe("my-playbook-name");
+  });
+
+  it("lowercases all characters", async () => {
+    const { toKebabCase } = await import("../../src/core/playbooks.js");
+    expect(toKebabCase("UPPERCASE")).toBe("uppercase");
+  });
+
+  it("collapses multiple hyphens", async () => {
+    const { toKebabCase } = await import("../../src/core/playbooks.js");
+    expect(toKebabCase("a---b")).toBe("a-b");
+  });
+
+  it("strips leading and trailing hyphens", async () => {
+    const { toKebabCase } = await import("../../src/core/playbooks.js");
+    expect(toKebabCase("  leading trailing  ")).toBe("leading-trailing");
+  });
+
+  it("preserves existing kebab-case", async () => {
+    const { toKebabCase } = await import("../../src/core/playbooks.js");
+    expect(toKebabCase("already-kebab")).toBe("already-kebab");
+  });
+});
+
 // ─── distillPlaybook (integration, memfs) ─────────────────────────────────────
 
 describe("distillPlaybook", () => {
@@ -500,5 +552,26 @@ describe("distillPlaybook", () => {
     const result = await distillPlaybook(DATA_DIR, SLUG, "Deal", "won", async () => weirdNameResponse);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.playbook.name).toMatch(/^[a-z0-9-]+$/);
+  });
+
+  it("succeeds with empty interactions file (passes empty string to LLM)", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/interactions.md`]: "",
+    });
+    const { distillPlaybook } = await import("../../src/core/playbooks.js");
+    const validResponse = JSON.stringify({
+      name: "blank-deal",
+      trigger: "deal_stage_lead",
+      content: "# Blank Deal\n\n## Steps\n1. Gather info.",
+      successRate: 0.5,
+      reasoning: "No history available.",
+    });
+    let capturedPrompt = "";
+    const result = await distillPlaybook(DATA_DIR, SLUG, "Deal", "won", async (p) => {
+      capturedPrompt = p;
+      return validResponse;
+    });
+    expect(result.ok).toBe(true);
+    expect(capturedPrompt).toContain("Deal");
   });
 });

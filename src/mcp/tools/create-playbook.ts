@@ -1,17 +1,9 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { writePlaybook, playbooksDir } from "../../core/playbooks.js";
+import { writePlaybook, playbooksDir, toKebabCase } from "../../core/playbooks.js";
 import path from "path";
 
 const DATA_DIR = process.cwd();
-
-function toKebabCase(name: string): string {
-  return name
-    .replace(/[^a-z0-9-]/gi, "-")
-    .toLowerCase()
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 export async function handleCreatePlaybook(
   input: {

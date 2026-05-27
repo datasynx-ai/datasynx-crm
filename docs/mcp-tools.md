@@ -614,7 +614,7 @@ get_playbook({
 }
 ```
 
-**Trigger DSL:** AND-only conditions. Supported tokens: `deal_stage_<stage>`, `value > N`, `value < N`, `days_stalled > N`, `days_stalled_lt < N`, `health < N`, `health > N`, `no_champion`, `has_champion`. Only exact matches (score = 1.0) are returned.
+**Trigger DSL:** AND-only conditions. Supported tokens: `deal_stage_<stage>`, `value > N`, `value < N`, `days_stalled > N`, `days_stalled < N`, `health < N`, `health > N`, `no_champion`, `has_champion`. Only exact matches (score = 1.0) are returned.
 
 ---
 
