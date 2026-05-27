@@ -133,10 +133,10 @@ describe("canWrite", () => {
     expect(canWrite("manager", "export_customer")).toBe(false);
   });
 
-  it("rep can use log_interaction only", async () => {
+  it("rep can use log_interaction and update_deal", async () => {
     const { canWrite } = await import("../../src/core/rbac.js");
     expect(canWrite("rep", "log_interaction")).toBe(true);
-    expect(canWrite("rep", "update_deal")).toBe(false);
+    expect(canWrite("rep", "update_deal")).toBe(true);
     expect(canWrite("rep", "update_customer_facts")).toBe(false);
     expect(canWrite("rep", "export_customer")).toBe(false);
   });
@@ -144,6 +144,58 @@ describe("canWrite", () => {
   it("returns false for unknown tool", async () => {
     const { canWrite } = await import("../../src/core/rbac.js");
     expect(canWrite("admin", "delete_everything")).toBe(false);
+  });
+});
+
+describe("enforceRbac", () => {
+  it("passes silently when no rbac.json exists (open access)", async () => {
+    vol.fromJSON({});
+    delete process.env["DXCRM_ACTOR"];
+    const { enforceRbac } = await import("../../src/core/rbac.js");
+    expect(() => enforceRbac("/crm", "log_interaction")).not.toThrow();
+    expect(() => enforceRbac("/crm", "update_customer_facts")).not.toThrow();
+  });
+
+  it("passes when actor has permission (admin can update_customer_facts)", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" } }),
+    });
+    process.env["DXCRM_ACTOR"] = "alice";
+    const { enforceRbac } = await import("../../src/core/rbac.js");
+    expect(() => enforceRbac("/crm", "update_customer_facts")).not.toThrow();
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  it("throws 'Access denied' when actor lacks permission", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "rep" } }),
+    });
+    process.env["DXCRM_ACTOR"] = "alice";
+    const { enforceRbac } = await import("../../src/core/rbac.js");
+    expect(() => enforceRbac("/crm", "update_customer_facts")).toThrow(/access denied/i);
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  it("uses DXCRM_ACTOR env var as actor identity", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { charlie: "manager" } }),
+    });
+    process.env["DXCRM_ACTOR"] = "charlie";
+    const { enforceRbac } = await import("../../src/core/rbac.js");
+    expect(() => enforceRbac("/crm", "update_deal")).not.toThrow();
+    expect(() => enforceRbac("/crm", "export_customer")).toThrow(/access denied/i);
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  it("falls back to 'system' actor (gets 'rep' role) when DXCRM_ACTOR is unset and rbac.json exists", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" } }),
+    });
+    delete process.env["DXCRM_ACTOR"];
+    const { enforceRbac } = await import("../../src/core/rbac.js");
+    // system → rep → can log_interaction and update_deal, but not update_customer_facts
+    expect(() => enforceRbac("/crm", "log_interaction")).not.toThrow();
+    expect(() => enforceRbac("/crm", "update_customer_facts")).toThrow(/access denied/i);
   });
 });
 
@@ -156,13 +208,13 @@ describe("assertCanWrite", () => {
 
   it("throws when role does not have permission", async () => {
     const { assertCanWrite } = await import("../../src/core/rbac.js");
-    expect(() => assertCanWrite("rep", "update_deal", "bob")).toThrow();
+    expect(() => assertCanWrite("rep", "update_customer_facts", "bob")).toThrow();
     expect(() => assertCanWrite("manager", "export_customer", "carol")).toThrow();
   });
 
   it("error message includes actor and tool name", async () => {
     const { assertCanWrite } = await import("../../src/core/rbac.js");
-    expect(() => assertCanWrite("rep", "update_deal", "bob")).toThrow(/bob/);
-    expect(() => assertCanWrite("rep", "update_deal", "bob")).toThrow(/update_deal/);
+    expect(() => assertCanWrite("rep", "update_customer_facts", "bob")).toThrow(/bob/);
+    expect(() => assertCanWrite("rep", "update_customer_facts", "bob")).toThrow(/update_customer_facts/);
   });
 });

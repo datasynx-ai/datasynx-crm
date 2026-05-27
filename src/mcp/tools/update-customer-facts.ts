@@ -2,6 +2,7 @@ import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { readMainFacts, writeMainFacts } from "../../fs/customer-dir.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
+import { enforceRbac } from "../../core/rbac.js";
 
 const DATA_DIR = process.cwd();
 
@@ -25,6 +26,8 @@ export async function handleUpdateCustomerFacts(
   const today = new Date().toISOString().slice(0, 10);
 
   try {
+    enforceRbac(dataDir, "update_customer_facts");
+
     const existing = await readMainFacts(dataDir, input.slug);
 
     const updated = {

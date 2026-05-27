@@ -3,6 +3,7 @@ import { z } from "zod";
 import { upsertDeal } from "../../fs/pipeline-writer.js";
 import type { PipelineDeal } from "../../schemas/pipeline.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
+import { enforceRbac } from "../../core/rbac.js";
 
 const DATA_DIR = process.cwd();
 
@@ -34,6 +35,8 @@ export async function handleUpdateDeal(
   };
 
   try {
+    enforceRbac(dataDir, "update_deal");
+
     await upsertDeal(dataDir, input.slug, deal);
 
     writeAuditEntry(dataDir, {

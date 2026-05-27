@@ -6,6 +6,7 @@ import { z } from "zod";
 import { appendInteraction, formatInteractionEntry } from "../../fs/interactions-writer.js";
 import type { InteractionEntry } from "../../schemas/interaction.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
+import { enforceRbac } from "../../core/rbac.js";
 
 const DATA_DIR = process.cwd();
 
@@ -41,6 +42,8 @@ export async function handleLogInteraction(
   const entryText = formatInteractionEntry(entry);
 
   try {
+    enforceRbac(dataDir, "log_interaction");
+
     await appendInteraction(dataDir, input.slug, entry);
 
     // Update last_touchpoint in main_facts.md

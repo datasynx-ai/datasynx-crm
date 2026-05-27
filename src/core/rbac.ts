@@ -11,7 +11,7 @@ export interface RbacConfig {
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: ["log_interaction", "update_deal", "update_customer_facts", "export_customer"],
   manager: ["log_interaction", "update_deal"],
-  rep: ["log_interaction"],
+  rep: ["log_interaction", "update_deal"],
 };
 
 function rbacPath(dataDir: string): string {
@@ -49,4 +49,11 @@ export function assertCanWrite(role: Role, tool: string, actor: string): void {
   if (!canWrite(role, tool)) {
     throw new Error(`Access denied: '${actor}' (role: ${role}) cannot use tool '${tool}'`);
   }
+}
+
+export function enforceRbac(dataDir: string, tool: string): void {
+  if (!fs.existsSync(rbacPath(dataDir))) return; // no rbac.json = open access
+  const actor = process.env["DXCRM_ACTOR"] ?? "system";
+  const role = getRole(dataDir, actor);
+  assertCanWrite(role, tool, actor);
 }
