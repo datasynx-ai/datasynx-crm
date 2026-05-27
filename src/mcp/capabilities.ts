@@ -22,6 +22,9 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | update_deal | Update deal stage, value, probability | After pipeline discussions |
 | update_customer_facts | Update customer profile (domain, contact, stage, tags) | After learning new info |
 | export_customer | Export all customer data as JSON or Markdown | Reporting, backup |
+| get_deal_health | Score deal health (A–F grade, 0–100) | any |
+| get_pipeline_forecast | Aggregate weighted pipeline revenue | any |
+| summarize_meeting | Summarize transcript + log interaction | rep+ |
 
 ## Tool Reference
 

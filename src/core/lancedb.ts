@@ -79,6 +79,19 @@ export async function indexInLanceDB(
   }
 }
 
+export async function dropCustomerTable(dataDir: string, slug: string): Promise<void> {
+  try {
+    const db = await getDb(dataDir);
+    const tableName = `docs_${slug.replace(/[^a-z0-9]/gi, "_")}`;
+    const tableNames: string[] = await db.tableNames();
+    if (tableNames.includes(tableName)) {
+      await db.dropTable(tableName);
+    }
+  } catch (err) {
+    process.stderr.write(`[lancedb] dropCustomerTable failed: ${(err as Error).message}\n`);
+  }
+}
+
 export async function searchKnowledge(
   dataDir: string,
   slug: string,

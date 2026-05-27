@@ -54,6 +54,12 @@ export async function runGdprErase(
     console.warn(info(`  Customer '${slug}' directory not found — may already be erased.`));
   } else {
     fs.rmSync(customerDir, { recursive: true, force: true });
+    try {
+      const { dropCustomerTable } = await import("../core/lancedb.js");
+      await dropCustomerTable(dir, slug);
+    } catch {
+      // non-critical — lancedb cleanup failure should not block erasure
+    }
   }
 
   const actor = getActor();

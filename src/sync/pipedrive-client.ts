@@ -50,3 +50,45 @@ export async function fetchPipedriveActivities(
 ): Promise<PipedriveActivity[]> {
   return pipedriveGet<PipedriveActivity>(instanceUrl, token, "/activities");
 }
+
+async function* pipedriveGetAll<T>(
+  instanceUrl: string,
+  token: string,
+  endpoint: string
+): AsyncGenerator<T> {
+  let cursor: string | undefined;
+  do {
+    const params = new URLSearchParams({ limit: "500", api_token: token });
+    if (cursor) params.set("cursor", cursor);
+    const url = `${instanceUrl.replace(/\/$/, "")}/api/v2${endpoint}?${params.toString()}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Pipedrive API error: ${res.status}`);
+    const data = (await res.json()) as { data?: T[]; additional_data?: { next_cursor?: string } };
+    for (const item of data.data ?? []) yield item;
+    cursor = data.additional_data?.next_cursor;
+  } while (cursor);
+}
+
+export async function fetchPipedrivePersonsAll(
+  instanceUrl: string,
+  token: string
+): Promise<PipedrivePerson[]> {
+  const result: PipedrivePerson[] = [];
+  for await (const p of pipedriveGetAll<PipedrivePerson>(instanceUrl, token, "/persons")) {
+    result.push(p);
+  }
+  return result;
+}
+
+export async function fetchPipedriveActivitiesAll(
+  instanceUrl: string,
+  token: string
+): Promise<PipedriveActivity[]> {
+  const result: PipedriveActivity[] = [];
+  for await (const a of pipedriveGetAll<PipedriveActivity>(instanceUrl, token, "/activities")) {
+    result.push(a);
+  }
+  return result;
+}

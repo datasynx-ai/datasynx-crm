@@ -124,6 +124,21 @@ export function resetLlmClient(): void {
   _client = null;
 }
 
+export async function callLlm(prompt: string): Promise<string> {
+  const client = getClient();
+  if (!client) throw new Error("ANTHROPIC_API_KEY not set");
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 500,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") throw new Error("No text response from LLM");
+  return textBlock.text;
+}
+
 export type FieldMapping = Record<string, string | null>;
 
 // Alias table: CRM field name → list of CSV column patterns (lowercased substrings)
