@@ -25,6 +25,8 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | get_deal_health | Score deal health (A–F grade, 0–100) | any |
 | get_pipeline_forecast | Aggregate weighted pipeline revenue | any |
 | summarize_meeting | Summarize transcript + log interaction | rep+ |
+| get_pipeline_stages | List all configured pipeline stages | any |
+| get_market_intelligence | Search across all customers for patterns | any |
 
 ## Tool Reference
 
@@ -223,6 +225,18 @@ Restricted to admin role (RBAC). Writes audit log entry.
 Generic CSV imports now use LLM-assisted column detection (fallback to heuristics when ANTHROPIC_API_KEY is unset).
 
 ## CLI Reference (Phase 4 — Enterprise)
+
+## CLI Reference (Enterprise — Sprints R1–R5)
+
+### dxcrm stages
+Manage custom pipeline stages.
+\`\`\`
+dxcrm stages list                                    # List all stages
+dxcrm stages set <id> <label> [--order N] [--probability N] [--color #hex] [--final]
+dxcrm stages delete <id>                             # Remove a stage
+dxcrm stages reset                                   # Reset to defaults
+\`\`\`
+Default stages: lead → qualified → proposal → negotiation → won → lost
 
 ### dxcrm rbac
 Role-based access control. Roles: admin > manager > rep.

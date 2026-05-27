@@ -17,6 +17,7 @@ import { auditCommand } from "./commands/audit.js";
 import { rbacCommand } from "./commands/rbac.js";
 import { gdprCommand } from "./commands/gdpr.js";
 import { securityReportCommand } from "./commands/security-report.js";
+import { stagesCommand } from "./commands/pipeline-stages.js";
 
 const program = new Command();
 program
@@ -44,5 +45,6 @@ program.addCommand(auditCommand);
 program.addCommand(rbacCommand);
 program.addCommand(gdprCommand);
 program.addCommand(securityReportCommand);
+program.addCommand(stagesCommand);
 
 await program.parseAsync(process.argv);

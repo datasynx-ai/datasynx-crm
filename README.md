@@ -98,6 +98,15 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm server status` | Check if HTTP server is running |
 | `dxcrm audit` | Show audit trail (`--slug`, `--actor`, `--limit`) |
 
+### Pipeline Stages
+
+| Command | Description |
+|---|---|
+| `dxcrm stages list` | List all configured pipeline stages |
+| `dxcrm stages set <id> <label> [--order N] [--probability N] [--color #hex] [--final]` | Create or update a stage |
+| `dxcrm stages delete <id>` | Remove a stage |
+| `dxcrm stages reset` | Reset to default stages |
+
 ### Security & Compliance
 
 | Command | Description |
@@ -134,6 +143,11 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `update_deal` | Update pipeline deal stage/value | rep+ |
 | `update_customer_facts` | Update customer profile (name, domain, contact, stage, tags) | admin |
 | `export_customer` | Export customer data as JSON/Markdown | any |
+| `get_deal_health` | Score deal health (A–F, 0–100) per deal | any |
+| `get_pipeline_forecast` | Aggregate weighted pipeline revenue | any |
+| `summarize_meeting` | Summarize transcript + log interaction | rep+ |
+| `get_pipeline_stages` | List configured pipeline stages | any |
+| `get_market_intelligence` | Search across all customers for patterns | any |
 
 ### Tool Examples
 
