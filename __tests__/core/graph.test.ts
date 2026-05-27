@@ -301,6 +301,55 @@ describe("getStakeholders", () => {
   });
 });
 
+// ─── setNodeRole ─────────────────────────────────────────────────────────────
+
+describe("setNodeRole", () => {
+  it("creates IS_CHAMPION edge from nodeId to targetId", async () => {
+    const { readGraph, setNodeRole, findEdges } = await import("../../src/core/graph.js");
+    let g = readGraph(DATA_DIR, SLUG);
+    g = setNodeRole(g, "person:a@b.com", "deal:d1", "champion");
+    const edges = findEdges(g, "person:a@b.com", "IS_CHAMPION");
+    expect(edges).toHaveLength(1);
+    expect(edges[0]!.to).toBe("deal:d1");
+  });
+
+  it("creates IS_BLOCKER edge for blocker role", async () => {
+    const { readGraph, setNodeRole, findEdges } = await import("../../src/core/graph.js");
+    let g = readGraph(DATA_DIR, SLUG);
+    g = setNodeRole(g, "person:a@b.com", "deal:d1", "blocker");
+    expect(findEdges(g, "person:a@b.com", "IS_BLOCKER")).toHaveLength(1);
+  });
+
+  it("creates IS_ECONOMIC_BUYER edge for economic_buyer role", async () => {
+    const { readGraph, setNodeRole, findEdges } = await import("../../src/core/graph.js");
+    let g = readGraph(DATA_DIR, SLUG);
+    g = setNodeRole(g, "person:a@b.com", "deal:d1", "economic_buyer");
+    expect(findEdges(g, "person:a@b.com", "IS_ECONOMIC_BUYER")).toHaveLength(1);
+  });
+
+  it("does nothing for user role", async () => {
+    const { readGraph, setNodeRole } = await import("../../src/core/graph.js");
+    let g = readGraph(DATA_DIR, SLUG);
+    g = setNodeRole(g, "person:a@b.com", "deal:d1", "user");
+    expect(g.edges).toHaveLength(0);
+  });
+});
+
+// ─── getStakeholders dedup ────────────────────────────────────────────────────
+
+describe("getStakeholders — deduplication", () => {
+  it("does not duplicate champion node when person IS_CHAMPION on multiple deals", async () => {
+    const { readGraph, upsertNode, upsertEdge, getStakeholders } = await import("../../src/core/graph.js");
+    let g = readGraph(DATA_DIR, SLUG);
+    g = upsertNode(g, { id: "person:a@b.com", type: "person", label: "Alice", properties: {} });
+    g = upsertEdge(g, { from: "person:a@b.com", to: "deal:d1", type: "IS_CHAMPION" as const, weight: 0.8, sentiment: 0, lastContact: "2026-05-27", contactCount: 1, properties: {} });
+    g = upsertEdge(g, { from: "person:a@b.com", to: "deal:d2", type: "IS_CHAMPION" as const, weight: 0.8, sentiment: 0, lastContact: "2026-05-27", contactCount: 1, properties: {} });
+    const s = getStakeholders(g);
+    expect(s.champions).toHaveLength(1);
+    expect(s.champions[0]!.id).toBe("person:a@b.com");
+  });
+});
+
 // ─── makeEdgeId ───────────────────────────────────────────────────────────────
 
 describe("makeEdgeId", () => {

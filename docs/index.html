@@ -127,7 +127,7 @@
   <a href="#cli-gdpr">dxcrm gdpr</a>
   <a href="#cli-backup">dxcrm backup</a>
 
-  <div class="nav-section">MCP Tools (14)</div>
+  <div class="nav-section">MCP Tools (15)</div>
   <a href="#mcp-capabilities">get_capabilities</a>
   <a href="#mcp-context">get_customer_context</a>
   <a href="#mcp-search">search_customer_knowledge</a>
@@ -142,6 +142,7 @@
   <a href="#mcp-meeting">summarize_meeting</a>
   <a href="#mcp-stages">get_pipeline_stages</a>
   <a href="#mcp-intel">get_market_intelligence</a>
+  <a href="#mcp-graph">get_relationship_graph</a>
 
   <div class="nav-section">Integrations</div>
   <a href="#int-gmail">Gmail</a>
@@ -220,7 +221,7 @@
   <div class="card">
     <h4>What's included</h4>
     <ul>
-      <li>14 MCP tools for AI agents</li>
+      <li>15 MCP tools for AI agents</li>
       <li>9 CRM import connectors</li>
       <li>Gmail, Outlook, Drive, Teams, Meet sync</li>
       <li>RBAC with 3 roles</li>
@@ -695,6 +696,28 @@
     { customer: <span class="str">"beta-gmbh"</span>, content: <span class="str">"Asked for HubSpot comparison..."</span>, score: 0.87 }
   ]
 }</code></pre>
+</section>
+
+<section id="mcp-graph">
+<h2>MCP Tool: get_relationship_graph</h2>
+<p>Returns the <strong>knowledge graph</strong> for a customer — contacts, companies, and their relationships. Auto-populated from every <code>log_interaction</code> call. No setup required.</p>
+<pre><code>get_relationship_graph({ slug: <span class="str">"acme-corp"</span> })
+
+<span class="comment">// Returns:</span>
+{
+  nodeCount: 4, edgeCount: 3,
+  stakeholders: {
+    champions:      [{ id: <span class="str">"person:alice@acme.com"</span>, name: <span class="str">"Alice"</span>, email: <span class="str">"alice@acme.com"</span> }],
+    blockers:       [],
+    economicBuyers: [{ id: <span class="str">"person:cfo@acme.com"</span>,   name: <span class="str">"Thomas"</span>, email: <span class="str">"cfo@acme.com"</span> }],
+    allContacts:    [ ... ],
+    missingRoles:   []          <span class="comment">// or [{ role: "champion", urgency: "important", suggestion: "..." }]</span>
+  },
+  nodes: [ ... ],  <span class="comment">// full GraphNode[]</span>
+  edges: [ ... ]   <span class="comment">// full GraphEdge[] with weight (0–1), sentiment, contactCount</span>
+}</code></pre>
+<p>Edge weight grows +0.05 per interaction (max 1.0). Edge types: <code>WORKS_AT</code>, <code>IS_CHAMPION</code>, <code>IS_BLOCKER</code>, <code>IS_ECONOMIC_BUYER</code>, <code>KNOWS</code>, <code>INTRODUCED_BY</code>, <code>OWNS_DEAL</code>, <code>COMPETES_WITH</code>.</p>
+<p>Graph is stored in <code>customers/&lt;slug&gt;/graph.json</code> and erased by <code>dxcrm gdpr erase</code>.</p>
 </section>
 
 <hr>

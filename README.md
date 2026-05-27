@@ -168,6 +168,7 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `summarize_meeting` | Summarize transcript + log interaction | rep+ |
 | `get_pipeline_stages` | List configured pipeline stages | any |
 | `get_market_intelligence` | Search across all customers for patterns | any |
+| `get_relationship_graph` | Stakeholder map + knowledge graph (champions, blockers, economic buyers) | any |
 
 ### Tool Examples
 
