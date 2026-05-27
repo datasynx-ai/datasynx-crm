@@ -53,19 +53,24 @@ dxcrm list [--filter <query>]
 
 ## dxcrm sync
 
-Sync Gmail and transcripts for a customer. Writes to `interactions.md` and indexes into LanceDB for semantic search.
+Sync emails, transcripts, and cloud files for a customer. Writes to `interactions.md` and indexes into LanceDB for semantic search.
 
 ```bash
-dxcrm sync <slug>                     # Full sync (last 30 days)
-dxcrm sync <slug> --since 2026-05-01  # Only emails/files after date
-dxcrm sync <slug> --gmail             # Gmail only
-dxcrm sync <slug> --transcripts       # Transcripts only
+dxcrm sync <slug>                          # Full sync (last 30 days)
+dxcrm sync <slug> --since 2026-05-01       # Only emails/files after date
+dxcrm sync <slug> --gmail                  # Gmail only
+dxcrm sync <slug> --transcripts            # Transcripts only
+dxcrm sync --provider microsoft            # Outlook via Microsoft Graph API
+dxcrm sync --provider google-drive        # Google Drive/Docs files
+dxcrm sync --provider teams-transcripts   # Microsoft Teams transcripts
+dxcrm sync --provider google-meet         # Google Meet transcripts
 ```
 
 **Options:**
 - `--since <YYYY-MM-DD>` — Only sync emails/transcripts after this date
 - `--gmail` — Gmail only (skip transcript processing)
 - `--transcripts` — Transcripts only (skip Gmail sync)
+- `--provider <provider>` — Sync provider: `gmail` | `microsoft` | `google-drive` | `teams-transcripts` | `google-meet`
 
 **Prerequisites for Gmail:**
 - `.agentic/gmail-credentials.json` — OAuth2 credentials
@@ -302,7 +307,7 @@ dxcrm rbac check alice update_deal  # Exit 0 = allowed, exit 1 = denied
 |---|---|---|---|---|
 | admin | ✓ | ✓ | ✓ | ✓ |
 | manager | ✓ | ✓ | — | — |
-| rep | ✓ | — | — | — |
+| rep | ✓ | ✓ | — | — |
 
 ---
 
@@ -397,3 +402,104 @@ dxcrm backup schedule --clear                   # Remove backup schedule
 ```
 
 **Backup schedule** is stored in `.agentic/config.json` and executed by the daemon (hourly check, runs if >1 day since last backup). Old backups are pruned automatically to keep only the last N.
+
+---
+
+## dxcrm stages
+
+Manage custom pipeline stages stored in `.agentic/pipeline-stages.json`.
+
+```bash
+dxcrm stages list                                              # List all stages
+dxcrm stages set discovery "Discovery" --order 3 --probability 40  # Create/update stage
+dxcrm stages set negotiation "Negotiation" --color "#ffa657" --probability 75
+dxcrm stages set signed "Signed" --final                       # Mark as terminal stage
+dxcrm stages delete discovery                                  # Remove a stage
+dxcrm stages reset                                             # Reset to 6 default stages
+```
+
+**Subcommands:**
+- `list` — Print all stages with order, probability, and color
+- `set <id> <label> [options]` — Create or update a stage
+- `delete <id>` — Remove a stage by ID
+- `reset` — Replace all stages with the built-in defaults (lead → qualified → proposal → negotiation → won → lost)
+
+**Options for `set`:**
+- `--order <n>` — Sort position in pipeline (default: last)
+- `--probability <0-100>` — Default win probability percentage
+- `--color <#hex>` — Display color (hex code)
+- `--final` — Mark as a terminal stage (won/lost semantics)
+
+**Default stages:**
+
+| ID | Label | Order | Probability |
+|---|---|---|---|
+| `lead` | Lead | 1 | 10% |
+| `qualified` | Qualified | 2 | 30% |
+| `proposal` | Proposal | 3 | 50% |
+| `negotiation` | Negotiation | 4 | 75% |
+| `won` | Won | 5 | 100% |
+| `lost` | Lost | 6 | 0% |
+
+---
+
+## dxcrm plugin
+
+Manage the plugin registry.
+
+```bash
+dxcrm plugin list                  # List all registered plugins
+dxcrm plugin info slack            # Show plugin details (name, version, description, tools)
+```
+
+**Subcommands:**
+- `list` — Show all registered plugins with name, version, description
+- `info <name>` — Show full plugin metadata including exposed MCP tools
+
+**Built-in plugins** (register in code via `registerPlugin()`):
+
+| Plugin | Package path | Adds |
+|---|---|---|
+| `slack` | `src/plugins/slack.ts` | After-interaction Slack DM; after-deal Slack alert |
+| `stripe` | `src/plugins/stripe.ts` | `get_stripe_context` MCP tool (customer revenue) |
+| `linear` | `src/plugins/linear.ts` | `get_linear_issues` MCP tool (linked issues by customer) |
+
+**Adding a custom plugin:**
+```typescript
+import { registerPlugin } from "datasynx-opencrm/dist/core/plugin-registry.js";
+
+registerPlugin({
+  name: "my-plugin",
+  version: "1.0.0",
+  description: "My custom plugin",
+  mcpTools: [],
+  onInstall: async () => { /* setup */ },
+  onUninstall: async () => { /* teardown */ },
+});
+```
+
+---
+
+## dxcrm import (HubSpot v4 API)
+
+Import contacts and activities directly from the HubSpot API (v4 Associations).
+
+```bash
+dxcrm import --from hubspot --mode api \
+  --token $HUBSPOT_TOKEN
+```
+
+**What it imports:**
+- Contacts → customers (email as primary ID, company name as customer name)
+- Associated notes, calls, emails, meetings → interactions (fetched via v4 Associations API)
+- Deduplication by `hubspot://contact/<id>` sourceRef
+
+**Environment variables:**
+- `HUBSPOT_TOKEN` — HubSpot private app token (or use `--token`)
+
+**sourceRef formats:**
+- Contacts: `hubspot://contact/<contact-id>`
+- Notes: `hubspot://note/<engagement-id>`
+- Calls: `hubspot://call/<engagement-id>`
+- Emails: `hubspot://email/<engagement-id>`
+- Meetings: `hubspot://meeting/<engagement-id>`

@@ -324,5 +324,415 @@ describe("E2E: RBAC Permissions Flow", () => {
   });
 });
 
+// ─── RBAC Full Workflow ───────────────────────────────────────────────────────
+
+describe("E2E: RBAC Enforcement Workflow", () => {
+  it("rep actor cannot update_customer_facts (RBAC enforced)", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "RBAC Corp", dataDir: DATA_DIR });
+
+    const { setActorRole } = await import("../../src/core/rbac.js");
+    setActorRole(DATA_DIR, "alice", "rep");
+
+    const prevActor = process.env["DXCRM_ACTOR"];
+    process.env["DXCRM_ACTOR"] = "alice";
+
+    try {
+      const { handleUpdateCustomerFacts } = await import(
+        "../../src/mcp/tools/update-customer-facts.js"
+      );
+      const result = await handleUpdateCustomerFacts(
+        { slug: "rbac-corp", domain: "rbac.io" },
+        DATA_DIR
+      );
+      const parsed = JSON.parse((result.content[0] as { text: string }).text) as {
+        success: boolean;
+        error?: string;
+      };
+      expect(parsed.success).toBe(false);
+      expect(parsed.error).toMatch(/access denied/i);
+    } finally {
+      if (prevActor === undefined) delete process.env["DXCRM_ACTOR"];
+      else process.env["DXCRM_ACTOR"] = prevActor;
+    }
+  });
+
+  it("rep actor CAN update_deal (rep+ permission)", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "RBAC Corp", dataDir: DATA_DIR });
+
+    const { setActorRole } = await import("../../src/core/rbac.js");
+    setActorRole(DATA_DIR, "alice", "rep");
+
+    const prevActor = process.env["DXCRM_ACTOR"];
+    process.env["DXCRM_ACTOR"] = "alice";
+
+    try {
+      const { handleUpdateDeal } = await import("../../src/mcp/tools/update-deal.js");
+      const result = await handleUpdateDeal(
+        { slug: "rbac-corp", dealName: "Test Deal", stage: "lead", value: 1000 },
+        DATA_DIR
+      );
+      const parsed = JSON.parse((result.content[0] as { text: string }).text) as {
+        success: boolean;
+      };
+      expect(parsed.success).toBe(true);
+    } finally {
+      if (prevActor === undefined) delete process.env["DXCRM_ACTOR"];
+      else process.env["DXCRM_ACTOR"] = prevActor;
+    }
+  });
+
+  it("admin actor can update_customer_facts", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "RBAC Corp", dataDir: DATA_DIR });
+
+    const { setActorRole } = await import("../../src/core/rbac.js");
+    setActorRole(DATA_DIR, "alice", "admin");
+
+    const prevActor = process.env["DXCRM_ACTOR"];
+    process.env["DXCRM_ACTOR"] = "alice";
+
+    try {
+      const { handleUpdateCustomerFacts } = await import(
+        "../../src/mcp/tools/update-customer-facts.js"
+      );
+      const result = await handleUpdateCustomerFacts(
+        { slug: "rbac-corp", domain: "admin.io" },
+        DATA_DIR
+      );
+      const parsed = JSON.parse((result.content[0] as { text: string }).text) as {
+        success: boolean;
+      };
+      expect(parsed.success).toBe(true);
+    } finally {
+      if (prevActor === undefined) delete process.env["DXCRM_ACTOR"];
+      else process.env["DXCRM_ACTOR"] = prevActor;
+    }
+  });
+
+  it("no rbac.json means open access", async () => {
+    // No .agentic dir / no rbac.json
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "Open Corp", dataDir: DATA_DIR });
+
+    const { handleUpdateCustomerFacts } = await import(
+      "../../src/mcp/tools/update-customer-facts.js"
+    );
+    const result = await handleUpdateCustomerFacts(
+      { slug: "open-corp", domain: "open.io" },
+      DATA_DIR
+    );
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as {
+      success: boolean;
+    };
+    expect(parsed.success).toBe(true);
+  });
+});
+
+// ─── GDPR Full Erasure Flow ───────────────────────────────────────────────────
+
+describe("E2E: GDPR Erasure Flow", () => {
+  it("full erasure removes customer dir and writes audit + erasure records", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "Erase Corp", dataDir: DATA_DIR });
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("erase-corp", { confirm: true }, DATA_DIR);
+    consoleSpy.mockRestore();
+
+    const fs = (await import("fs")).default;
+    expect(fs.existsSync(path.join(DATA_DIR, "customers/erase-corp"))).toBe(false);
+
+    const auditLogPath = path.join(DATA_DIR, ".agentic", "audit.log");
+    expect(fs.existsSync(auditLogPath)).toBe(true);
+    const auditContent = fs.readFileSync(auditLogPath, "utf-8") as string;
+    expect(auditContent).toContain("erase-corp");
+
+    const erasuresPath = path.join(DATA_DIR, ".agentic", "gdpr-erasures.json");
+    expect(fs.existsSync(erasuresPath)).toBe(true);
+    const erasures = JSON.parse(fs.readFileSync(erasuresPath, "utf-8") as string) as Array<{
+      slug: string;
+    }>;
+    expect(erasures.some((e) => e.slug === "erase-corp")).toBe(true);
+  });
+
+  it("dry run shows plan without deleting", async () => {
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "Dry Run Corp", dataDir: DATA_DIR });
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("dry-run-corp", { confirm: false }, DATA_DIR);
+    consoleSpy.mockRestore();
+
+    const fs = (await import("fs")).default;
+    expect(
+      fs.existsSync(path.join(DATA_DIR, "customers/dry-run-corp/main_facts.md"))
+    ).toBe(true);
+    expect(fs.existsSync(path.join(DATA_DIR, ".agentic", "audit.log"))).toBe(false);
+  });
+
+  it("list-erasures shows history after erasure", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { createCustomer } = await import("../../src/commands/create.js");
+    await createCustomer({ name: "List Corp", dataDir: DATA_DIR });
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runGdprErase, runGdprListErasures } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("list-corp", { confirm: true }, DATA_DIR);
+
+    const logLines: string[] = [];
+    consoleSpy.mockImplementation((...args: unknown[]) => {
+      logLines.push(args.map(String).join(" "));
+    });
+    await runGdprListErasures(DATA_DIR);
+    consoleSpy.mockRestore();
+
+    const hasListCorp = logLines.some((l) => l.includes("list-corp"));
+    expect(hasListCorp).toBe(true);
+  });
+});
+
+// ─── Full Customer Lifecycle ──────────────────────────────────────────────────
+
+describe("E2E: Full Customer Lifecycle", () => {
+  it("create → log interaction → update deal → get context returns all data", async () => {
+    const { createCustomer } = await import("../../src/commands/create.js");
+    const result = await createCustomer({ name: "Lifecycle Corp", dataDir: DATA_DIR });
+    const slug = result.id;
+
+    const { handleLogInteraction } = await import("../../src/mcp/tools/log-interaction.js");
+    await handleLogInteraction(
+      { slug, type: "Call", summary: "Q1 review meeting", with: "CEO" },
+      DATA_DIR
+    );
+
+    const { handleUpdateDeal } = await import("../../src/mcp/tools/update-deal.js");
+    await handleUpdateDeal(
+      { slug, dealName: "Q1 Deal", stage: "proposal", value: 50000 },
+      DATA_DIR
+    );
+
+    const { handleGetCustomerContext } = await import(
+      "../../src/mcp/tools/get-customer-context.js"
+    );
+    const ctxResult = await handleGetCustomerContext({ slug }, DATA_DIR);
+    const text = (ctxResult.content[0] as { text: string }).text;
+    expect(text).toContain("Q1 review");
+    expect(text).toContain("Q1 Deal");
+  });
+
+  it("pipeline forecast includes new deal", async () => {
+    const { createCustomer } = await import("../../src/commands/create.js");
+    const result = await createCustomer({ name: "Forecast Corp", dataDir: DATA_DIR });
+    const slug = result.id;
+
+    const { handleUpdateDeal } = await import("../../src/mcp/tools/update-deal.js");
+    await handleUpdateDeal(
+      { slug, dealName: "Forecast Deal", stage: "proposal", value: 100000, probability: 60 },
+      DATA_DIR
+    );
+
+    const { handleGetPipelineForecast } = await import(
+      "../../src/mcp/tools/get-pipeline-forecast.js"
+    );
+    const forecastResult = await handleGetPipelineForecast({}, DATA_DIR);
+    const parsed = JSON.parse((forecastResult.content[0] as { text: string }).text) as {
+      totalWeightedValue: number;
+    };
+    expect(parsed.totalWeightedValue).toBeGreaterThan(0);
+  });
+
+  it("deal health scoring returns grade for fresh deal", async () => {
+    const { createCustomer } = await import("../../src/commands/create.js");
+    const result = await createCustomer({ name: "Health Corp", dataDir: DATA_DIR });
+    const slug = result.id;
+
+    const { handleUpdateDeal } = await import("../../src/mcp/tools/update-deal.js");
+    await handleUpdateDeal(
+      {
+        slug,
+        dealName: "Health Deal",
+        stage: "qualified",
+        value: 20000,
+        probability: 40,
+        closeDate: "2027-01-01",
+      },
+      DATA_DIR
+    );
+
+    const { handleGetDealHealth } = await import("../../src/mcp/tools/get-deal-health.js");
+    const healthResult = await handleGetDealHealth({ slug }, DATA_DIR);
+    const parsed = JSON.parse((healthResult.content[0] as { text: string }).text) as {
+      deals: Array<{ deal: string; score: number; grade: string }>;
+    };
+    expect(parsed.deals.length).toBeGreaterThan(0);
+    expect(typeof parsed.deals[0]!.score).toBe("number");
+    expect(parsed.deals[0]!.grade).toBeTruthy();
+  });
+});
+
+// ─── Custom Pipeline Stages ───────────────────────────────────────────────────
+
+describe("E2E: Custom Pipeline Stages", () => {
+  it("setPipelineStage adds custom stage", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { setPipelineStage, getPipelineStages } = await import(
+      "../../src/core/pipeline-stages.js"
+    );
+    setPipelineStage(DATA_DIR, {
+      id: "demo-booked",
+      label: "Demo Booked",
+      order: 2,
+      probability: 40,
+    });
+
+    const stages = getPipelineStages(DATA_DIR);
+    expect(stages.some((s) => s.id === "demo-booked")).toBe(true);
+  });
+
+  it("deletePipelineStage removes it", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { setPipelineStage, deletePipelineStage, getPipelineStages } = await import(
+      "../../src/core/pipeline-stages.js"
+    );
+    setPipelineStage(DATA_DIR, { id: "to-delete", label: "To Delete", order: 9, probability: 5 });
+    deletePipelineStage(DATA_DIR, "to-delete");
+
+    const stages = getPipelineStages(DATA_DIR);
+    expect(stages.some((s) => s.id === "to-delete")).toBe(false);
+  });
+
+  it("get_pipeline_stages MCP tool returns custom stages", async () => {
+    vol.mkdirSync(path.join(DATA_DIR, ".agentic"), { recursive: true });
+
+    const { setPipelineStage } = await import("../../src/core/pipeline-stages.js");
+    setPipelineStage(DATA_DIR, {
+      id: "custom-stage",
+      label: "Custom Stage",
+      order: 3,
+      probability: 55,
+    });
+
+    const { handleGetPipelineStages } = await import(
+      "../../src/mcp/tools/get-pipeline-stages.js"
+    );
+    const result = await handleGetPipelineStages({}, DATA_DIR);
+    const parsed = JSON.parse((result.content[0] as { text: string }).text) as {
+      stages: Array<{ id: string }>;
+    };
+    expect(parsed.stages.some((s) => s.id === "custom-stage")).toBe(true);
+  });
+});
+
+// ─── Email Deduplication ──────────────────────────────────────────────────────
+
+describe("E2E: Email Deduplication", () => {
+  it("same messageId → same sourceRef (deduplication)", async () => {
+    const { deduplicateRefs } = await import("../../src/sync/email-dedup.js");
+    const ref1 = deduplicateRefs({ messageId: "<abc@mail>" });
+    const ref2 = deduplicateRefs({ messageId: "<abc@mail>" });
+    expect(ref1).toBe(ref2);
+  });
+
+  it("Re: prefix stripped — same thread detected", async () => {
+    const { isLikelySameThread } = await import("../../src/sync/email-dedup.js");
+    expect(
+      isLikelySameThread(
+        { subject: "Re: Budget", from: "a@b.com" },
+        { subject: "Budget", from: "a@b.com" }
+      )
+    ).toBe(true);
+  });
+
+  it("different from → not same thread", async () => {
+    const { isLikelySameThread } = await import("../../src/sync/email-dedup.js");
+    expect(
+      isLikelySameThread(
+        { subject: "Budget", from: "a@b.com" },
+        { subject: "Budget", from: "c@d.com" }
+      )
+    ).toBe(false);
+  });
+});
+
+// ─── Encryption Round-Trip ────────────────────────────────────────────────────
+
+describe("E2E: Field Encryption Round-Trip", () => {
+  it("encrypt then decrypt returns original value", async () => {
+    const { encryptFieldStr, decryptFieldStr } = await import("../../src/core/encryption.js");
+    const plaintext = "secret phone: +49 123";
+    const encrypted = encryptFieldStr(plaintext, "test-secret");
+    expect(decryptFieldStr(encrypted, "test-secret")).toBe(plaintext);
+  });
+
+  it("wrong secret cannot decrypt", async () => {
+    const { encryptFieldStr, decryptFieldStr } = await import("../../src/core/encryption.js");
+    const encrypted = encryptFieldStr("my secret", "secret1");
+    expect(() => decryptFieldStr(encrypted, "secret2")).toThrow();
+  });
+
+  it("encrypted output is different each time (random IV)", async () => {
+    const { encryptFieldStr } = await import("../../src/core/encryption.js");
+    const plaintext = "same content";
+    const enc1 = encryptFieldStr(plaintext, "key");
+    const enc2 = encryptFieldStr(plaintext, "key");
+    expect(enc1).not.toBe(enc2);
+  });
+});
+
+// ─── Plugin System ────────────────────────────────────────────────────────────
+
+describe("E2E: Plugin System", () => {
+  beforeEach(async () => {
+    // Clear the plugin registry before each test by unregistering any leftover plugins
+    const { listPlugins, unregisterPlugin } = await import(
+      "../../src/core/plugin-registry.js"
+    );
+    for (const plugin of listPlugins()) {
+      unregisterPlugin(plugin.name);
+    }
+  });
+
+  it("registerPlugin stores and listPlugins returns it", async () => {
+    const { registerPlugin, listPlugins } = await import(
+      "../../src/core/plugin-registry.js"
+    );
+    registerPlugin({ name: "test-plugin", version: "1.0.0", description: "Test" });
+    const plugins = listPlugins();
+    expect(plugins.some((p) => p.name === "test-plugin")).toBe(true);
+  });
+
+  it("duplicate plugin registration throws", async () => {
+    const { registerPlugin } = await import("../../src/core/plugin-registry.js");
+    registerPlugin({ name: "dup-plugin", version: "1.0.0" });
+    expect(() =>
+      registerPlugin({ name: "dup-plugin", version: "1.0.0" })
+    ).toThrow(/already registered/i);
+  });
+
+  it("unregisterPlugin removes it", async () => {
+    const { registerPlugin, unregisterPlugin, listPlugins } = await import(
+      "../../src/core/plugin-registry.js"
+    );
+    registerPlugin({ name: "removable-plugin", version: "1.0.0" });
+    unregisterPlugin("removable-plugin");
+    expect(listPlugins().some((p) => p.name === "removable-plugin")).toBe(false);
+  });
+});
+
 // helper import for vi in this file
 import { vi } from "vitest";

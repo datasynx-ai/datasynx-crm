@@ -68,6 +68,9 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 |---|---|
 | `dxcrm sync <slug>` | Sync Gmail + transcripts for a customer |
 | `dxcrm sync --provider microsoft` | Sync Outlook via Microsoft Graph API |
+| `dxcrm sync --provider google-drive` | Sync Google Drive/Docs files |
+| `dxcrm sync --provider teams-transcripts` | Sync Microsoft Teams transcripts |
+| `dxcrm sync --provider google-meet` | Sync Google Meet transcripts |
 | `dxcrm daemon start` | Start background sync daemon |
 | `dxcrm daemon stop` | Stop daemon |
 | `dxcrm daemon status` | Check daemon status |
@@ -78,7 +81,9 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 
 | Command | Description |
 |---|---|
-| `dxcrm import <file>` | Import from HubSpot/CSV (`--from hubspot\|csv`, `--dry-run`) |
+| `dxcrm import <file>` | Import from CSV (`--from csv`, `--dry-run`) |
+| `dxcrm import --from hubspot` | Import HubSpot export CSV |
+| `dxcrm import --from hubspot --mode api` | Import HubSpot via API (v4 Associations) |
 | `dxcrm import --from salesforce --mode api` | Import Salesforce contacts + activities |
 | `dxcrm import --from pipedrive --mode api` | Import Pipedrive persons + activities |
 
@@ -106,6 +111,21 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm stages set <id> <label> [--order N] [--probability N] [--color #hex] [--final]` | Create or update a stage |
 | `dxcrm stages delete <id>` | Remove a stage |
 | `dxcrm stages reset` | Reset to default stages |
+
+### Plugins
+
+| Command | Description |
+|---|---|
+| `dxcrm plugin list` | List all registered plugins |
+| `dxcrm plugin info <name>` | Show plugin details and exposed MCP tools |
+
+**Built-in plugins:**
+
+| Plugin | What it does |
+|---|---|
+| `slack` | Posts Slack notification after every interaction/deal update |
+| `stripe` | Adds `get_stripe_context` MCP tool (revenue, subscriptions) |
+| `linear` | Adds `get_linear_issues` MCP tool (linked issues per customer) |
 
 ### Security & Compliance
 
@@ -275,9 +295,9 @@ dxcrm security-report --output sec-report.md  # Write to file
 ```
 
 **RBAC roles:**
-- `admin` — full access including `update_customer_facts`
-- `manager` — all read + write tools except profile updates
-- `rep` — read tools + `log_interaction` + `update_deal`
+- `admin` — full access: all tools including `update_customer_facts` and `export_customer`
+- `manager` — `log_interaction` + `update_deal` + all read tools
+- `rep` — `log_interaction` + `update_deal` + all read tools
 
 ---
 

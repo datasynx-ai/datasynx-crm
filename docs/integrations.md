@@ -122,6 +122,76 @@ Always uses absolute paths. No harness files.
 
 ---
 
+## HubSpot (API v4)
+
+Import contacts and engagement history directly via the HubSpot API.
+
+```bash
+dxcrm import --from hubspot --mode api --token $HUBSPOT_TOKEN
+```
+
+Uses the **HubSpot v4 Associations API** to fetch notes, calls, emails, and meetings linked to each contact. Cursor-based pagination — handles accounts of any size. Rate-limit retry built in (10 req/s default).
+
+**Required scope** on your HubSpot private app:
+- `crm.objects.contacts.read`
+- `crm.objects.engagements.read`
+- `crm.associations.read`
+
+---
+
+## Google Drive
+
+Sync Google Docs and Drive files into customer knowledge bases.
+
+```bash
+dxcrm sync --provider google-drive
+```
+
+**What it syncs:**
+- Google Docs → exported as plain text, indexed in LanceDB for semantic search
+- Drive files in folders matching the customer slug or domain
+- Incremental: tracks `modifiedTime` to only re-fetch changed files
+
+**Prerequisites:**
+- `GOOGLE_SERVICE_ACCOUNT_KEY` env var (JSON key of service account with Drive read access)
+- Or user OAuth: place token at `.agentic/google-drive-token.json`
+
+**sourceRef format**: `gdrive://file/<file-id>`
+
+---
+
+## Microsoft Teams Transcripts
+
+Sync meeting transcripts from Microsoft Teams via the Graph API.
+
+```bash
+dxcrm sync --provider teams-transcripts
+```
+
+**Prerequisites:**
+- `.agentic/microsoft-token.json` with `{ "accessToken": "..." }`
+- Token scope: `OnlineMeetings.Read` + `CallRecords.Read.All`
+
+**sourceRef format**: `teams://transcript/<call-id>`
+
+---
+
+## Google Meet
+
+Sync Google Meet transcripts via the Meet REST API v2.
+
+```bash
+dxcrm sync --provider google-meet
+```
+
+**Prerequisites:**
+- `GOOGLE_SERVICE_ACCOUNT_KEY` with Meet API access
+- Or user OAuth token at `.agentic/google-meet-token.json`
+
+**sourceRef format**: `meet://transcript/<conference-id>`
+
+---
+
 ## Manual Registration
 
 If automatic detection doesn't work:
