@@ -127,7 +127,7 @@
   <a href="#cli-gdpr">dxcrm gdpr</a>
   <a href="#cli-backup">dxcrm backup</a>
 
-  <div class="nav-section">MCP Tools (19)</div>
+  <div class="nav-section">MCP Tools (23)</div>
   <a href="#mcp-capabilities">get_capabilities</a>
   <a href="#mcp-context">get_customer_context</a>
   <a href="#mcp-search">search_customer_knowledge</a>
@@ -147,6 +147,10 @@
   <a href="#mcp-deal-agent">run_deal_agent</a>
   <a href="#mcp-approve-action">approve_agent_action</a>
   <a href="#mcp-simulate-revenue">simulate_revenue</a>
+  <a href="#mcp-get-playbook">get_playbook</a>
+  <a href="#mcp-create-playbook">create_playbook</a>
+  <a href="#mcp-list-playbooks">list_playbooks</a>
+  <a href="#mcp-distill-playbook">distill_playbook</a>
 
   <div class="nav-section">Integrations</div>
   <a href="#int-gmail">Gmail</a>
@@ -817,6 +821,54 @@ approve_agent_action({
 <p><strong>Probability adjustment:</strong> Base stage probability + health adjustment (health 60 = neutral) + champion bonus (+5%). External signals ready for D18.</p>
 <p><strong>sensitivityMap:</strong> Expected revenue contribution per deal. Sort descending to find which deal matters most for the forecast.</p>
 <p><strong>topRisks:</strong> Top 5 at-risk deals (health &lt; 60 or 14+ days no contact), sorted by forecast impact.</p>
+</section>
+
+<section id="mcp-get-playbook">
+<h2>MCP Tool: get_playbook</h2>
+<p>Retrieve playbooks matching the current deal situation. Without deal context, returns all playbooks for the customer. Sorted by success rate (highest first). <code>run_deal_agent</code> uses this automatically.</p>
+<pre><code>get_playbook({ slug: <span class="str">"acme-corp"</span>, stage: <span class="str">"negotiation"</span>, value: <span class="num">75000</span>, daysSinceContact: <span class="num">10</span> })
+
+<span class="comment">// Returns:</span>
+{
+  matches: [{ name: <span class="str">"enterprise-renewal"</span>, score: <span class="num">1.0</span>, trigger: <span class="str">"deal_stage_negotiation AND value &gt; 50000"</span>, successRate: <span class="num">0.73</span>, usedCount: <span class="num">8</span>, content: <span class="str">"..."</span> }],
+  totalPlaybooks: <span class="num">3</span>,
+  slug: <span class="str">"acme-corp"</span>
+}</code></pre>
+<p><strong>Trigger DSL:</strong> AND-only conditions. Tokens: <code>deal_stage_&lt;s&gt;</code>, <code>value &gt; N</code>, <code>value &lt; N</code>, <code>days_stalled &gt; N</code>, <code>days_stalled &lt; N</code>, <code>health &lt; N</code>, <code>health &gt; N</code>, <code>no_champion</code>, <code>has_champion</code>. Only score=1.0 matches returned.</p>
+</section>
+
+<section id="mcp-create-playbook">
+<h2>MCP Tool: create_playbook</h2>
+<p>Create or update a playbook encoding proven tactics for a specific deal situation. Upserts by name. Stored at <code>customers/&lt;slug&gt;/playbooks/&lt;kebab-name&gt;.md</code>.</p>
+<pre><code>create_playbook({
+  slug: <span class="str">"acme-corp"</span>,
+  name: <span class="str">"enterprise-renewal"</span>,
+  trigger: <span class="str">"deal_stage_negotiation AND value &gt; 50000 AND days_stalled &gt; 7"</span>,
+  content: <span class="str">"# Enterprise Renewal\n\n## Steps\n1. Call economic buyer."</span>,
+  successRate: <span class="num">0.73</span>
+})
+<span class="comment">// Returns: { success: true, playbook: { name, trigger, successRate, path } }</span></code></pre>
+</section>
+
+<section id="mcp-list-playbooks">
+<h2>MCP Tool: list_playbooks</h2>
+<p>List all playbooks for a customer (metadata only — no body content for performance).</p>
+<pre><code>list_playbooks({ slug: <span class="str">"acme-corp"</span> })
+<span class="comment">// Returns: { playbooks: [{ name, trigger, successRate, usedCount, lastUpdated }], count, slug }</span></code></pre>
+</section>
+
+<section id="mcp-distill-playbook">
+<h2>MCP Tool: distill_playbook</h2>
+<p>Use LLM to extract a reusable playbook from a won or lost deal's interaction history. Run after every won or lost deal to build procedural memory. Analyzes <code>interactions.md</code> and writes a structured playbook file.</p>
+<pre><code>distill_playbook({ slug: <span class="str">"acme-corp"</span>, dealName: <span class="str">"Q3 Enterprise License"</span>, outcome: <span class="str">"won"</span> })
+
+<span class="comment">// Returns:</span>
+{
+  success: <span class="kw">true</span>,
+  playbook: { name: <span class="str">"enterprise-q3-renewal"</span>, trigger: <span class="str">"deal_stage_negotiation AND value &gt; 50000"</span>, successRate: <span class="num">1.0</span>, path: <span class="str">"..."</span> },
+  reasoning: <span class="str">"Deal won by ROI framing. Champion was CEO."</span>
+}</code></pre>
+<p><strong>Fallback successRate:</strong> <code>won</code> → 1.0, <code>lost</code> → 0.0 when LLM omits the field. Error cases: missing <code>interactions.md</code> or unparseable LLM response.</p>
 </section>
 
 <hr>

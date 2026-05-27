@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { distillPlaybook } from "../../core/playbooks.js";
@@ -15,9 +13,8 @@ export async function handleDistillPlaybook(
   try {
     const result = await distillPlaybook(dataDir, input.slug, input.dealName, input.outcome, llmFn);
 
-    if (!result) {
-      const interactionsPath = path.join(dataDir, "customers", input.slug, "interactions.md");
-      const error = !fs.existsSync(interactionsPath)
+    if (!result.ok) {
+      const error = result.errorKind === "no_interactions"
         ? `No interactions.md found for ${input.slug}`
         : "LLM response could not be parsed as playbook";
       return {

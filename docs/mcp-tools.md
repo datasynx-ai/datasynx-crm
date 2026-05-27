@@ -579,6 +579,129 @@ Adjusts deal win probabilities using relationship health (D12) and champion pres
 
 ---
 
+### get_playbook
+
+Retrieve playbooks matching the current deal situation. Without deal context, returns all playbooks for the customer. Sorted by success rate (highest first).
+
+```json
+// Without deal context — returns all playbooks
+get_playbook({ "slug": "acme-corp" })
+
+// With deal context — trigger matching
+get_playbook({
+  "slug": "acme-corp",
+  "stage": "negotiation",
+  "value": 75000,
+  "daysSinceContact": 10,
+  "healthScore": 55,
+  "championPresent": false
+})
+
+// Output
+{
+  "matches": [
+    {
+      "name": "enterprise-renewal",
+      "score": 1.0,
+      "trigger": "deal_stage_negotiation AND value > 50000 AND days_stalled > 7",
+      "successRate": 0.73,
+      "usedCount": 8,
+      "content": "# Enterprise Renewal\n\n## Steps\n1. Call economic buyer directly."
+    }
+  ],
+  "totalPlaybooks": 3,
+  "slug": "acme-corp"
+}
+```
+
+**Trigger DSL:** AND-only conditions. Supported tokens: `deal_stage_<stage>`, `value > N`, `value < N`, `days_stalled > N`, `days_stalled_lt < N`, `health < N`, `health > N`, `no_champion`, `has_champion`. Only exact matches (score = 1.0) are returned.
+
+---
+
+### create_playbook
+
+Create or update a playbook encoding proven tactics for a specific deal situation.
+
+```json
+create_playbook({
+  "slug": "acme-corp",
+  "name": "enterprise-renewal",
+  "trigger": "deal_stage_negotiation AND value > 50000 AND days_stalled > 7",
+  "content": "# Enterprise Renewal\n\n## Situation\nDeal stalled in negotiation...\n\n## Steps\n1. Call economic buyer directly.\n2. Send ROI analysis.",
+  "successRate": 0.73
+})
+
+// Output
+{
+  "success": true,
+  "playbook": {
+    "name": "enterprise-renewal",
+    "trigger": "deal_stage_negotiation AND value > 50000 AND days_stalled > 7",
+    "successRate": 0.73,
+    "path": "/path/to/customers/acme-corp/playbooks/enterprise-renewal.md"
+  }
+}
+```
+
+Stored at `customers/<slug>/playbooks/<kebab-name>.md` with YAML frontmatter. Upserts by name (overwrites if exists). Default `successRate: 0.5`.
+
+---
+
+### list_playbooks
+
+List all playbooks for a customer (metadata only — no body content for performance).
+
+```json
+list_playbooks({ "slug": "acme-corp" })
+
+// Output
+{
+  "playbooks": [
+    {
+      "name": "enterprise-renewal",
+      "trigger": "deal_stage_negotiation AND value > 50000",
+      "successRate": 0.73,
+      "usedCount": 8,
+      "lastUpdated": "2026-05-20"
+    }
+  ],
+  "count": 1,
+  "slug": "acme-corp"
+}
+```
+
+---
+
+### distill_playbook
+
+Use LLM to extract a reusable playbook from a won or lost deal's interaction history. Analyzes `interactions.md` and identifies the winning/losing pattern as a structured playbook. Run after every won or lost deal to build procedural memory.
+
+```json
+distill_playbook({
+  "slug": "acme-corp",
+  "dealName": "Q3 Enterprise License",
+  "outcome": "won"
+})
+
+// Output
+{
+  "success": true,
+  "playbook": {
+    "name": "enterprise-q3-renewal",
+    "trigger": "deal_stage_negotiation AND value > 50000",
+    "successRate": 1.0,
+    "path": "/path/to/customers/acme-corp/playbooks/enterprise-q3-renewal.md"
+  },
+  "reasoning": "Deal won by leading with ROI framing early in negotiation. Champion was CEO."
+}
+```
+
+**Fallback successRate:** `won` → 1.0, `lost` → 0.0 when LLM doesn't return a numeric value.
+
+**Error cases:** `{ success: false, error: "No interactions.md found for <slug>" }` or `{ success: false, error: "LLM response could not be parsed as playbook" }`.
+
+---
+
 ## Recommended Workflow
 
 ```
@@ -596,5 +719,8 @@ Historical search:   search_customer_knowledge(slug, query)
 Deal agent analysis: run_deal_agent(slug, dealName, { autonomyLevel: "suggest" })
 Approve action:      approve_agent_action(slug, actionId, { approved: true })
 Revenue simulation:  simulate_revenue({ horizon: "quarter" })
+Playbook lookup:     get_playbook(slug, { stage, value, daysSinceContact })
+Playbook create:     create_playbook(slug, name, trigger, content)
+After won/lost deal: distill_playbook(slug, dealName, outcome)
 Unsure what to use:  get_capabilities()
 ```

@@ -455,11 +455,12 @@ describe("distillPlaybook", () => {
     reasoning: "Deal won by ROI framing",
   });
 
-  it("returns null when interactions.md missing", async () => {
+  it("returns errorKind=no_interactions when interactions.md missing", async () => {
     vol.fromJSON({});
     const { distillPlaybook } = await import("../../src/core/playbooks.js");
     const result = await distillPlaybook(DATA_DIR, SLUG, "Test Deal", "won", async () => validLlmResponse());
-    expect(result).toBeNull();
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errorKind).toBe("no_interactions");
   });
 
   it("writes playbook file on successful LLM response", async () => {
@@ -468,19 +469,20 @@ describe("distillPlaybook", () => {
     });
     const { distillPlaybook, listPlaybooks } = await import("../../src/core/playbooks.js");
     const result = await distillPlaybook(DATA_DIR, SLUG, "Test Deal", "won", async () => validLlmResponse());
-    expect(result).not.toBeNull();
-    expect(result!.playbook.name).toBe("negotiation-price");
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.playbook.name).toBe("negotiation-price");
     const all = listPlaybooks(DATA_DIR, SLUG);
     expect(all).toHaveLength(1);
   });
 
-  it("returns null when LLM response unparseable", async () => {
+  it("returns errorKind=parse_failed when LLM response unparseable", async () => {
     vol.fromJSON({
       [`${DATA_DIR}/customers/${SLUG}/interactions.md`]: "## 2026-05-01 · Call\n**Summary:** Ok.",
     });
     const { distillPlaybook } = await import("../../src/core/playbooks.js");
     const result = await distillPlaybook(DATA_DIR, SLUG, "Deal", "lost", async () => "Not valid JSON");
-    expect(result).toBeNull();
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errorKind).toBe("parse_failed");
   });
 
   it("normalizes name to kebab-case", async () => {
@@ -496,7 +498,7 @@ describe("distillPlaybook", () => {
       reasoning: "r",
     });
     const result = await distillPlaybook(DATA_DIR, SLUG, "Deal", "won", async () => weirdNameResponse);
-    expect(result).not.toBeNull();
-    expect(result!.playbook.name).toMatch(/^[a-z0-9-]+$/);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.playbook.name).toMatch(/^[a-z0-9-]+$/);
   });
 });

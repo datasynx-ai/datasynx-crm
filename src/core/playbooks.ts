@@ -251,15 +251,19 @@ export function parseLlmDistillation(
   }
 }
 
+export type DistillPlaybookResult =
+  | { ok: true; playbook: Playbook; reasoning: string }
+  | { ok: false; errorKind: "no_interactions" | "parse_failed" };
+
 export async function distillPlaybook(
   dataDir: string,
   slug: string,
   dealName: string,
   outcome: "won" | "lost",
   llmFn: (prompt: string) => Promise<string> = callLlm
-): Promise<{ playbook: Playbook; reasoning: string } | null> {
+): Promise<DistillPlaybookResult> {
   const interactionsPath = path.join(dataDir, "customers", slug, "interactions.md");
-  if (!fs.existsSync(interactionsPath)) return null;
+  if (!fs.existsSync(interactionsPath)) return { ok: false, errorKind: "no_interactions" };
 
   const interactions = fs.readFileSync(interactionsPath, "utf-8");
   const prompt = buildDistillPrompt(slug, dealName, outcome, interactions);
@@ -267,7 +271,7 @@ export async function distillPlaybook(
 
   const outcomeFallback = outcome === "won" ? 1.0 : 0.0;
   const distillation = parseLlmDistillation(response, outcomeFallback);
-  if (!distillation) return null;
+  if (!distillation) return { ok: false, errorKind: "parse_failed" };
 
   const today = new Date().toISOString().slice(0, 10);
   const name = distillation.name
@@ -290,5 +294,5 @@ export async function distillPlaybook(
   };
 
   writePlaybook(dataDir, slug, playbook);
-  return { playbook, reasoning: distillation.reasoning };
+  return { ok: true, playbook, reasoning: distillation.reasoning };
 }
