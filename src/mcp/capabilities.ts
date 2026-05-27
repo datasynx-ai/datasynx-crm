@@ -29,6 +29,8 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | get_market_intelligence | Search across all customers for patterns | any |
 | get_relationship_graph | Stakeholder map + knowledge graph for a customer | Before deal strategy |
 | get_relationship_health | Health-Scores per contact, decay detection, recommendations | any |
+| run_deal_agent | Analyze deal + generate action plan (observe/suggest/act) | rep+ |
+| approve_agent_action | Approve/reject queued agent action | rep+ |
 
 ## Tool Reference
 
@@ -109,6 +111,19 @@ Risk flags: NO_CONTACT_14D, NO_CONTACT_30D, CHAMPION_SILENT.
 Recomputes automatically if stale (>1h) or missing.
 - Input: { slug: string }
 - Returns: { overallHealth, atRiskContacts[], coldContacts[], contacts: ContactHealth[] }
+
+### run_deal_agent({ slug, dealName, autonomyLevel?, instruction?, valueThreshold? })
+Analyzes deal situation (health, relationships, stakeholder gaps) via LLM (rule-based fallback).
+Returns prioritized action plan with confidence scores and full reasoning trace.
+autonomyLevel: "observe" (read-only) | "suggest" (queue for review) | "act" (auto-execute)
+- Input: { slug, dealName, autonomyLevel?: "observe"|"suggest"|"act", instruction?, valueThreshold?: number }
+- Returns: { assessment, riskLevel, plan[], actionsQueued[], actionsExecuted[], trace }
+
+### approve_agent_action({ slug, actionId, approved })
+Execute (approved=true) or reject (approved=false) a pending deal agent action.
+Find actionId in run_deal_agent response.actionsQueued[].actionId
+- Input: { slug, actionId, approved: boolean }
+- Returns: { success, actionId, status }
 
 ## Recommended Workflow
 

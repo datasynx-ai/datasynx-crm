@@ -127,7 +127,7 @@
   <a href="#cli-gdpr">dxcrm gdpr</a>
   <a href="#cli-backup">dxcrm backup</a>
 
-  <div class="nav-section">MCP Tools (16)</div>
+  <div class="nav-section">MCP Tools (18)</div>
   <a href="#mcp-capabilities">get_capabilities</a>
   <a href="#mcp-context">get_customer_context</a>
   <a href="#mcp-search">search_customer_knowledge</a>
@@ -144,6 +144,8 @@
   <a href="#mcp-intel">get_market_intelligence</a>
   <a href="#mcp-graph">get_relationship_graph</a>
   <a href="#mcp-health-engine">get_relationship_health</a>
+  <a href="#mcp-deal-agent">run_deal_agent</a>
+  <a href="#mcp-approve-action">approve_agent_action</a>
 
   <div class="nav-section">Integrations</div>
   <a href="#int-gmail">Gmail</a>
@@ -737,6 +739,59 @@
 }</code></pre>
 <p>Edge weight grows +0.05 per interaction (max 1.0). Edge types: <code>WORKS_AT</code>, <code>IS_CHAMPION</code>, <code>IS_BLOCKER</code>, <code>IS_ECONOMIC_BUYER</code>, <code>KNOWS</code>, <code>INTRODUCED_BY</code>, <code>OWNS_DEAL</code>, <code>COMPETES_WITH</code>.</p>
 <p>Graph is stored in <code>customers/&lt;slug&gt;/graph.json</code> and erased by <code>dxcrm gdpr erase</code>.</p>
+</section>
+
+<section id="mcp-deal-agent">
+<h2>MCP Tool: run_deal_agent</h2>
+<p>Analyze a specific deal and generate a prioritized action plan. Supports <strong>three autonomy levels</strong> — from read-only analysis to autonomous action execution.</p>
+<pre><code>run_deal_agent({
+  slug: <span class="str">"acme-corp"</span>,
+  dealName: <span class="str">"Q3 Renewal"</span>,
+  autonomyLevel: <span class="str">"suggest"</span>,    <span class="comment">// "observe" | "suggest" | "act"</span>
+  instruction: <span class="str">"Focus on close date risk"</span>,  <span class="comment">// optional</span>
+  valueThreshold: <span class="num">50000</span>         <span class="comment">// EUR — no auto-exec above this (default: 50000)</span>
+})
+
+<span class="comment">// Returns:</span>
+{
+  assessment: <span class="str">"Deal in negotiation, close date approaching in 19 days..."</span>,
+  riskLevel: <span class="str">"medium"</span>,
+  plan: [{ step: <span class="num">1</span>, action: <span class="str">"Send final proposal"</span>, priority: <span class="str">"high"</span>, reason: <span class="str">"..."</span> }],
+  actionsQueued:   [ ... ],  <span class="comment">// suggest/act mode: pending approval</span>
+  actionsExecuted: [ ... ],  <span class="comment">// act mode: auto-executed</span>
+  trace: { timestamp, observation, plan, actionsConsidered, outcome }
+}</code></pre>
+<p><strong>Autonomy levels:</strong></p>
+<ul>
+  <li><code>observe</code> — read-only analysis, no side effects, no queue writes</li>
+  <li><code>suggest</code> (default) — queues all actions in <code>agent-queue.json</code> for human review</li>
+  <li><code>act</code> — auto-executes actions with <code>confidence ≥ 0.7</code> and <code>value &lt; valueThreshold</code></li>
+</ul>
+<p><strong>Signals analyzed:</strong> deal health (A–F grade), relationship health per contact, stakeholder gaps (missing champion / economic buyer), recent interaction summary.</p>
+<p><strong>LLM fallback:</strong> rule-based analysis when <code>ANTHROPIC_API_KEY</code> is unset or LLM fails — always returns a valid result.</p>
+<p><strong>Glass-box trace:</strong> every decision is in <code>result.trace</code> — inspectable for EU AI Act Art. 13 compliance.</p>
+</section>
+
+<section id="mcp-approve-action">
+<h2>MCP Tool: approve_agent_action</h2>
+<p>Approve or reject a pending action from the deal agent queue. Find <code>actionId</code> in <code>run_deal_agent</code> response.</p>
+<pre><code><span class="comment">// Approve: executes the action immediately</span>
+approve_agent_action({
+  slug: <span class="str">"acme-corp"</span>,
+  actionId: <span class="str">"da_1748346900000_a3f7x2"</span>,
+  approved: <span class="kw">true</span>
+})
+<span class="comment">// → { success: true, actionId: "da_...", status: "executed" }</span>
+
+<span class="comment">// Reject: marks action as rejected, no execution</span>
+approve_agent_action({
+  slug: <span class="str">"acme-corp"</span>,
+  actionId: <span class="str">"da_1748346900000_a3f7x2"</span>,
+  approved: <span class="kw">false</span>
+})
+<span class="comment">// → { success: true, actionId: "da_...", status: "rejected" }</span></code></pre>
+<p>Queue is persisted at <code>customers/&lt;slug&gt;/agent-queue.json</code>. Erased by <code>dxcrm gdpr erase</code>.</p>
+<p><strong>Supported action types:</strong> <code>log_interaction</code>, <code>update_deal</code>, <code>alert</code>, <code>schedule_meeting</code>.</p>
 </section>
 
 <hr>

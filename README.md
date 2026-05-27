@@ -170,6 +170,8 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `get_market_intelligence` | Search across all customers for patterns | any |
 | `get_relationship_graph` | Stakeholder map + knowledge graph (champions, blockers, economic buyers) | any |
 | `get_relationship_health` | Health score (0–100, A–F) per contact, decay detection, recommendations | any |
+| `run_deal_agent` | Analyze deal + generate action plan (observe/suggest/act modes) | rep+ |
+| `approve_agent_action` | Approve or reject a queued deal agent action | rep+ |
 
 ### Tool Examples
 
@@ -200,6 +202,20 @@ update_deal({
 search_customer_knowledge({
   "slug": "acme-corp",
   "query": "pricing negotiation budget"
+})
+
+// Run deal agent (suggest mode — queues actions for review)
+run_deal_agent({
+  "slug": "acme-corp",
+  "dealName": "Q3 Renewal",
+  "autonomyLevel": "suggest"
+})
+
+// Approve a queued agent action
+approve_agent_action({
+  "slug": "acme-corp",
+  "actionId": "da_1748346900000_a3f7x2",
+  "approved": true
 })
 ```
 

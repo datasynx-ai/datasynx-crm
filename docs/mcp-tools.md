@@ -444,6 +444,91 @@ Edge weight increases by 0.05 with each interaction (capped at 1.0). Use `setNod
 
 ---
 
+## run_deal_agent
+
+Analyze a specific deal and generate a prioritized action plan. Supports three autonomy levels.
+
+```json
+// Input
+{
+  "slug": "acme-corp",
+  "dealName": "Q3 Renewal",
+  "autonomyLevel": "suggest",    // observe|suggest|act (default: suggest)
+  "instruction": "Focus on close date risk",  // optional
+  "valueThreshold": 50000        // optional: EUR above which no auto-execution
+}
+
+// Output
+{
+  "slug": "acme-corp",
+  "dealName": "Q3 Renewal",
+  "assessment": "Deal is in negotiation with close date approaching...",
+  "riskLevel": "medium",
+  "plan": [
+    { "step": 1, "action": "Send final proposal", "priority": "high", "reason": "Close date in 19 days" }
+  ],
+  "actionsQueued": [
+    {
+      "actionId": "da_1748346900000_a3f7x2",
+      "type": "log_interaction",
+      "payload": { "slug": "acme-corp", "type": "Note", "summary": "...", "with": "Max Müller" },
+      "confidence": 0.85,
+      "reasoning": "Champion identified, close date approaching",
+      "requiresHumanApproval": true,
+      "status": "pending",
+      "createdAt": "2026-05-27T14:00:00.000Z"
+    }
+  ],
+  "actionsExecuted": [],
+  "trace": {
+    "timestamp": "2026-05-27T14:00:00.000Z",
+    "autonomyLevel": "suggest",
+    "observation": "Deal: Q3 Renewal | Stage: negotiation ...",
+    "plan": ["1. Send final proposal [high]"],
+    "actionsConsidered": [...],
+    "actionTaken": null,
+    "outcome": "queued"
+  }
+}
+```
+
+**Autonomy levels:**
+- `observe` — read-only analysis, no side effects
+- `suggest` (default) — queues actions in `agent-queue.json` for human review
+- `act` — auto-executes actions with `confidence ≥ 0.7` and `value < valueThreshold`
+
+**Signals analyzed:** deal health score, relationship health, stakeholder gaps, recent interactions.
+**LLM fallback:** rule-based analysis when no API key or LLM fails.
+
+---
+
+## approve_agent_action
+
+Approve or reject a pending action from the deal agent queue.
+
+```json
+// Input
+{
+  "slug": "acme-corp",
+  "actionId": "da_1748346900000_a3f7x2",
+  "approved": true    // true to execute, false to reject
+}
+
+// Output (approved)
+{ "success": true, "actionId": "da_1748346900000_a3f7x2", "status": "executed" }
+
+// Output (rejected)
+{ "success": true, "actionId": "da_1748346900000_a3f7x2", "status": "rejected" }
+
+// Output (not found)
+{ "success": false, "error": "Action da_... not found in queue" }
+```
+
+Find `actionId` in `run_deal_agent` response `.actionsQueued[].actionId`.
+Queue is persisted at `customers/<slug>/agent-queue.json`.
+
+---
+
 ## Recommended Workflow
 
 ```
@@ -458,5 +543,7 @@ Stakeholder map:     get_relationship_graph(slug)
 Revenue forecast:    get_pipeline_forecast()
 Market patterns:     get_market_intelligence(query)
 Historical search:   search_customer_knowledge(slug, query)
+Deal agent analysis: run_deal_agent(slug, dealName, { autonomyLevel: "suggest" })
+Approve action:      approve_agent_action(slug, actionId, { approved: true })
 Unsure what to use:  get_capabilities()
 ```
