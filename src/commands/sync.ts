@@ -31,9 +31,10 @@ export const syncCommand = new Command("sync")
 
     const since = opts.since ? new Date(opts.since) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const provider = opts.provider;
-    const syncGmail = !opts.transcripts && provider !== "microsoft" && provider !== "transcripts";
+    const syncGmail = !opts.transcripts && provider !== "microsoft" && provider !== "transcripts" && provider !== "google-drive";
     const syncMicrosoft = provider === "microsoft";
-    const syncTranscripts = !opts.gmail && provider !== "gmail" && provider !== "microsoft";
+    const syncTranscripts = !opts.gmail && provider !== "gmail" && provider !== "microsoft" && provider !== "google-drive";
+    const syncGoogleDrive = provider === "google-drive";
 
     let totalSynced = 0;
 
@@ -125,6 +126,40 @@ export const syncCommand = new Command("sync")
           }
         } catch (err) {
           console.error(error(`  ✗ Transcript sync failed: ${(err as Error).message}`));
+        }
+      }
+    }
+
+    // Google Drive sync
+    if (syncGoogleDrive) {
+      const tokenPath = path.join(dataDir, ".agentic", "google-token.json");
+      if (!fs.existsSync(tokenPath)) {
+        console.log(info("  Google Drive: token not configured (.agentic/google-token.json)"));
+      } else {
+        try {
+          const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf-8")) as { accessToken?: string; access_token?: string };
+          const accessToken = tokenData.accessToken ?? tokenData.access_token;
+          if (!accessToken) {
+            console.log(info("  Google Drive: accessToken not found in token file"));
+          } else {
+            console.log(info(`  Syncing Google Drive for ${bold(slug)}...`));
+            const { syncGoogleDriveFiles } = await import("../sync/google-drive-sync.js");
+            const result = await syncGoogleDriveFiles({
+              slug,
+              dataDir,
+              accessToken,
+              customerName: slug,
+            });
+            totalSynced += result.synced;
+            if (result.errors.length > 0) {
+              for (const err of result.errors) {
+                console.error(error(`  ✗ Google Drive: ${err}`));
+              }
+            }
+            console.log(success(`  ✓ Google Drive: +${result.synced} synced, ${result.skipped} skipped`));
+          }
+        } catch (err) {
+          console.error(error(`  ✗ Google Drive sync failed: ${(err as Error).message}`));
         }
       }
     }
