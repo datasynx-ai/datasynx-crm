@@ -172,6 +172,7 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `get_relationship_health` | Health score (0–100, A–F) per contact, decay detection, recommendations | any |
 | `run_deal_agent` | Analyze deal + generate action plan (observe/suggest/act modes) | rep+ |
 | `approve_agent_action` | Approve or reject a queued deal agent action | rep+ |
+| `simulate_revenue` | Monte Carlo pipeline forecast with P10/P50/P90 confidence intervals | any |
 
 ### Tool Examples
 

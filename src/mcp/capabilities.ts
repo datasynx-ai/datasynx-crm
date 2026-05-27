@@ -31,6 +31,7 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | get_relationship_health | Health-Scores per contact, decay detection, recommendations | any |
 | run_deal_agent | Analyze deal + generate action plan (observe/suggest/act) | rep+ |
 | approve_agent_action | Approve/reject queued agent action | rep+ |
+| simulate_revenue | Monte Carlo pipeline forecast (P10/P50/P90, sensitivity) | any |
 
 ## Tool Reference
 
@@ -124,6 +125,12 @@ Execute (approved=true) or reject (approved=false) a pending deal agent action.
 Find actionId in run_deal_agent response.actionsQueued[].actionId
 - Input: { slug, actionId, approved: boolean }
 - Returns: { success, actionId, status }
+
+### simulate_revenue({ horizon?, iterations? })
+Monte Carlo simulation over all active deals. Adjusts probabilities via health score (D12) and
+champion presence (D11). Returns P10/P50/P90 confidence interval + sensitivity map.
+horizon: "quarter" (default) | "year"
+- Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMonth, topRisks, sensitivityMap }, confidence, dealCount }
 
 ## Recommended Workflow
 

@@ -529,6 +529,56 @@ Queue is persisted at `customers/<slug>/agent-queue.json`.
 
 ---
 
+## simulate_revenue
+
+Monte Carlo pipeline revenue simulation with P10/P50/P90 confidence intervals.
+Adjusts deal win probabilities using relationship health (D12) and champion presence (D11).
+
+```json
+// Input
+{
+  "horizon": "quarter",   // "quarter" (default) | "year"
+  "iterations": 10000     // optional, default 10000
+}
+
+// Output
+{
+  "forecast": {
+    "p10": 145000,
+    "p50": 287500,
+    "p90": 412000,
+    "expected": 289300,
+    "stdDev": 82000,
+    "atRiskRevenue": 75000,
+    "byCloseMonth": {
+      "2026-06": { "p50": 120000, "range": [80000, 165000] },
+      "2026-07": { "p50": 167500, "range": [90000, 247000] }
+    },
+    "topRisks": [
+      "acme-corp/Enterprise License: health 38, champion silent — €75k at risk"
+    ],
+    "sensitivityMap": {
+      "Enterprise License": 56250,
+      "Q3 Renewal": 37500
+    }
+  },
+  "confidence": "P50 forecast: €287.5k with ±€133.5k uncertainty (P10–P90 range). 28% of pipeline is at risk. 5 deals simulated.",
+  "dealCount": 5,
+  "horizon": "quarter",
+  "simulatedAt": "2026-05-27T14:00:00.000Z"
+}
+```
+
+**Probability adjustment:** Base probability + health adjustment (health 60 = neutral, ±0.2 range) + champion bonus (+5%).
+
+**atRiskRevenue:** Sum of values for all deals with health score < 60.
+
+**sensitivityMap:** Expected contribution per deal (`value × adjustedProbability`). Sort descending to find which deal matters most.
+
+**topRisks:** Top 5 at-risk deals (health < 60 or 14+ days no contact), sorted by sensitivity.
+
+---
+
 ## Recommended Workflow
 
 ```
@@ -545,5 +595,6 @@ Market patterns:     get_market_intelligence(query)
 Historical search:   search_customer_knowledge(slug, query)
 Deal agent analysis: run_deal_agent(slug, dealName, { autonomyLevel: "suggest" })
 Approve action:      approve_agent_action(slug, actionId, { approved: true })
+Revenue simulation:  simulate_revenue({ horizon: "quarter" })
 Unsure what to use:  get_capabilities()
 ```

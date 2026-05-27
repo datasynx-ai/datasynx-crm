@@ -127,7 +127,7 @@
   <a href="#cli-gdpr">dxcrm gdpr</a>
   <a href="#cli-backup">dxcrm backup</a>
 
-  <div class="nav-section">MCP Tools (18)</div>
+  <div class="nav-section">MCP Tools (19)</div>
   <a href="#mcp-capabilities">get_capabilities</a>
   <a href="#mcp-context">get_customer_context</a>
   <a href="#mcp-search">search_customer_knowledge</a>
@@ -146,6 +146,7 @@
   <a href="#mcp-health-engine">get_relationship_health</a>
   <a href="#mcp-deal-agent">run_deal_agent</a>
   <a href="#mcp-approve-action">approve_agent_action</a>
+  <a href="#mcp-simulate-revenue">simulate_revenue</a>
 
   <div class="nav-section">Integrations</div>
   <a href="#int-gmail">Gmail</a>
@@ -792,6 +793,30 @@ approve_agent_action({
 <span class="comment">// → { success: true, actionId: "da_...", status: "rejected" }</span></code></pre>
 <p>Queue is persisted at <code>customers/&lt;slug&gt;/agent-queue.json</code>. Erased by <code>dxcrm gdpr erase</code>.</p>
 <p><strong>Supported action types:</strong> <code>log_interaction</code>, <code>update_deal</code>, <code>alert</code>, <code>schedule_meeting</code>.</p>
+</section>
+
+<section id="mcp-simulate-revenue">
+<h2>MCP Tool: simulate_revenue</h2>
+<p>Monte Carlo pipeline revenue simulation with <strong>P10/P50/P90 confidence intervals</strong>. Adjusts deal win probabilities using relationship health (D12) and champion presence (D11).</p>
+<pre><code>simulate_revenue({ horizon: <span class="str">"quarter"</span>, iterations: <span class="num">10000</span> })
+
+<span class="comment">// Returns:</span>
+{
+  forecast: {
+    p10: <span class="num">145000</span>, p50: <span class="num">287500</span>, p90: <span class="num">412000</span>,
+    expected: <span class="num">289300</span>, stdDev: <span class="num">82000</span>,
+    atRiskRevenue: <span class="num">75000</span>,
+    byCloseMonth: { <span class="str">"2026-06"</span>: { p50: <span class="num">120000</span>, range: [<span class="num">80000</span>, <span class="num">165000</span>] } },
+    topRisks: [ <span class="str">"acme-corp/Enterprise License: health 38 — €75k at risk"</span> ],
+    sensitivityMap: { <span class="str">"Enterprise License"</span>: <span class="num">56250</span> }
+  },
+  confidence: <span class="str">"P50 forecast: €287.5k with ±€133.5k uncertainty. 28% at risk."</span>,
+  dealCount: <span class="num">5</span>,
+  horizon: <span class="str">"quarter"</span>
+}</code></pre>
+<p><strong>Probability adjustment:</strong> Base stage probability + health adjustment (health 60 = neutral) + champion bonus (+5%). External signals ready for D18.</p>
+<p><strong>sensitivityMap:</strong> Expected revenue contribution per deal. Sort descending to find which deal matters most for the forecast.</p>
+<p><strong>topRisks:</strong> Top 5 at-risk deals (health &lt; 60 or 14+ days no contact), sorted by forecast impact.</p>
 </section>
 
 <hr>
