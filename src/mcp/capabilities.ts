@@ -27,6 +27,7 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | summarize_meeting | Summarize transcript + log interaction | rep+ |
 | get_pipeline_stages | List all configured pipeline stages | any |
 | get_market_intelligence | Search across all customers for patterns | any |
+| get_relationship_graph | Stakeholder map + knowledge graph for a customer | Before deal strategy |
 
 ## Tool Reference
 
@@ -93,6 +94,13 @@ Update fields in a customer's main_facts.md profile. Merges patch into existing 
 Export all customer data (main_facts + interactions count + pipeline).
 - Input: { slug: string, format?: "json" | "markdown" (default "json") }
 - Returns: Serialized customer data
+
+### get_relationship_graph({ slug })
+Returns the knowledge graph for a customer: contacts, companies, and their relationships.
+Auto-populated from every log_interaction call. Shows stakeholder map with champions, blockers,
+economic buyers, and gaps (missingRoles).
+- Input: { slug: string }
+- Returns: { nodeCount, edgeCount, stakeholders: { champions[], blockers[], economicBuyers[], allContacts[], missingRoles[] }, nodes[], edges[] }
 
 ## Recommended Workflow
 

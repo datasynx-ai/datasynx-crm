@@ -7,6 +7,7 @@ import { appendInteraction, formatInteractionEntry } from "../../fs/interactions
 import type { InteractionEntry } from "../../schemas/interaction.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 import { enforceRbac } from "../../core/rbac.js";
+import { updateGraphFromInteraction } from "../../core/graph-extractor.js";
 
 const DATA_DIR = process.cwd();
 
@@ -45,6 +46,14 @@ export async function handleLogInteraction(
     enforceRbac(dataDir, "log_interaction");
 
     await appendInteraction(dataDir, input.slug, entry);
+
+    // Graph auto-update: fire-and-forget
+    updateGraphFromInteraction(dataDir, input.slug, {
+      withStr: input.with,
+      interactionDate: today,
+    }).catch(() => {
+      // non-critical — interaction already written
+    });
 
     // Update last_touchpoint in main_facts.md
     const mainFactsPath = path.join(dataDir, "customers", input.slug, "main_facts.md");

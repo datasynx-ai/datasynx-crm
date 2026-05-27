@@ -17,6 +17,7 @@ import { registerGetPipelineForecast } from "./tools/get-pipeline-forecast.js";
 import { registerSummarizeMeeting } from "./tools/summarize-meeting.js";
 import { registerGetPipelineStages } from "./tools/get-pipeline-stages.js";
 import { registerGetMarketIntelligence } from "./tools/get-market-intelligence.js";
+import { registerGetRelationshipGraph } from "./tools/get-relationship-graph.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -24,7 +25,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 14 tools
+  // Register all 15 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -40,6 +41,7 @@ export function createMcpServer(): McpServer {
   registerSummarizeMeeting(server);
   registerGetPipelineStages(server);
   registerGetMarketIntelligence(server);
+  registerGetRelationshipGraph(server);
 
   return server;
 }
