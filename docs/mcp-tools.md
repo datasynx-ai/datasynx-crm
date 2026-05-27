@@ -326,6 +326,67 @@ Useful for identifying cross-customer patterns, objection trends, and competitor
 
 ---
 
+## get_relationship_health
+
+Returns health scores for all contacts of a customer. Scores decay automatically when
+communication cadence breaks — no manual input required.
+
+```json
+// Input
+{ "slug": "acme-corp" }
+
+// Output
+{
+  "slug": "acme-corp",
+  "overallHealth": 58,
+  "updatedAt": "2026-05-27T14:00:00.000Z",
+  "atRiskContacts": ["cfo@acme.com"],
+  "coldContacts": ["cfo@acme.com"],
+  "contacts": [
+    {
+      "contactId": "person:max@acme.com",
+      "name": "Max Müller",
+      "email": "max@acme.com",
+      "score": 72,
+      "grade": "B",
+      "trend": "stable",
+      "daysSinceContact": 5,
+      "avgCadenceDays": 7,
+      "sentimentTrend": 0,
+      "riskFlags": [],
+      "lastContact": "2026-05-22",
+      "interactionCount30d": 4,
+      "recommendation": "Max Müller — grade B. Next contact due in ~2 days."
+    },
+    {
+      "contactId": "person:cfo@acme.com",
+      "name": "Thomas Berger",
+      "email": "cfo@acme.com",
+      "score": 18,
+      "grade": "F",
+      "trend": "cold",
+      "daysSinceContact": 32,
+      "avgCadenceDays": 14,
+      "sentimentTrend": 0,
+      "riskFlags": ["NO_CONTACT_30D", "CHAMPION_SILENT"],
+      "lastContact": "2026-04-25",
+      "interactionCount30d": 0,
+      "recommendation": "Re-engage Thomas Berger urgently — no contact in 32 days."
+    }
+  ]
+}
+```
+
+**Score formula:** Recency (35%) · Cadence (25%) · Sentiment (20%, v1=neutral) · Response latency (10%, v1=neutral) · Momentum (10%)
+
+**Grades:** A ≥ 80 · B ≥ 60 · C ≥ 40 · D ≥ 20 · F < 20
+
+**Risk flags:** `NO_CONTACT_14D`, `NO_CONTACT_30D`, `CHAMPION_SILENT`
+
+Health auto-updates after every `log_interaction`. Recomputes if stale (>1h).
+
+---
+
 ## get_relationship_graph
 
 Returns the knowledge graph for a customer: contacts, companies, and their relationships.
@@ -392,6 +453,7 @@ After call/email:    log_interaction(slug, type, summary, nextSteps)
 After meeting:       summarize_meeting(slug, transcript, with)
 After deal update:   update_deal(slug, dealName, { stage, value })
 Deal health check:   get_deal_health(slug)
+Relationship health: get_relationship_health(slug)
 Stakeholder map:     get_relationship_graph(slug)
 Revenue forecast:    get_pipeline_forecast()
 Market patterns:     get_market_intelligence(query)

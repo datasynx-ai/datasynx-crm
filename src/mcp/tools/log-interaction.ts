@@ -8,6 +8,7 @@ import type { InteractionEntry } from "../../schemas/interaction.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 import { enforceRbac } from "../../core/rbac.js";
 import { updateGraphFromInteraction } from "../../core/graph-extractor.js";
+import { updateHealthFromInteraction } from "../../core/relationship-health.js";
 
 const DATA_DIR = process.cwd();
 
@@ -52,6 +53,11 @@ export async function handleLogInteraction(
       withStr: input.with,
       interactionDate: today,
     }).catch(() => {
+      // non-critical — interaction already written
+    });
+
+    // Health auto-update: fire-and-forget (runs after graph update)
+    updateHealthFromInteraction(dataDir, input.slug).catch(() => {
       // non-critical — interaction already written
     });
 

@@ -28,6 +28,7 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | get_pipeline_stages | List all configured pipeline stages | any |
 | get_market_intelligence | Search across all customers for patterns | any |
 | get_relationship_graph | Stakeholder map + knowledge graph for a customer | Before deal strategy |
+| get_relationship_health | Health-Scores per contact, decay detection, recommendations | any |
 
 ## Tool Reference
 
@@ -101,6 +102,13 @@ Auto-populated from every log_interaction call. Shows stakeholder map with champ
 economic buyers, and gaps (missingRoles).
 - Input: { slug: string }
 - Returns: { nodeCount, edgeCount, stakeholders: { champions[], blockers[], economicBuyers[], allContacts[], missingRoles[] }, nodes[], edges[] }
+
+### get_relationship_health({ slug })
+Returns health scores (0-100, A-F grade) for all contacts. Scores decay when cadence breaks.
+Risk flags: NO_CONTACT_14D, NO_CONTACT_30D, CHAMPION_SILENT.
+Recomputes automatically if stale (>1h) or missing.
+- Input: { slug: string }
+- Returns: { overallHealth, atRiskContacts[], coldContacts[], contacts: ContactHealth[] }
 
 ## Recommended Workflow
 
