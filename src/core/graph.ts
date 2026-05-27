@@ -214,8 +214,15 @@ export function setNodeRole(
 // ─── Stakeholder query ────────────────────────────────────────────────────────
 
 export function getStakeholders(graph: CustomerGraph): StakeholderSummary {
+  const dedup = (nodes: GraphNode[]): GraphNode[] => {
+    const seen = new Set<string>();
+    return nodes.filter((n) => (seen.has(n.id) ? false : (seen.add(n.id), true)));
+  };
+
   const resolve = (edges: GraphEdge[]): GraphNode[] =>
-    edges.map((e) => findNode(graph, e.from)).filter((n): n is GraphNode => n !== undefined);
+    dedup(
+      edges.map((e) => findNode(graph, e.from)).filter((n): n is GraphNode => n !== undefined)
+    );
 
   const champions = resolve(graph.edges.filter((e) => e.type === "IS_CHAMPION"));
   const blockers = resolve(graph.edges.filter((e) => e.type === "IS_BLOCKER"));

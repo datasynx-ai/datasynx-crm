@@ -326,6 +326,63 @@ Useful for identifying cross-customer patterns, objection trends, and competitor
 
 ---
 
+## get_relationship_graph
+
+Returns the knowledge graph for a customer: contacts, companies, and their relationships.
+Auto-populated from every `log_interaction` call — no setup required.
+
+```json
+// Input
+{
+  "slug": "acme-corp"
+}
+
+// Output
+{
+  "slug": "acme-corp",
+  "nodeCount": 4,
+  "edgeCount": 3,
+  "updatedAt": "2026-05-27T14:00:00.000Z",
+  "stakeholders": {
+    "champions": [
+      { "id": "person:alice@acme.com", "name": "Alice Müller", "email": "alice@acme.com" }
+    ],
+    "blockers": [],
+    "economicBuyers": [
+      { "id": "person:cfo@acme.com", "name": "Thomas Berger", "email": "cfo@acme.com" }
+    ],
+    "allContacts": [
+      { "id": "person:alice@acme.com", "name": "Alice Müller", "email": "alice@acme.com" },
+      { "id": "person:cfo@acme.com",   "name": "Thomas Berger", "email": "cfo@acme.com" }
+    ],
+    "missingRoles": []
+  },
+  "nodes": [ /* full GraphNode[] */ ],
+  "edges": [ /* full GraphEdge[] */ ]
+}
+```
+
+`missingRoles` signals gaps in stakeholder coverage:
+
+```json
+"missingRoles": [
+  { "role": "champion",       "urgency": "important", "suggestion": "Identify who is driving this deal internally." },
+  { "role": "economic_buyer", "urgency": "critical",  "suggestion": "Find out who signs the contract. Ask your champion directly." }
+]
+```
+
+Node IDs are deterministic:
+- Person with email: `"person:alice@acme.com"`
+- Person without email: `"person:acme-corp:alice-muller"`
+- Company with domain: `"company:acme.com"`
+- Company without domain: `"company:acme-corp"`
+
+Edge types: `WORKS_AT`, `IS_CHAMPION`, `IS_BLOCKER`, `IS_ECONOMIC_BUYER`, `KNOWS`, `INTRODUCED_BY`, `OWNS_DEAL`, `COMPETES_WITH`
+
+Edge weight increases by 0.05 with each interaction (capped at 1.0). Use `setNodeRole` via direct API to assign champion/blocker/economic_buyer roles.
+
+---
+
 ## Recommended Workflow
 
 ```
@@ -335,6 +392,7 @@ After call/email:    log_interaction(slug, type, summary, nextSteps)
 After meeting:       summarize_meeting(slug, transcript, with)
 After deal update:   update_deal(slug, dealName, { stage, value })
 Deal health check:   get_deal_health(slug)
+Stakeholder map:     get_relationship_graph(slug)
 Revenue forecast:    get_pipeline_forecast()
 Market patterns:     get_market_intelligence(query)
 Historical search:   search_customer_knowledge(slug, query)
