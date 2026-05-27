@@ -211,13 +211,15 @@ describe("closeVarianceFn", () => {
 
   it("deal with imminent close date uses lower variance bound", async () => {
     const { closeVarianceFn } = await import("../../src/core/revenue-simulation.js");
-    // close date in the past → daysToClose < 0 → treated as 0 → variance = 0.05
-    const imminent = makeSnap({ closeDate: "2026-05-28" }); // 1 day from TODAY — but closeVarianceFn uses Date.now()
-    // Use randFn that gives extreme value to test variance magnitude
-    const variance05 = Math.abs(closeVarianceFn(imminent, () => 0) - 1);
-    const variance15 = Math.abs(closeVarianceFn(makeSnap({ closeDate: "2026-12-01" }), () => 0) - 1);
-    // imminent should have tighter variance than distant
-    expect(variance05).toBeLessThanOrEqual(variance15 + 0.001);
+    const todayMs = new Date(TODAY).getTime();
+    // imminent: close date 1 day away → daysToClose=1 → variance=0.05
+    const imminent = makeSnap({ closeDate: "2026-05-28" });
+    // distant: close date >6 months away → daysToClose>30 → variance=0.15
+    const distant = makeSnap({ closeDate: "2026-12-01" });
+    // randFn=0: 1 + (0-0.5)*2*variance = 1 - variance, so |result-1| = variance
+    const variance05 = Math.abs(closeVarianceFn(imminent, () => 0, todayMs) - 1);
+    const variance15 = Math.abs(closeVarianceFn(distant, () => 0, todayMs) - 1);
+    expect(variance05).toBeLessThan(variance15);
   });
 
   it("deal without close date uses default variance", async () => {
@@ -414,21 +416,26 @@ describe("runSimulation — statistical properties", () => {
     expect(result.atRiskRevenue).toBe(30000);
   });
 
-  it("byCloseMonth contains keys matching deal close dates (when deals win)", async () => {
+  it("byCloseMonth key is always present when deal has closeDate (unconditional)", async () => {
     const { runSimulation } = await import("../../src/core/revenue-simulation.js");
     const deals = [makeSnap({ name: "A", value: 50000, closeDate: "2026-06-15", probability: 75 })];
-    // Use high randFn to ensure wins happen
+    // Even when all deals lose, the key is pre-populated from deal close dates
+    const result = runSimulation(makeInput(deals, 100), () => 0.99);
+    expect(result.byCloseMonth["2026-06"]).toBeDefined();
+    expect(result.byCloseMonth["2026-06"]!.p50).toBe(0);
+  });
+
+  it("byCloseMonth p50 > 0 when deals win in that month", async () => {
+    const { runSimulation } = await import("../../src/core/revenue-simulation.js");
+    const deals = [makeSnap({ name: "A", value: 50000, closeDate: "2026-06-15", probability: 75 })];
+    // randFn=0: 0 < adjustedProb → all deals win, variance=1.0 (0.5 midpoint)
     let callCount = 0;
-    const highRandFn = () => {
+    const result = runSimulation(makeInput(deals, 100), () => {
       callCount++;
-      // Alternate: first call (for win check) returns 0.1 (< adjustedProb ~0.8), second call (variance) returns 0.5
-      return callCount % 2 === 1 ? 0.1 : 0.5;
-    };
-    const result = runSimulation(makeInput(deals, 100), highRandFn);
-    if (Object.keys(result.byCloseMonth).length > 0) {
-      expect(result.byCloseMonth["2026-06"]).toBeDefined();
-    }
-    // At minimum, the key should be "2026-06" when deals are won
+      return callCount % 2 === 1 ? 0 : 0.5; // odd=win check, even=variance
+    });
+    expect(result.byCloseMonth["2026-06"]).toBeDefined();
+    expect(result.byCloseMonth["2026-06"]!.p50).toBeGreaterThan(0);
   });
 
   it("sensitivityMap contains entry for each deal", async () => {

@@ -92,11 +92,14 @@ export function adjustProbability(deal: DealSnapshot, signals: ExternalSignal[] 
   return Math.max(0.02, Math.min(0.98, prob));
 }
 
-export function closeVarianceFn(deal: DealSnapshot, randFn: () => number): number {
-  const daysToClose =
-    deal.closeDate
-      ? Math.max(0, Math.floor((new Date(deal.closeDate).getTime() - Date.now()) / 86_400_000))
-      : 90;
+export function closeVarianceFn(
+  deal: DealSnapshot,
+  randFn: () => number,
+  todayMs: number = Date.now()
+): number {
+  const daysToClose = deal.closeDate
+    ? Math.max(0, Math.floor((new Date(deal.closeDate).getTime() - todayMs) / 86_400_000))
+    : 90;
   const variance = daysToClose < 30 ? 0.05 : 0.15;
   return 1 + (randFn() - 0.5) * 2 * variance;
 }
@@ -148,19 +151,29 @@ export function runSimulation(
     };
   }
 
+  const todayMs = new Date(input.today).getTime();
   const adjustedProbs = deals.map((d) => adjustProbability(d, externalSignals));
   const outcomes: number[] = [];
+
+  // Pre-collect all unique close months so byCloseMonth uses an unconditional distribution
+  // (every iteration contributes 0 for months where no deal closed, not just winning iterations)
+  const allMonths = new Set<string>();
+  for (const deal of deals) {
+    if (deal.closeDate) allMonths.add(deal.closeDate.slice(0, 7));
+  }
   const byMonthOutcomes: Record<string, number[]> = {};
+  for (const month of allMonths) byMonthOutcomes[month] = [];
 
   for (let i = 0; i < iterations; i++) {
     let total = 0;
     const monthTotals: Record<string, number> = {};
+    for (const month of allMonths) monthTotals[month] = 0;
 
     for (let j = 0; j < deals.length; j++) {
       const deal = deals[j]!;
       const prob = adjustedProbs[j]!;
       if (randFn() < prob) {
-        const closedValue = Math.round(deal.value * closeVarianceFn(deal, randFn));
+        const closedValue = Math.round(deal.value * closeVarianceFn(deal, randFn, todayMs));
         total += closedValue;
         if (deal.closeDate) {
           const month = deal.closeDate.slice(0, 7);
@@ -170,9 +183,8 @@ export function runSimulation(
     }
 
     outcomes.push(total);
-    for (const [month, val] of Object.entries(monthTotals)) {
-      if (!byMonthOutcomes[month]) byMonthOutcomes[month] = [];
-      byMonthOutcomes[month]!.push(val);
+    for (const month of allMonths) {
+      byMonthOutcomes[month]!.push(monthTotals[month]!);
     }
   }
 
@@ -266,7 +278,7 @@ export async function buildSimulationInput(
 
     const lastContact = health.contacts
       .map((c) => c.lastContact)
-      .filter((lc): lc is string => typeof lc === "string" && lc.length > 0)
+      .filter((lc): lc is string => !!lc)
       .sort()
       .pop();
     const daysSinceContact = lastContact
