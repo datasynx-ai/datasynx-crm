@@ -70,6 +70,14 @@ describe("deduplicateRefs", () => {
     const ref = { subject: "Test Subject", from: "bob@example.com", date: "2026-05-10" };
     expect(deduplicateRefs(ref)).toBe(deduplicateRefs(ref));
   });
+
+  it("cross-provider: same hash for display-name vs bare email in from field", async () => {
+    const { deduplicateRefs } = await import("../../src/sync/email-dedup.js");
+    const gmailRef = { subject: "Meeting", from: "Alice <alice@acme.com>", date: "2026-05-10" };
+    const msRef = { subject: "Meeting", from: "alice@acme.com", date: "2026-05-10" };
+    // Both should produce the same hash since the email address is identical after normalization
+    expect(deduplicateRefs(gmailRef)).toBe(deduplicateRefs(msRef));
+  });
 });
 
 describe("isLikelySameThread", () => {
@@ -99,6 +107,28 @@ describe("isLikelySameThread", () => {
     const a = { subject: "Hello World", from: "alice@example.com" };
     const b = { subject: "Different Topic", from: "alice@example.com" };
     expect(isLikelySameThread(a, b)).toBe(false);
+  });
+
+  it("cross-provider: matches display-name format with bare email", async () => {
+    const { isLikelySameThread } = await import("../../src/sync/email-dedup.js");
+    // Gmail sends "Alice Smith <alice@acme.com>", Microsoft Graph sends "alice@acme.com"
+    const a = { subject: "Project Update", from: "Alice Smith <alice@acme.com>" };
+    const b = { subject: "Project Update", from: "alice@acme.com" };
+    expect(isLikelySameThread(a, b)).toBe(true);
+  });
+
+  it("cross-provider: matches case-insensitive emails across providers", async () => {
+    const { isLikelySameThread } = await import("../../src/sync/email-dedup.js");
+    const a = { subject: "Invoice", from: "ALICE@ACME.COM" };
+    const b = { subject: "Invoice", from: "alice@acme.com" };
+    expect(isLikelySameThread(a, b)).toBe(true);
+  });
+
+  it("cross-provider: quoted display-name matches bare email", async () => {
+    const { isLikelySameThread } = await import("../../src/sync/email-dedup.js");
+    const a = { subject: "Meeting", from: '"Müller, Hans" <hans@acme.de>' };
+    const b = { subject: "Meeting", from: "hans@acme.de" };
+    expect(isLikelySameThread(a, b)).toBe(true);
   });
 });
 

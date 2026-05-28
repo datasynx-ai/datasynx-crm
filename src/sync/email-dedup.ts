@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { normalizeEmail } from "../core/email-normalizer.js";
 
 export interface EmailRef {
   messageId?: string;
@@ -20,10 +21,16 @@ export function normalizeSubject(subject: string): string {
   return s;
 }
 
+function normalizeFrom(from: string | undefined): string {
+  if (!from) return "";
+  const normalized = normalizeEmail(from);
+  return normalized.includes("@") ? normalized : from.toLowerCase().trim();
+}
+
 export function deduplicateRefs(ref: EmailRef): string {
   if (ref.messageId) return `msgid://${ref.messageId}`;
   if (ref.threadId) return `thread://${ref.threadId}`;
-  const key = `${normalizeSubject(ref.subject ?? "")}_${ref.from ?? ""}_${ref.date ?? ""}`;
+  const key = `${normalizeSubject(ref.subject ?? "")}_${normalizeFrom(ref.from)}_${ref.date ?? ""}`;
   return `hash://${crypto.createHash("sha256").update(key).digest("hex").slice(0, 16)}`;
 }
 
@@ -32,7 +39,7 @@ export function isLikelySameThread(a: EmailRef, b: EmailRef): boolean {
   if (a.messageId && b.messageId) return a.messageId === b.messageId;
   return (
     normalizeSubject(a.subject ?? "") === normalizeSubject(b.subject ?? "") &&
-    a.from === b.from
+    normalizeFrom(a.from) === normalizeFrom(b.from)
   );
 }
 
