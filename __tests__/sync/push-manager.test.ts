@@ -274,4 +274,54 @@ describe("renewExpiringSubscriptions", () => {
     expect(result.renewed).toHaveLength(0);
     expect(renewFn).not.toHaveBeenCalled();
   });
+
+  it("marks permanently_failed after 3 consecutive renewal errors", async () => {
+    vol.fromJSON({ "/data/.agentic/.keep": "" });
+    const { writeSubscriptions, renewExpiringSubscriptions, readSubscriptions } = await import("../../src/sync/push-manager.js");
+    const expiringSoon = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString();
+    await writeSubscriptions("/data", [{
+      id: "psub_pf_1",
+      provider: "gmail",
+      slug: "fragile-co",
+      webhookUrl: "https://example.com/webhooks/gmail",
+      expiresAt: expiringSoon,
+      renewedAt: null,
+      createdAt: new Date().toISOString(),
+      providerData: {},
+      status: "active",
+      lastEventAt: null,
+      eventsProcessed: 0,
+    }]);
+    const renewFn = vi.fn().mockRejectedValue(new Error("API error"));
+    // 3 renewal attempts → permanently_failed on the 3rd
+    await renewExpiringSubscriptions("/data", renewFn, 24);
+    await renewExpiringSubscriptions("/data", renewFn, 24);
+    await renewExpiringSubscriptions("/data", renewFn, 24);
+    const subs = await readSubscriptions("/data");
+    expect(subs[0]!.status).toBe("permanently_failed");
+  });
+
+  it("skips permanently_failed subscriptions in subsequent renewals", async () => {
+    vol.fromJSON({ "/data/.agentic/.keep": "" });
+    const { writeSubscriptions, renewExpiringSubscriptions } = await import("../../src/sync/push-manager.js");
+    const expiringSoon = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString();
+    await writeSubscriptions("/data", [{
+      id: "psub_pf_2",
+      provider: "gmail",
+      slug: "fragile-co",
+      webhookUrl: "https://example.com/webhooks/gmail",
+      expiresAt: expiringSoon,
+      renewedAt: null,
+      createdAt: new Date().toISOString(),
+      providerData: {},
+      status: "permanently_failed",
+      lastEventAt: null,
+      eventsProcessed: 0,
+    }]);
+    const renewFn = vi.fn();
+    const result = await renewExpiringSubscriptions("/data", renewFn, 24);
+    expect(renewFn).not.toHaveBeenCalled();
+    expect(result.renewed).toHaveLength(0);
+    expect(result.errors).toHaveLength(0);
+  });
 });

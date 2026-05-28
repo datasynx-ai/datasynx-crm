@@ -3,6 +3,7 @@ import path from "path";
 import matter from "gray-matter";
 import type { GraphNode, GraphEdge, EdgeType, CustomerGraph } from "./graph.js";
 import { writeGraph, upsertNode, upsertEdge } from "./graph.js";
+import { normalizeEmail } from "./email-normalizer.js";
 
 export interface ExtractionInput {
   slug: string;
@@ -27,8 +28,8 @@ export function extractDisplayName(withStr: string): string {
 }
 
 export function makePersonId(withStr: string, slug: string): string {
-  const email = extractEmail(withStr);
-  if (email) return `person:${email}`;
+  const email = normalizeEmail(withStr);
+  if (email.includes("@")) return `person:${email}`;
   const name = extractDisplayName(withStr);
   const nameSlug = name
     .toLowerCase()

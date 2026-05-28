@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 
 export type PushProvider = "gmail" | "microsoft-graph" | "slack";
-export type PushStatus = "active" | "expired" | "revoked" | "error";
+export type PushStatus = "active" | "expired" | "revoked" | "error" | "permanently_failed";
 
 export interface PushSubscription {
   id: string;
@@ -27,6 +27,7 @@ export interface PushSubscription {
   status: PushStatus;
   lastEventAt: string | null;
   eventsProcessed: number;
+  renewFailures?: number;
 }
 
 interface PushSubscriptionsFile {
@@ -119,9 +120,11 @@ export async function renewExpiringSubscriptions(
   const renewed: string[] = [];
   const errors: string[] = [];
 
+  const PERMANENT_FAILURE_THRESHOLD = 3;
+
   for (let i = 0; i < subs.length; i++) {
     const sub = subs[i]!;
-    if (sub.status !== "active") continue;
+    if (sub.status !== "active" && sub.status !== "error") continue;
     if (sub.expiresAt === null) continue; // slack: no expiry
     if (new Date(sub.expiresAt).getTime() > cutoff) continue;
 
@@ -129,15 +132,21 @@ export async function renewExpiringSubscriptions(
       const result = await renewFn(sub);
       subs[i] = {
         ...sub,
+        status: "active",
         expiresAt: result.expiresAt,
         renewedAt: new Date().toISOString(),
+        renewFailures: 0,
         providerData: result.providerData
           ? { ...sub.providerData, ...result.providerData }
           : sub.providerData,
       };
       renewed.push(sub.id);
     } catch {
-      subs[i] = { ...sub, status: "error" };
+      const failures = (sub.renewFailures ?? 0) + 1;
+      const newStatus: PushStatus = failures >= PERMANENT_FAILURE_THRESHOLD
+        ? "permanently_failed"
+        : "error";
+      subs[i] = { ...sub, status: newStatus, renewFailures: failures };
       errors.push(sub.id);
     }
   }

@@ -1,8 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { CircuitBreaker } from "./resilience.js";
+import { guardLlmResponse } from "./input-guard.js";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
 let _client: Anthropic | null = null;
+let llmCircuit = new CircuitBreaker({ threshold: 3, timeoutMs: 30_000, halfOpenAfter: 30_000 });
+
+export function resetLlmCircuit(): void {
+  llmCircuit = new CircuitBreaker({ threshold: 3, timeoutMs: 30_000, halfOpenAfter: 30_000 });
+}
 
 function getClient(): Anthropic | null {
   if (!process.env["ANTHROPIC_API_KEY"]) return null;
@@ -128,15 +135,17 @@ export async function callLlm(prompt: string): Promise<string> {
   const client = getClient();
   if (!client) throw new Error("ANTHROPIC_API_KEY not set");
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 500,
-    messages: [{ role: "user", content: prompt }],
-  });
+  return llmCircuit.call(async () => {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 500,
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new Error("No text response from LLM");
-  return textBlock.text;
+    const textBlock = response.content.find((b) => b.type === "text");
+    if (!textBlock || textBlock.type !== "text") throw new Error("No text response from LLM");
+    return guardLlmResponse(textBlock.text);
+  });
 }
 
 export type FieldMapping = Record<string, string | null>;

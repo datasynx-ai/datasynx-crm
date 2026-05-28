@@ -84,6 +84,20 @@ describe("makePersonId", () => {
     const { makePersonId } = await import("../../src/core/graph-extractor.js");
     expect(makePersonId("MAX@ACME.COM", SLUG)).toBe("person:max@acme.com");
   });
+
+  it("display-name with uppercase email produces same id as bare lowercase", async () => {
+    const { makePersonId } = await import("../../src/core/graph-extractor.js");
+    const a = makePersonId("Alice Smith <ALICE@ACME.COM>", SLUG);
+    const b = makePersonId("alice@acme.com", SLUG);
+    expect(a).toBe(b);
+  });
+
+  it("quoted display-name format normalizes correctly", async () => {
+    const { makePersonId } = await import("../../src/core/graph-extractor.js");
+    const a = makePersonId('"Müller, Hans" <hans@acme.de>', SLUG);
+    const b = makePersonId("hans@acme.de", SLUG);
+    expect(a).toBe(b);
+  });
 });
 
 // ─── makeCompanyId ────────────────────────────────────────────────────────────

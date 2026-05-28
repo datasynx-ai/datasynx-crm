@@ -13,9 +13,11 @@ vi.mock("@anthropic-ai/sdk", () => {
 
 // Import after mock is set up
 import {
+  callLlm,
   summarizeEmail,
   recognizeCustomer,
   resetLlmClient,
+  resetLlmCircuit,
   type EmailSummary,
   type CustomerMatch,
 } from "../../src/core/llm.js";
@@ -283,5 +285,86 @@ describe("recognizeCustomer", () => {
 
     expect(result.slug).toBeNull();
     expect(result.confidence).toBe("low");
+  });
+});
+
+// ─── callLlm — circuit breaker + response guard ────────────────────────────────
+
+describe("callLlm — circuit breaker", () => {
+  beforeEach(() => {
+    resetLlmClient();
+    resetLlmCircuit();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    delete process.env["ANTHROPIC_API_KEY"];
+    resetLlmCircuit();
+  });
+
+  it("trips open after 3 API failures and subsequent call throws Circuit open", async () => {
+    process.env["ANTHROPIC_API_KEY"] = "test-key-123";
+    const mockCreate = await getMockCreate();
+    mockCreate.mockRejectedValue(new Error("API down"));
+
+    await expect(callLlm("p")).rejects.toThrow("API down");
+    await expect(callLlm("p")).rejects.toThrow("API down");
+    await expect(callLlm("p")).rejects.toThrow("API down");
+    await expect(callLlm("p")).rejects.toThrow("Circuit open");
+  });
+
+  it("missing API key does NOT trip the circuit", async () => {
+    delete process.env["ANTHROPIC_API_KEY"];
+
+    await expect(callLlm("p")).rejects.toThrow("ANTHROPIC_API_KEY not set");
+    await expect(callLlm("p")).rejects.toThrow("ANTHROPIC_API_KEY not set");
+    await expect(callLlm("p")).rejects.toThrow("ANTHROPIC_API_KEY not set");
+    // 4th call still throws config error, NOT "Circuit open"
+    await expect(callLlm("p")).rejects.toThrow("ANTHROPIC_API_KEY not set");
+  });
+
+  it("circuit resets after a successful call", async () => {
+    process.env["ANTHROPIC_API_KEY"] = "test-key-123";
+    const mockCreate = await getMockCreate();
+    mockCreate
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockRejectedValueOnce(new Error("fail"))
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ok" }] });
+
+    await expect(callLlm("p")).rejects.toThrow("fail");
+    await expect(callLlm("p")).rejects.toThrow("fail");
+    expect(await callLlm("p")).toBe("ok");
+
+    // Circuit is closed again; next API error propagates normally
+    mockCreate.mockRejectedValue(new Error("another fail"));
+    await expect(callLlm("p")).rejects.toThrow("another fail");
+  });
+});
+
+describe("callLlm — response size guard", () => {
+  beforeEach(() => {
+    resetLlmClient();
+    resetLlmCircuit();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    delete process.env["ANTHROPIC_API_KEY"];
+    resetLlmCircuit();
+  });
+
+  it("returns response text when within size limit", async () => {
+    process.env["ANTHROPIC_API_KEY"] = "test-key-123";
+    const mockCreate = await getMockCreate();
+    mockCreate.mockResolvedValueOnce({ content: [{ type: "text", text: "hello" }] });
+    expect(await callLlm("p")).toBe("hello");
+  });
+
+  it("throws when response exceeds size limit", async () => {
+    process.env["ANTHROPIC_API_KEY"] = "test-key-123";
+    const mockCreate = await getMockCreate();
+    const giant = "x".repeat(513 * 1024);
+    mockCreate.mockResolvedValueOnce({ content: [{ type: "text", text: giant }] });
+    await expect(callLlm("p")).rejects.toThrow("LLM response exceeds");
   });
 });
