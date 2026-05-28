@@ -64,6 +64,41 @@ export const initCommand = new Command("init")
     // 5. Create customers/ directory
     fs.mkdirSync(path.join(dataDir, "customers"), { recursive: true });
 
+    // 5b. Write schema.json — human/machine-readable validation rules
+    const schemaPath = path.join(agenticDir, "schema.json");
+    if (!fs.existsSync(schemaPath)) {
+      fs.writeFileSync(
+        schemaPath,
+        JSON.stringify(
+          {
+            version: 1,
+            description: "DatasynxOpenCRM validation schema for main_facts.md frontmatter",
+            main_facts: {
+              required: ["name", "relationship_stage", "created", "tags", "currency"],
+              properties: {
+                name: { type: "string" },
+                relationship_stage: {
+                  type: "string",
+                  enum: ["lead", "qualified", "discovery", "proposal", "negotiation", "active", "churned", "closed"],
+                },
+                domain: { type: "string" },
+                email: { type: "string", format: "email" },
+                created: { type: "string", format: "date" },
+                updated: { type: "string", format: "date" },
+                tags: { type: "array", items: { type: "string" } },
+                currency: { type: "string", enum: ["EUR", "USD", "GBP", "CHF"] },
+                deal_value: { type: "number", minimum: 0 },
+                last_touchpoint: { type: "string", format: "date" },
+                primary_contact: { type: "string" },
+              },
+            },
+          },
+          null,
+          2
+        )
+      );
+    }
+
     // 6. Install framework adapters
     console.log(info("Detecting AI frameworks..."));
 

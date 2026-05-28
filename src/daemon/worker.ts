@@ -171,9 +171,10 @@ async function checkAgentWakeTriggers(): Promise<void> {
   }
 }
 
-// Gmail sync every 30 minutes
+// Gmail sync — interval configurable via DXCRM_DAEMON_INTERVAL (minutes, default 30)
+const daemonIntervalMin = Math.max(1, parseInt(process.env["DXCRM_DAEMON_INTERVAL"] ?? "30", 10) || 30);
 new CronJob(
-  "*/30 * * * *",
+  `*/${daemonIntervalMin} * * * *`,
   async () => {
     await syncAllCustomers();
     await checkAgentWakeTriggers().catch((err: unknown) => {
