@@ -197,14 +197,17 @@ export function generateRecommendation(
 
 // ─── Average cadence ──────────────────────────────────────────────────────────
 
+function dateUtcMs(d: string): number {
+  return new Date(`${d}T00:00:00Z`).getTime();
+}
+
 export function calcAvgCadence(interactions: ParsedInteraction[]): number {
   if (interactions.length < 2) return 0;
   const sorted = [...interactions].sort((a, b) => b.date.localeCompare(a.date));
   let totalDays = 0;
   for (let i = 0; i < sorted.length - 1; i++) {
-    const gap = Math.floor(
-      (new Date(sorted[i]!.date).getTime() - new Date(sorted[i + 1]!.date).getTime()) /
-        86_400_000
+    const gap = Math.round(
+      (dateUtcMs(sorted[i]!.date) - dateUtcMs(sorted[i + 1]!.date)) / 86_400_000
     );
     totalDays += gap;
   }
@@ -253,19 +256,17 @@ export function computeContactHealth(
   const lastContact = sorted[0]?.date ?? "";
 
   const daysSince = lastContact
-    ? Math.floor(
-        (new Date(today).getTime() - new Date(lastContact).getTime()) / 86_400_000
-      )
+    ? Math.round((dateUtcMs(today) - dateUtcMs(lastContact)) / 86_400_000)
     : 999;
 
   const avgCadenceDays = calcAvgCadence(group.interactions);
 
-  const todayMs = new Date(today).getTime();
+  const todayMs = dateUtcMs(today);
   const d30 = todayMs - 30 * 86_400_000;
   const d60 = todayMs - 60 * 86_400_000;
-  const last30d = group.interactions.filter((i) => new Date(i.date).getTime() >= d30).length;
+  const last30d = group.interactions.filter((i) => dateUtcMs(i.date) >= d30).length;
   const prev30d = group.interactions.filter(
-    (i) => new Date(i.date).getTime() >= d60 && new Date(i.date).getTime() < d30
+    (i) => dateUtcMs(i.date) >= d60 && dateUtcMs(i.date) < d30
   ).length;
 
   const recency = calcRecencyScore(daysSince);
