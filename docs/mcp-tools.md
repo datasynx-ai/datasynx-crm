@@ -1,8 +1,10 @@
-# MCP Tools Reference — datasynx-opencrm
+# MCP Tools Reference — datasynx-opencrm v2 (30 Tools)
 
-All tools are registered via `server.registerTool()` (MCP SDK v1.x).
+All 30 tools are registered via `server.registerTool()` (MCP SDK v1.x).
 Server name: `datasynx-opencrm`
 Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
+
+**v2 proactive tools:** `get_proactive_briefing` · `open_deal_room` · `get_relationship_graph` · `get_relationship_health` · `run_deal_agent` · `simulate_revenue` · `get_org_intelligence` · `pursue_goal` · `get_playbook` · `distill_playbook`
 
 ---
 
