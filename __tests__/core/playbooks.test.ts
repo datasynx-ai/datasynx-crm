@@ -298,7 +298,7 @@ describe("writePlaybook", () => {
       content: "# My Playbook\n\n## Steps\n1. Do thing.",
       path: `${DATA_DIR}/customers/${SLUG}/playbooks/my-playbook.md`,
     };
-    writePlaybook(DATA_DIR, SLUG, playbook);
+    await writePlaybook(DATA_DIR, SLUG, playbook);
     const read = readPlaybook(DATA_DIR, SLUG, "my-playbook");
     expect(read).not.toBeNull();
     expect(read!.frontmatter.trigger).toBe("deal_stage_negotiation");
@@ -315,9 +315,21 @@ describe("writePlaybook", () => {
       content: "# Test",
       path: `${DATA_DIR}/customers/${SLUG}/playbooks/test.md`,
     };
-    writePlaybook(DATA_DIR, SLUG, playbook);
+    await writePlaybook(DATA_DIR, SLUG, playbook);
     const all = listPlaybooks(DATA_DIR, SLUG);
     expect(all).toHaveLength(1);
+  });
+
+  it("concurrent writes to different playbooks all persist", async () => {
+    vol.fromJSON({});
+    const { writePlaybook, listPlaybooks } = await import("../../src/core/playbooks.js");
+    const base = { slug: SLUG, frontmatter: { trigger: "no_champion", successRate: 0.5, usedCount: 0, lastUpdated: "2026-05-27" }, content: "# Test" };
+    await Promise.all([
+      writePlaybook(DATA_DIR, SLUG, { ...base, name: "pb-1", path: `${DATA_DIR}/customers/${SLUG}/playbooks/pb-1.md` }),
+      writePlaybook(DATA_DIR, SLUG, { ...base, name: "pb-2", path: `${DATA_DIR}/customers/${SLUG}/playbooks/pb-2.md` }),
+      writePlaybook(DATA_DIR, SLUG, { ...base, name: "pb-3", path: `${DATA_DIR}/customers/${SLUG}/playbooks/pb-3.md` }),
+    ]);
+    expect(listPlaybooks(DATA_DIR, SLUG)).toHaveLength(3);
   });
 });
 

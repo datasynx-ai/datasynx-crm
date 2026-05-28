@@ -135,11 +135,14 @@ export function buildTopRisks(
 
 // ─── Monte Carlo Core ─────────────────────────────────────────────────────────
 
+const MAX_ITERATIONS = 50_000;
+
 export function runSimulation(
   input: SimulationInput,
   randFn: () => number = Math.random
 ): SimulationResult {
-  const { deals, externalSignals, iterations } = input;
+  const { deals, externalSignals } = input;
+  const iterations = Math.min(input.iterations, MAX_ITERATIONS);
 
   if (deals.length === 0) {
     return {

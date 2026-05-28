@@ -459,6 +459,15 @@ describe("runSimulation — statistical properties", () => {
     expect(result.topRisks.some((r) => r.includes("Risky"))).toBe(true);
     expect(result.topRisks.some((r) => r.includes("Safe"))).toBe(false);
   });
+
+  it("clamps iterations to MAX_ITERATIONS (50 000)", async () => {
+    const { runSimulation } = await import("../../src/core/revenue-simulation.js");
+    const deals = [makeSnap({ name: "A", value: 50000, probability: 50 })];
+    let callCount = 0;
+    runSimulation(makeInput(deals, 200_000), () => { callCount++; return 0.5; });
+    // Each iteration: 1 prob-check + 1 variance-check = 2 calls per deal per iteration
+    expect(callCount).toBeLessThanOrEqual(50_000 * 2 + 10);
+  });
 });
 
 // ─── buildSimulationInput (integration, memfs) ────────────────────────────────

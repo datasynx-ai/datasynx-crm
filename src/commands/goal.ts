@@ -46,7 +46,7 @@ export async function runGoalUpdate(goalId: string, options: { progress: string 
     console.error(error("✗ --progress must be a number 0–100"));
     process.exit(1);
   }
-  const updated = updateGoalProgress(dir, goalId, progress);
+  const updated = await updateGoalProgress(dir, goalId, progress);
   if (!updated) {
     console.error(error(`✗ Goal '${goalId}' not found`));
     process.exit(1);
@@ -56,7 +56,7 @@ export async function runGoalUpdate(goalId: string, options: { progress: string 
 
 export async function runGoalCancel(goalId: string): Promise<void> {
   const dir = process.cwd();
-  const cancelled = cancelGoal(dir, goalId);
+  const cancelled = await cancelGoal(dir, goalId);
   if (!cancelled) {
     console.error(error(`✗ Goal '${goalId}' not found`));
     process.exit(1);
