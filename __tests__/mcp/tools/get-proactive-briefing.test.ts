@@ -41,4 +41,24 @@ describe("handleGetProactiveBriefing", () => {
     const parsed = parseResult(result);
     expect((parsed["urgent"] as unknown[]).length).toBe(0);
   });
+
+  it("opportunities is an array", async () => {
+    vol.fromJSON({});
+    const { handleGetProactiveBriefing } = await import("../../../src/mcp/tools/get-proactive-briefing.js");
+    const result = await handleGetProactiveBriefing({ date: "2026-05-28" }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(Array.isArray(parsed["opportunities"])).toBe(true);
+  });
+
+  it("detects imminently closing deal as urgent", async () => {
+    const pipelineMd = `| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |\n|------|-------|-------|----------|-------------|------------|-------|------|\n| Big Deal | negotiation | 200000 | EUR | 80 | 2026-05-30 |  | 2026-05-25 |\n`;
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/beta-gmbh/pipeline.md`]: pipelineMd,
+    });
+    const { handleGetProactiveBriefing } = await import("../../../src/mcp/tools/get-proactive-briefing.js");
+    const result = await handleGetProactiveBriefing({ date: "2026-05-28" }, DATA_DIR);
+    const parsed = parseResult(result);
+    const hasUrgent = (parsed["urgent"] as string[]).some((u) => u.includes("closes in"));
+    expect(hasUrgent).toBe(true);
+  });
 });

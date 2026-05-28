@@ -36,7 +36,7 @@ export interface StakeholderMap {
 export function buildStakeholderMap(
   dataDir: string,
   slug: string,
-  _today: string,
+  today: string,
   dealName?: string
 ): StakeholderMap {
   const graph = readGraph(dataDir, slug);
@@ -88,7 +88,7 @@ export function buildStakeholderMap(
   return {
     slug,
     ...(dealName ? { dealName } : {}),
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(`${today}T00:00:00Z`).toISOString(),
     people,
     missingRoles: stakeholders.missingRoles,
     riskAssessment,
@@ -97,7 +97,7 @@ export function buildStakeholderMap(
 }
 
 export function buildRiskAssessment(
-  people: Partial<StakeholderProfile>[],
+  people: StakeholderProfile[],
   missingRoles: MissingRole[],
   _signals: unknown[]
 ): string {
@@ -110,17 +110,17 @@ export function buildRiskAssessment(
     risks.push("Economic buyer unknown — decision authority not confirmed.");
   }
 
-  const coldPeople = people.filter((p) => p.riskFlags?.includes("NO_CONTACT_30D"));
+  const coldPeople = people.filter((p) => p.riskFlags.includes("NO_CONTACT_30D"));
   if (coldPeople.length > 0) {
     risks.push(
-      `Cold contacts (30d+ silence): ${coldPeople.map((p) => p.name ?? "unknown").join(", ")}.`
+      `Cold contacts (30d+ silence): ${coldPeople.map((p) => p.name).join(", ")}.`
     );
   }
 
-  const lowHealth = people.filter((p) => (p.healthScore ?? 100) < 40);
+  const lowHealth = people.filter((p) => p.healthScore < 40);
   if (lowHealth.length > 0) {
     risks.push(
-      `Low health score (<40): ${lowHealth.map((p) => p.name ?? "unknown").join(", ")}.`
+      `Low health score (<40): ${lowHealth.map((p) => p.name).join(", ")}.`
     );
   }
 

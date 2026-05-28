@@ -40,6 +40,9 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | get_goal_status | Get active goals, progress, and sub-goal breakdown | any |
 | register_push_subscription | Register real-time push subscription (Gmail/MS Graph/Slack) | admin |
 | get_push_status | Show all push subscriptions, expiry, events processed | any |
+| get_org_intelligence | Stakeholder map: champions, buyers, blockers, health scores, risk flags, recommendation | any |
+| open_deal_room | Multi-agent deal brief: graph + health + deal health + simulation + playbook in one call | any |
+| get_proactive_briefing | Daily briefing: urgent alerts, opportunities, P50/P90 forecast, top action | any |
 
 ## Tool Reference
 
@@ -433,4 +436,27 @@ get_push_status({ slug: "acme-corp" })     // filter by customer
 get_push_status({ provider: "gmail" })     // filter by provider
 \`\`\`
 Returns: { subscriptions: [...], summary: { total, active, expiringSoon, expired } }
+
+### get_org_intelligence (MCP)
+Build a stakeholder map for a customer: champions, economic buyers, blockers, health scores, risk flags, and a prioritised recommendation.
+\`\`\`
+get_org_intelligence({ slug: "acme-corp" })
+get_org_intelligence({ slug: "acme-corp", dealName: "Enterprise License" })
+\`\`\`
+Returns: { slug, updatedAt, people: [{ name, email, role, healthScore, daysSinceContact, contactStrength, riskFlags }], missingRoles, riskAssessment, recommendation }
+
+### open_deal_room (MCP)
+Multi-agent deal brief: orchestrates stakeholder map, relationship health, deal health, Monte Carlo simulation, and playbook matching into a single structured brief.
+\`\`\`
+open_deal_room({ slug: "acme-corp", dealName: "Enterprise License 2026" })
+\`\`\`
+Returns: { slug, dealName, generatedAt, stakeholders, relationshipHealth, dealHealth, revenueSimulation, recommendedPlaybook, executiveSummary, topPriorities, riskScore }
+
+### get_proactive_briefing (MCP)
+Generate a proactive daily briefing: urgent alerts (relationship decay, imminent close dates), opportunities (high-health customers with active pipeline), P50/P90 forecast, and a single top-action recommendation.
+\`\`\`
+get_proactive_briefing()                         // today
+get_proactive_briefing({ date: "2026-05-28" })   // specific date
+\`\`\`
+Returns: { date, generatedAt, urgent: string[], opportunities: string[], forecast: string, topAction: string }
 `.trim();

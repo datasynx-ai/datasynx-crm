@@ -190,6 +190,29 @@ describe("buildStakeholderMap", () => {
   });
 });
 
+// ─── today drives updatedAt ───────────────────────────────────────────────────
+
+describe("buildStakeholderMap — today parameter", () => {
+  it("uses today for updatedAt (deterministic)", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+    });
+    const { buildStakeholderMap } = await import("../../src/core/org-intelligence.js");
+    const result = buildStakeholderMap(DATA_DIR, SLUG, "2026-03-15");
+    expect(result.updatedAt).toBe("2026-03-15T00:00:00.000Z");
+  });
+
+  it("different today values produce different updatedAt", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+    });
+    const { buildStakeholderMap } = await import("../../src/core/org-intelligence.js");
+    const r1 = buildStakeholderMap(DATA_DIR, SLUG, "2026-01-01");
+    const r2 = buildStakeholderMap(DATA_DIR, SLUG, "2026-06-30");
+    expect(r1.updatedAt).not.toBe(r2.updatedAt);
+  });
+});
+
 // ─── buildRiskAssessment ──────────────────────────────────────────────────────
 
 describe("buildRiskAssessment", () => {

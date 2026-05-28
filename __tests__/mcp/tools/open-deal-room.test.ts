@@ -39,4 +39,31 @@ describe("handleOpenDealRoom", () => {
     const parsed = parseResult(result);
     expect(Array.isArray(parsed["topPriorities"])).toBe(true);
   });
+
+  it("includes executiveSummary mentioning slug", async () => {
+    vol.fromJSON({});
+    const { handleOpenDealRoom } = await import("../../../src/mcp/tools/open-deal-room.js");
+    const result = await handleOpenDealRoom({ slug: SLUG, dealName: "Test Deal" }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect((parsed["executiveSummary"] as string)).toContain(SLUG);
+  });
+
+  it("revenueSimulation object has p50, p10, p90", async () => {
+    vol.fromJSON({});
+    const { handleOpenDealRoom } = await import("../../../src/mcp/tools/open-deal-room.js");
+    const result = await handleOpenDealRoom({ slug: SLUG, dealName: "Test Deal" }, DATA_DIR);
+    const parsed = parseResult(result);
+    const sim = parsed["revenueSimulation"] as Record<string, unknown>;
+    expect(typeof sim["p50"]).toBe("number");
+    expect(typeof sim["p10"]).toBe("number");
+    expect(typeof sim["p90"]).toBe("number");
+  });
+
+  it("relationshipHealth is an array", async () => {
+    vol.fromJSON({});
+    const { handleOpenDealRoom } = await import("../../../src/mcp/tools/open-deal-room.js");
+    const result = await handleOpenDealRoom({ slug: SLUG, dealName: "Test Deal" }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(Array.isArray(parsed["relationshipHealth"])).toBe(true);
+  });
 });

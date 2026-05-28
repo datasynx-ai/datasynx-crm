@@ -82,7 +82,14 @@ export async function buildDealRoom(
   const firstActiveDeal = pipelineDeals.find((d) => d.stage !== "won" && d.stage !== "lost");
   let recommendedPlaybook: PlaybookMatch | null = null;
   if (firstActiveDeal) {
-    const contactHealth = health?.contacts[0];
+    // Prefer champion's contact health for accurate daysSinceContact signal
+    const championEmail = stakeholders.people.find((p) => p.role === "champion")?.email;
+    const champContact = championEmail
+      ? health?.contacts.find(
+          (c) => c.email === championEmail || c.contactId === `person:${championEmail}`
+        )
+      : undefined;
+    const contactHealth = champContact ?? health?.contacts?.[0];
     const daysSinceContact = contactHealth?.daysSinceContact ?? 999;
     const dealSnapshot = {
       slug,
@@ -163,8 +170,12 @@ function buildTopPriorities(
   }
 
   const atRiskDeals = dealHealth.filter((d) => d.score < 50);
-  for (const d of atRiskDeals.slice(0, 2)) {
+  const showCount = Math.min(3, atRiskDeals.length);
+  for (const d of atRiskDeals.slice(0, showCount)) {
     priorities.push(`Rescue deal "${d.deal}" (health ${d.score}/100): ${d.warnings[0] ?? "at risk"}`);
+  }
+  if (atRiskDeals.length > showCount) {
+    priorities.push(`+${atRiskDeals.length - showCount} more at-risk deal(s) need attention.`);
   }
 
   for (const mr of stakeholders.missingRoles) {

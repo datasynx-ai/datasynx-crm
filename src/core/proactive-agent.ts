@@ -105,11 +105,19 @@ export async function buildDailyBriefing(dataDir: string, today: string): Promis
 
   const urgent: string[] = [];
   const opportunities: string[] = [];
+  const todayDate = new Date(`${today}T00:00:00Z`);
 
-  for (const slug of slugs) {
-    const cached = readHealth(dataDir, slug);
-    const health = cached ?? computeCustomerHealth(dataDir, slug, today);
+  // Parallel I/O across all customers
+  const customerData = await Promise.all(
+    slugs.map(async (slug) => {
+      const cached = readHealth(dataDir, slug);
+      const health = cached ?? computeCustomerHealth(dataDir, slug, today);
+      const deals = await readPipeline(dataDir, slug).catch(() => []);
+      return { slug, health, deals };
+    })
+  );
 
+  for (const { slug, health, deals } of customerData) {
     // Relationship decay alerts
     for (const contact of health.contacts) {
       if (contact.riskFlags.includes("NO_CONTACT_30D")) {
@@ -119,9 +127,15 @@ export async function buildDailyBriefing(dataDir: string, today: string): Promis
       }
     }
 
+    // Opportunities — B-grade+ relationship health with active deals
+    const activeDeals = deals.filter((d) => d.stage !== "won" && d.stage !== "lost");
+    if (health.overallHealth >= 65 && activeDeals.length > 0) {
+      opportunities.push(
+        `${slug}: relationship health ${health.overallHealth}/100 with ${activeDeals.length} active deal(s) — good time for expansion or upsell.`
+      );
+    }
+
     // Deal risk alerts
-    const todayDate = new Date(`${today}T00:00:00Z`);
-    const deals = await readPipeline(dataDir, slug).catch(() => []);
     for (const deal of deals) {
       if (deal.stage === "won" || deal.stage === "lost") continue;
       if (deal.close_date && deal.close_date.trim() !== "") {

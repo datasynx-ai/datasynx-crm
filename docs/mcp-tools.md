@@ -881,17 +881,145 @@ All fields are optional. Omit both to return all subscriptions.
 
 ---
 
+### `get_org_intelligence`
+
+Build a stakeholder map combining the relationship graph, contact health scores, risk flags, and missing-role detection into a single brief.
+
+**Input**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| slug | string | ✓ | Customer slug |
+| dealName | string | — | Optional: scope analysis to a specific deal |
+
+**Output**
+```json
+{
+  "slug": "acme-corp",
+  "dealName": "Enterprise License",
+  "updatedAt": "2026-05-28T00:00:00.000Z",
+  "people": [
+    {
+      "name": "Max Müller",
+      "email": "max@acme.com",
+      "role": "champion",
+      "healthScore": 85,
+      "daysSinceContact": 8,
+      "contactStrength": 0.9,
+      "riskFlags": []
+    },
+    {
+      "name": "Sarah Schmidt",
+      "email": "sarah@acme.com",
+      "role": "unknown",
+      "healthScore": 15,
+      "daysSinceContact": 45,
+      "contactStrength": 0.5,
+      "riskFlags": ["NO_CONTACT_14D", "NO_CONTACT_30D"]
+    }
+  ],
+  "missingRoles": [
+    {
+      "role": "economic_buyer",
+      "urgency": "critical",
+      "suggestion": "Find out who signs the contract. Ask your champion directly."
+    }
+  ],
+  "riskAssessment": "Economic buyer unknown — decision authority not confirmed. Cold contacts (30d+ silence): Sarah Schmidt.",
+  "recommendation": "Find out who signs the contract. Ask your champion directly."
+}
+```
+
+**Roles**: `champion`, `economic_buyer`, `blocker`, `influencer`, `user`, `unknown`
+
+**CLI equivalent:** `dxcrm org-intel <slug> [--deal <dealName>]`
+
+---
+
+### `open_deal_room`
+
+Multi-agent deal brief: orchestrates 6 sub-systems in parallel (stakeholder map, relationship health, deal health, Monte Carlo simulation, playbook matching, executive synthesis) and returns a unified brief with risk score and prioritised action list.
+
+**Input**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| slug | string | ✓ | Customer slug |
+| dealName | string | ✓ | Name of the deal to analyse |
+
+**Output**
+```json
+{
+  "slug": "acme-corp",
+  "dealName": "Enterprise License 2026",
+  "generatedAt": "2026-05-28T14:30:00.000Z",
+  "stakeholders": { "...": "StakeholderMap (see get_org_intelligence)" },
+  "relationshipHealth": [ "...ContactHealth objects..." ],
+  "dealHealth": [
+    { "deal": "Enterprise License 2026", "stage": "proposal", "score": 72, "grade": "B", "warnings": [] }
+  ],
+  "revenueSimulation": { "p50": 287000, "p10": 140000, "p90": 412000, "expected": 281000, "atRiskRevenue": 0 },
+  "recommendedPlaybook": null,
+  "executiveSummary": "acme-corp/Enterprise License 2026: relationship health 72/100, 1 champion(s) identified. Critical gaps: 1 key role(s) unidentified — risk score 30/100.",
+  "topPriorities": [
+    "Find out who signs the contract. Ask your champion directly.",
+    "Maintain current momentum — schedule next check-in."
+  ],
+  "riskScore": 30
+}
+```
+
+`riskScore` 0–100: derived from missing critical roles (+25 each), average deal health, and relationship health.
+
+**CLI equivalent:** `dxcrm deal-room <slug> <dealName>`
+
+---
+
+### `get_proactive_briefing`
+
+Generate a proactive daily briefing scanning all customers for relationship decay, imminent close dates, overdue deals, and expansion opportunities. Returns urgent alerts, an opportunity list, a P50/P90 forecast, and a single top-action recommendation.
+
+**Input**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| date | string | — | ISO date `YYYY-MM-DD`. Defaults to today. |
+
+**Output**
+```json
+{
+  "date": "2026-05-28",
+  "generatedAt": "2026-05-28T07:00:00.000Z",
+  "urgent": [
+    "acme-corp: Sarah Schmidt has been silent for 45 days — health 15/100",
+    "beta-gmbh: Deal \"Enterprise Q2\" closes in 3 day(s) — negotiation"
+  ],
+  "opportunities": [
+    "gamma-ag: relationship health 82/100 with 2 active deal(s) — good time for expansion or upsell."
+  ],
+  "forecast": "Q forecast: P50 €287.0k / P90 €412.0k — 5 deal(s) in pipeline.",
+  "topAction": "Sarah Schmidt has been silent for 45 days"
+}
+```
+
+**Alert triggers**
+- `urgent`: `NO_CONTACT_30D` flag on any contact, or deal close date within 7 days, or overdue close date
+- `opportunities`: customer with relationship health ≥ 65 and active pipeline
+
+**CLI equivalent:** `dxcrm briefing [--date YYYY-MM-DD]`
+
+---
+
 ## Recommended Workflow
 
 ```
-Morning briefing:    list_customers()
+Morning briefing:    get_proactive_briefing()
+List customers:      list_customers()
 Before any call:     get_customer_context(slug)
 After call/email:    log_interaction(slug, type, summary, nextSteps)
 After meeting:       summarize_meeting(slug, transcript, with)
 After deal update:   update_deal(slug, dealName, { stage, value })
 Deal health check:   get_deal_health(slug)
 Relationship health: get_relationship_health(slug)
-Stakeholder map:     get_relationship_graph(slug)
+Stakeholder map:     get_org_intelligence(slug)
+Full deal brief:     open_deal_room(slug, dealName)
 Revenue forecast:    get_pipeline_forecast()
 Market patterns:     get_market_intelligence(query)
 Historical search:   search_customer_knowledge(slug, query)

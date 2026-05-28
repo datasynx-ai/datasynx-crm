@@ -16,7 +16,7 @@ function makeInteractionMd(date: string): string {
 }
 
 function makePipelineMd(closeDate: string, stage = "proposal"): string {
-  return `| Name | Stage | Value | Close Date | Probability | Updated |\n|---|---|---|---|---|---|\n| Enterprise License | ${stage} | 150000 | ${closeDate} | 60 | 2026-05-20 |\n`;
+  return `| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |\n|------|-------|-------|----------|-------------|------------|-------|------|\n| Enterprise License | ${stage} | 150000 | EUR | 60 | ${closeDate} |  | 2026-05-20 |\n`;
 }
 
 // ─── enqueueTask ──────────────────────────────────────────────────────────────
@@ -89,14 +89,37 @@ describe("buildDailyBriefing", () => {
   });
 
   it("detects deal risk when close date is imminent", async () => {
-    // Close date in 3 days — urgent
-    const closeDate = "2026-05-31";
+    const closeDate = "2026-05-31"; // 3 days away
     vol.fromJSON({
       [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(closeDate),
     });
     const { buildDailyBriefing } = await import("../../src/core/proactive-agent.js");
-    const briefing = await buildDealRisk_helper(DATA_DIR, TODAY, closeDate);
-    expect(typeof briefing).toBe("object");
+    const briefing = await buildDailyBriefing(DATA_DIR, TODAY);
+    const hasUrgent = briefing.urgent.some((u) => u.includes("closes in"));
+    expect(hasUrgent).toBe(true);
+  });
+
+  it("flags overdue close date as urgent", async () => {
+    const closeDate = "2026-05-01"; // 27 days ago
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(closeDate),
+    });
+    const { buildDailyBriefing } = await import("../../src/core/proactive-agent.js");
+    const briefing = await buildDailyBriefing(DATA_DIR, TODAY);
+    const hasOverdue = briefing.urgent.some((u) => u.includes("overdue"));
+    expect(hasOverdue).toBe(true);
+  });
+
+  it("populates opportunities for high-health customers with active deals", async () => {
+    // High health = no recent cold contacts, interactions recently
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/interactions.md`]: makeInteractionMd("2026-05-27"),
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd("2026-12-31"),
+    });
+    const { buildDailyBriefing } = await import("../../src/core/proactive-agent.js");
+    const briefing = await buildDailyBriefing(DATA_DIR, TODAY);
+    // overallHealth will be 100 (recent contact), pipeline has 1 active deal
+    expect(briefing.opportunities.length).toBeGreaterThan(0);
   });
 
   it("returns non-empty topAction", async () => {
@@ -113,8 +136,3 @@ describe("buildDailyBriefing", () => {
     expect(typeof briefing.forecast).toBe("string");
   });
 });
-
-async function buildDealRisk_helper(dataDir: string, today: string, _closeDate: string) {
-  const { buildDailyBriefing } = await import("../../src/core/proactive-agent.js");
-  return buildDailyBriefing(dataDir, today);
-}

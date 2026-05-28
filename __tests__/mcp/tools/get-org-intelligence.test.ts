@@ -73,12 +73,34 @@ describe("handleGetOrgIntelligence", () => {
     expect(Array.isArray(parsed["missingRoles"])).toBe(true);
   });
 
-  it("returns error shape when slug not found", async () => {
+  it("returns empty people when slug not found (readGraph falls back to emptyGraph)", async () => {
     vol.fromJSON({});
     const { handleGetOrgIntelligence } = await import("../../../src/mcp/tools/get-org-intelligence.js");
     const result = await handleGetOrgIntelligence({ slug: "no-such-slug" }, DATA_DIR);
     const parsed = parseResult(result);
-    // Should return empty people (not crash) since readGraph returns emptyGraph
     expect(parsed["people"]).toBeDefined();
+    expect((parsed["people"] as unknown[]).length).toBe(0);
+  });
+
+  it("handles malformed graph.json gracefully", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: "{ not valid json",
+    });
+    const { handleGetOrgIntelligence } = await import("../../../src/mcp/tools/get-org-intelligence.js");
+    // readGraph catches parse errors and returns emptyGraph — should not throw
+    const result = await handleGetOrgIntelligence({ slug: SLUG }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["slug"]).toBe(SLUG);
+    expect((parsed["people"] as unknown[]).length).toBe(0);
+  });
+
+  it("includes dealName in result when provided", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+    });
+    const { handleGetOrgIntelligence } = await import("../../../src/mcp/tools/get-org-intelligence.js");
+    const result = await handleGetOrgIntelligence({ slug: SLUG, dealName: "Enterprise 2026" }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["dealName"]).toBe("Enterprise 2026");
   });
 });

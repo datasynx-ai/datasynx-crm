@@ -201,6 +201,9 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `get_goal_status` | Get active goals, progress, and sub-goal breakdown | any |
 | `register_push_subscription` | Register real-time push subscription (Gmail/MS Graph/Slack) | admin |
 | `get_push_status` | Show push subscriptions with expiry and event counts | any |
+| `get_org_intelligence` | Stakeholder map: champions, buyers, blockers, health scores, risk flags | any |
+| `open_deal_room` | Multi-agent deal brief: graph + health + simulation + playbook in one call | any |
+| `get_proactive_briefing` | Daily briefing: urgent alerts, opportunities, P50/P90 forecast, top action | any |
 
 ### Tool Examples
 
@@ -292,6 +295,18 @@ register_push_subscription({
 // Check all active push subscriptions
 get_push_status()
 // → { subscriptions: [{ id, provider, slug, status, expiresInHours, needsRenewal, eventsProcessed }], summary: {...} }
+
+// Stakeholder map: champions, buyers, blockers with health scores
+get_org_intelligence({ "slug": "acme-corp" })
+// → { slug, people: [{ name, role, healthScore, daysSinceContact, riskFlags }], missingRoles, riskAssessment, recommendation }
+
+// Multi-agent deal brief (parallel orchestration of 6 sub-systems)
+open_deal_room({ "slug": "acme-corp", "dealName": "Enterprise License 2026" })
+// → { executiveSummary, topPriorities, riskScore, stakeholders, dealHealth, revenueSimulation, recommendedPlaybook }
+
+// Proactive morning briefing (scans all customers automatically)
+get_proactive_briefing()
+// → { urgent: ["acme-corp: Sarah silent 45d"], opportunities: [...], forecast: "P50 €287k", topAction: "..." }
 ```
 
 ---

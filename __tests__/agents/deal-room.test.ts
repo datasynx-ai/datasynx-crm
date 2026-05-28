@@ -43,9 +43,9 @@ function makeGraphJson(): string {
 }
 
 function makePipelineMd(): string {
-  return `| Name | Stage | Value | Close Date | Probability | Updated |
-|---|---|---|---|---|---|
-| Enterprise License | proposal | 150000 | 2026-06-30 | 60 | 2026-05-25 |
+  return `| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |
+|------|-------|-------|----------|-------------|------------|-------|---------|
+| Enterprise License | proposal | 150000 | EUR | 60 | 2026-06-30 |  | 2026-05-25 |
 `;
 }
 
@@ -129,5 +129,79 @@ describe("buildDealRoom", () => {
     const { buildDealRoom } = await import("../../src/agents/deal-room.js");
     const brief = await buildDealRoom(DATA_DIR, SLUG, "Enterprise License", TODAY);
     expect(Array.isArray(brief.dealHealth)).toBe(true);
+  });
+
+  it("champion-aware daysSinceContact: uses champion email to look up contact health", async () => {
+    const health = JSON.stringify({
+      schemaVersion: "1",
+      slug: SLUG,
+      overallHealth: 72,
+      updatedAt: new Date().toISOString(),
+      contacts: [
+        {
+          contactId: "person:max@acme.com",
+          name: "Max Müller",
+          email: "max@acme.com",
+          score: 85,
+          grade: "A",
+          trend: "stable",
+          daysSinceContact: 5,
+          avgCadenceDays: 7,
+          sentimentTrend: 0,
+          riskFlags: [],
+          lastContact: "2026-05-23",
+          interactionCount30d: 3,
+          recommendation: "On track",
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          contactId: "person:other@acme.com",
+          name: "Other Person",
+          email: "other@acme.com",
+          score: 10,
+          grade: "F",
+          trend: "cold",
+          daysSinceContact: 999,
+          avgCadenceDays: 0,
+          sentimentTrend: 0,
+          riskFlags: ["NO_CONTACT_30D"],
+          lastContact: "2026-01-01",
+          interactionCount30d: 0,
+          recommendation: "Re-engage",
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+      atRiskContacts: [],
+      coldContacts: [],
+    });
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+      [`${DATA_DIR}/customers/${SLUG}/health.json`]: health,
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(),
+    });
+    const { buildDealRoom } = await import("../../src/agents/deal-room.js");
+    const brief = await buildDealRoom(DATA_DIR, SLUG, "Enterprise License", TODAY);
+    // Champion (max@acme.com) has daysSinceContact=5, not the first contact's 999
+    // riskScore should reflect champion's health (85), not fallback cold contact
+    expect(brief.riskScore).toBeLessThan(60); // champion present, no critical missing roles aside from economic_buyer
+    expect(brief.stakeholders.people.find((p) => p.role === "champion")?.name).toBe("Max Müller");
+  });
+
+  it("overflow: shows +N more when >3 deals are at-risk", async () => {
+    const manyDealsMd = `| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |
+|------|-------|-------|----------|-------------|------------|-------|---------|
+| Deal A | proposal | 10000 | EUR | 10 |  |  | 2025-01-01 |
+| Deal B | proposal | 20000 | EUR | 10 |  |  | 2025-01-01 |
+| Deal C | proposal | 30000 | EUR | 10 |  |  | 2025-01-01 |
+| Deal D | proposal | 40000 | EUR | 10 |  |  | 2025-01-01 |
+`;
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: manyDealsMd,
+    });
+    const { buildDealRoom } = await import("../../src/agents/deal-room.js");
+    const brief = await buildDealRoom(DATA_DIR, SLUG, "Enterprise License", TODAY);
+    const hasOverflow = brief.topPriorities.some((p) => p.startsWith("+"));
+    expect(hasOverflow).toBe(true);
   });
 });
