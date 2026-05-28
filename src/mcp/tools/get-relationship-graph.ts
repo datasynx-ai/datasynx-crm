@@ -1,6 +1,6 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { readGraph, getStakeholders } from "../../core/graph.js";
+import { readGraph, getStakeholders, findPath } from "../../core/graph.js";
 import type { GraphNode } from "../../core/graph.js";
 
 const DATA_DIR = process.cwd();
@@ -16,6 +16,23 @@ export async function handleGetRelationshipGraph(
   try {
     const graph = readGraph(dataDir, input.slug);
     const stakeholders = getStakeholders(graph);
+
+    // Warm intro paths: BFS from owner contacts to each economic buyer
+    const ownerContactIds = graph.nodes
+      .filter((n) => n.type === "person" && n.properties["isOwnerContact"] === true)
+      .map((n) => n.id);
+    const economicBuyerIds = stakeholders.economicBuyers.map((n) => n.id);
+
+    const warmIntroPaths: Array<{ target: string; path: string[] }> = [];
+    for (const ebId of economicBuyerIds) {
+      for (const ownerId of ownerContactIds) {
+        const p = findPath(graph, ownerId, ebId);
+        if (p.length > 1) {
+          warmIntroPaths.push({ target: ebId, path: p });
+          break;
+        }
+      }
+    }
 
     return {
       content: [
@@ -34,6 +51,7 @@ export async function handleGetRelationshipGraph(
                 allContacts: stakeholders.allContacts.map(summarizeNode),
                 missingRoles: stakeholders.missingRoles,
               },
+              warmIntroPaths,
               nodes: graph.nodes,
               edges: graph.edges,
             },

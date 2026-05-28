@@ -486,3 +486,86 @@ describe("pruneStaleNodes", () => {
     expect(result.nodes[0]!.status).toBe("inactive");
   });
 });
+
+describe("findPath", () => {
+  function makeGraph(edges: Array<{ from: string; to: string }>) {
+    const nodeIds = [...new Set(edges.flatMap((e) => [e.from, e.to]))];
+    const now = new Date().toISOString();
+    return {
+      schemaVersion: "1" as const,
+      slug: "test",
+      updatedAt: now,
+      nodes: nodeIds.map((id) => ({
+        id,
+        type: "person" as const,
+        label: id,
+        properties: {},
+        createdAt: now,
+        updatedAt: now,
+      })),
+      edges: edges.map((e, i) => ({
+        id: `e${i}`,
+        from: e.from,
+        to: e.to,
+        type: "KNOWS" as const,
+        weight: 1,
+        contactCount: 1,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    };
+  }
+
+  it("returns [id] when fromId === toId", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    const graph = makeGraph([{ from: "a", to: "b" }]);
+    expect(findPath(graph, "a", "a")).toEqual(["a"]);
+  });
+
+  it("returns direct path [a, b] for direct edge", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    const graph = makeGraph([{ from: "a", to: "b" }]);
+    expect(findPath(graph, "a", "b")).toEqual(["a", "b"]);
+  });
+
+  it("returns 3-node path for A→B→C indirect connection", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    const graph = makeGraph([{ from: "a", to: "b" }, { from: "b", to: "c" }]);
+    const path = findPath(graph, "a", "c");
+    expect(path).toEqual(["a", "b", "c"]);
+  });
+
+  it("returns [] when no path exists", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    const graph = makeGraph([{ from: "a", to: "b" }, { from: "c", to: "d" }]);
+    expect(findPath(graph, "a", "d")).toEqual([]);
+  });
+
+  it("handles cycles without infinite loop", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    const graph = makeGraph([
+      { from: "a", to: "b" },
+      { from: "b", to: "a" }, // cycle
+      { from: "b", to: "c" },
+    ]);
+    expect(findPath(graph, "a", "c")).toEqual(["a", "b", "c"]);
+  });
+
+  it("traverses edges in both directions (undirected)", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    // Edge goes b→a, but we search a→b
+    const graph = makeGraph([{ from: "b", to: "a" }]);
+    expect(findPath(graph, "a", "b")).toEqual(["a", "b"]);
+  });
+
+  it("returns shortest path when multiple paths exist", async () => {
+    const { findPath } = await import("../../src/core/graph.js");
+    const graph = makeGraph([
+      { from: "a", to: "c" },       // short: a→c
+      { from: "a", to: "b" },       // long: a→b→c
+      { from: "b", to: "c" },
+    ]);
+    const path = findPath(graph, "a", "c");
+    expect(path.length).toBe(2); // shortest
+  });
+});

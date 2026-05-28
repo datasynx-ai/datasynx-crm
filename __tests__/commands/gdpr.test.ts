@@ -312,3 +312,130 @@ describe("runGdprErase — LanceDB cleanup", () => {
     logSpy.mockRestore();
   });
 });
+
+// ─── runGdprErase — .agentic/ cleanup (G5) ───────────────────────────────────
+
+describe("runGdprErase — .agentic/ cleanup", () => {
+  it("removes tasks for erased slug from global agent queue", async () => {
+    const DATA_DIR = "/crm";
+    seedCustomer("acme", DATA_DIR);
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/agent-queue.json`]: JSON.stringify([
+        { id: "t1", slug: "acme", type: "relationship_decay_alert", status: "pending" },
+        { id: "t2", slug: "other-corp", type: "daily_briefing", status: "pending" },
+      ]),
+      [`${DATA_DIR}/.agentic/audit.log`]: "",
+      [`${DATA_DIR}/.agentic/gdpr-erasures.json`]: "[]",
+      ...vol.toJSON(),
+    });
+
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("acme", { confirm: true }, DATA_DIR);
+
+    const fs = (await import("fs")).default;
+    const queue = JSON.parse(fs.readFileSync(`${DATA_DIR}/.agentic/agent-queue.json`, "utf-8") as string) as Array<{ slug: string }>;
+    expect(queue.every((t) => t.slug !== "acme")).toBe(true);
+    expect(queue.some((t) => t.slug === "other-corp")).toBe(true);
+  });
+
+  it("keeps tasks for other slugs after erasure", async () => {
+    const DATA_DIR = "/crm";
+    seedCustomer("acme", DATA_DIR);
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/agent-queue.json`]: JSON.stringify([
+        { id: "t1", slug: "acme", type: "deal_risk_alert", status: "pending" },
+        { id: "t2", slug: "beta", type: "daily_briefing", status: "done" },
+        { id: "t3", type: "daily_briefing", status: "pending" }, // no slug
+      ]),
+      [`${DATA_DIR}/.agentic/audit.log`]: "",
+      [`${DATA_DIR}/.agentic/gdpr-erasures.json`]: "[]",
+      ...vol.toJSON(),
+    });
+
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("acme", { confirm: true }, DATA_DIR);
+
+    const fs = (await import("fs")).default;
+    const queue = JSON.parse(fs.readFileSync(`${DATA_DIR}/.agentic/agent-queue.json`, "utf-8") as string) as unknown[];
+    expect(queue).toHaveLength(2); // beta + no-slug task remain
+  });
+
+  it("removes push subscriptions for erased slug", async () => {
+    const DATA_DIR = "/crm";
+    seedCustomer("acme", DATA_DIR);
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/push-subscriptions.json`]: JSON.stringify({
+        subscriptions: [
+          { id: "sub1", slug: "acme", provider: "gmail", status: "active", topic: "t", expiration: "2027-01-01", createdAt: "2026-01-01" },
+          { id: "sub2", slug: "beta", provider: "gmail", status: "active", topic: "t", expiration: "2027-01-01", createdAt: "2026-01-01" },
+        ],
+        updatedAt: "2026-01-01",
+      }),
+      [`${DATA_DIR}/.agentic/audit.log`]: "",
+      [`${DATA_DIR}/.agentic/gdpr-erasures.json`]: "[]",
+      ...vol.toJSON(),
+    });
+
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("acme", { confirm: true }, DATA_DIR);
+
+    const fs = (await import("fs")).default;
+    const file = JSON.parse(fs.readFileSync(`${DATA_DIR}/.agentic/push-subscriptions.json`, "utf-8") as string) as { subscriptions: Array<{ slug: string }> };
+    const subs = file.subscriptions;
+    expect(subs.every((s) => s.slug !== "acme")).toBe(true);
+    expect(subs).toHaveLength(1);
+  });
+
+  it("removes sub-goals referencing erased slug from goals.json", async () => {
+    const DATA_DIR = "/crm";
+    seedCustomer("acme", DATA_DIR);
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/goals.json`]: JSON.stringify([
+        {
+          id: "g1",
+          description: "Close €500k",
+          type: "revenue",
+          metric: "revenue",
+          target: 500000,
+          progress: 20,
+          status: "active",
+          createdAt: "2026-01-01",
+          updatedAt: "2026-01-01",
+          decomposition: {
+            subGoals: [
+              { slug: "acme", description: "Close Acme deal", weight: 0.6, targetContribution: 300000 },
+              { slug: "beta", description: "Close Beta deal", weight: 0.4, targetContribution: 200000 },
+            ],
+            priorityOrder: [],
+            reasoning: "",
+          },
+        },
+      ]),
+      [`${DATA_DIR}/.agentic/audit.log`]: "",
+      [`${DATA_DIR}/.agentic/gdpr-erasures.json`]: "[]",
+      ...vol.toJSON(),
+    });
+
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await runGdprErase("acme", { confirm: true }, DATA_DIR);
+
+    const fs = (await import("fs")).default;
+    const file = JSON.parse(fs.readFileSync(`${DATA_DIR}/.agentic/goals.json`, "utf-8") as string) as { goals: Array<{ decomposition: { subGoals: Array<{ slug: string }> } }> };
+    const goals = file.goals;
+    expect(goals[0]!.decomposition.subGoals.every((sg) => sg.slug !== "acme")).toBe(true);
+    expect(goals[0]!.decomposition.subGoals).toHaveLength(1);
+  });
+
+  it("does not throw when agent-queue.json does not exist", async () => {
+    const DATA_DIR = "/crm";
+    seedCustomer("acme", DATA_DIR);
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/audit.log`]: "",
+      [`${DATA_DIR}/.agentic/gdpr-erasures.json`]: "[]",
+      ...vol.toJSON(),
+    });
+
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+    await expect(runGdprErase("acme", { confirm: true }, DATA_DIR)).resolves.toBeUndefined();
+  });
+});

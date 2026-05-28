@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { success, error, info, bold } from "../ui/colors.js";
 import { writeAuditEntry, getActor } from "../fs/audit-log.js";
+import { withJsonFile } from "../core/file-lock.js";
 
 interface ErasureRecord {
   slug: string;
@@ -60,6 +61,41 @@ export async function runGdprErase(
     } catch {
       // non-critical — lancedb cleanup failure should not block erasure
     }
+  }
+
+  // Clean up .agentic/-level references to this slug
+
+  // 1. Remove tasks for this slug from the global agent queue
+  const globalQueuePath = path.join(dir, ".agentic", "agent-queue.json");
+  if (fs.existsSync(globalQueuePath)) {
+    await withJsonFile<unknown[]>(globalQueuePath, (tasks) =>
+      (Array.isArray(tasks) ? tasks : []).filter(
+        (t) => (t as { slug?: string }).slug !== slug
+      )
+    );
+  }
+
+  // 2. Remove goal sub-goals referencing this slug
+  const goalsPath = path.join(dir, ".agentic", "goals.json");
+  if (fs.existsSync(goalsPath)) {
+    const { readGoals, writeGoals } = await import("../core/goal-engine.js");
+    const goals = readGoals(dir);
+    const cleaned = goals.map((g) => ({
+      ...g,
+      decomposition: {
+        ...g.decomposition,
+        subGoals: g.decomposition.subGoals.filter((sg) => sg.slug !== slug),
+      },
+    }));
+    writeGoals(dir, cleaned);
+  }
+
+  // 3. Revoke push subscriptions for this slug
+  const { readSubscriptions, writeSubscriptions } = await import("../sync/push-manager.js");
+  const subs = await readSubscriptions(dir);
+  const remaining = subs.filter((s) => s.slug !== slug);
+  if (remaining.length !== subs.length) {
+    await writeSubscriptions(dir, remaining);
   }
 
   const actor = getActor();

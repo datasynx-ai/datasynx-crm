@@ -263,6 +263,11 @@ new CronJob(
       const { drainProactiveQueue } = await import("../core/notification-dispatcher.js");
       const drain = await drainProactiveQueue(DATA_DIR);
       process.stderr.write(`[proactive] Dispatched ${drain.sent} task(s), ${drain.failed} failed\n`);
+      const { syncGoalProgressFromPipeline } = await import("../core/goal-engine.js");
+      const goalSync = await syncGoalProgressFromPipeline(DATA_DIR);
+      if (goalSync.updated.length > 0) {
+        process.stderr.write(`[goals] Progress synced: ${goalSync.updated.join(", ")}\n`);
+      }
     } catch (err) {
       process.stderr.write(`[proactive] Daily check failed: ${(err as Error).message}\n`);
     }

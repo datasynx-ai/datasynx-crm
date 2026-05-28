@@ -275,3 +275,33 @@ export function pruneStaleNodes(
     }),
   };
 }
+
+// ─── Path finding ─────────────────────────────────────────────────────────────
+
+/** BFS shortest path between two nodes. Returns [] when no path exists. */
+export function findPath(graph: CustomerGraph, fromId: string, toId: string): string[] {
+  if (fromId === toId) return [fromId];
+
+  const visited = new Set<string>([fromId]);
+  const queue: Array<{ nodeId: string; path: string[] }> = [
+    { nodeId: fromId, path: [fromId] },
+  ];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    const neighbors = graph.edges
+      .filter((e) => e.from === current.nodeId || e.to === current.nodeId)
+      .map((e) => (e.from === current.nodeId ? e.to : e.from))
+      .filter((id) => !visited.has(id));
+
+    for (const neighborId of neighbors) {
+      const newPath = [...current.path, neighborId];
+      if (neighborId === toId) return newPath;
+      visited.add(neighborId);
+      queue.push({ nodeId: neighborId, path: newPath });
+    }
+  }
+
+  return [];
+}
