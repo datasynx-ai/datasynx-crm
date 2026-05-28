@@ -57,6 +57,8 @@
     "@lancedb/lancedb": "^0.29.0",
     "@modelcontextprotocol/sdk": "^1.10.0",
     "@topcli/spinner": "^2.0.0",
+    "@types/adm-zip": "^0.5.8",
+    "adm-zip": "^0.5.17",
     "ansis": "^3.0.0",
     "apache-arrow": "^17.0.0",
     "chokidar": "^4.0.0",

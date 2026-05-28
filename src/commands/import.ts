@@ -106,6 +106,196 @@ function ensureCustomer(
   return { slug, created: true };
 }
 
+function readCsvFromDirectory(dirPath: string, filename: string): string | null {
+  const variants = [filename, filename.toLowerCase(), filename.toUpperCase()];
+  for (const name of variants) {
+    const p = path.join(dirPath, name);
+    if (fs.existsSync(p)) return fs.readFileSync(p, "utf-8") as string;
+  }
+  const files = fs.readdirSync(dirPath);
+  const match = files.find((f) => f.toLowerCase() === filename.toLowerCase());
+  if (match) return fs.readFileSync(path.join(dirPath, match), "utf-8") as string;
+  return null;
+}
+
+async function extractZip(zipPath: string): Promise<string> {
+  const AdmZip = (await import("adm-zip")).default;
+  const zip = new AdmZip(zipPath);
+  const tmpDir = `${zipPath}.extracted`;
+  fs.mkdirSync(tmpDir, { recursive: true });
+  zip.extractAllTo(tmpDir, true);
+  return tmpDir;
+}
+
+async function runSalesforceFileImport(
+  sourcePath: string,
+  opts: { dryRun?: boolean },
+  dir: string
+): Promise<ImportResult> {
+  const result: ImportResult = { customersCreated: 0, interactionsImported: 0, skipped: 0, errors: [] };
+
+  let dataDir = sourcePath;
+  let tmpDir: string | null = null;
+
+  if (sourcePath.endsWith(".zip")) {
+    tmpDir = await extractZip(sourcePath);
+    dataDir = tmpDir;
+  }
+
+  if (!fs.statSync(dataDir).isDirectory()) {
+    result.errors.push("Salesforce file import requires a directory or .zip file");
+    return result;
+  }
+
+  const accountsCsv = readCsvFromDirectory(dataDir, "Accounts.csv")
+    ?? readCsvFromDirectory(dataDir, "accounts.csv");
+  const activitiesCsv = readCsvFromDirectory(dataDir, "Activities.csv")
+    ?? readCsvFromDirectory(dataDir, "activities.csv")
+    ?? readCsvFromDirectory(dataDir, "Tasks.csv")
+    ?? readCsvFromDirectory(dataDir, "tasks.csv");
+
+  if (!accountsCsv) {
+    result.errors.push("Could not find Accounts.csv in Salesforce export");
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true });
+    return result;
+  }
+
+  const accounts = parseCSV(accountsCsv);
+  const activities = activitiesCsv ? parseCSV(activitiesCsv) : [];
+
+  if (opts.dryRun) {
+    console.log(info(`Dry run — ${accounts.length} accounts, ${activities.length} activities from Salesforce export`));
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true });
+    return result;
+  }
+
+  const slugMap = new Map<string, string>();
+  for (const row of accounts) {
+    const name = (row["Name"] ?? row["Account Name"] ?? "").trim();
+    if (!name) continue;
+    const domain = (row["Website"] ?? "").replace(/^https?:\/\//, "");
+    const email = row["Email"] ?? "";
+    try {
+      const { slug, created } = ensureCustomer(dir, name, domain, email, false);
+      if (row["Id"]) slugMap.set(row["Id"], slug);
+      slugMap.set(name.toLowerCase(), slug);
+      if (created) result.customersCreated++;
+    } catch (err) {
+      result.errors.push(`Account '${name}': ${(err as Error).message}`);
+    }
+  }
+
+  for (const row of activities) {
+    const accountId = row["AccountId"] ?? row["WhatId"] ?? "";
+    const slug = accountId ? slugMap.get(accountId) : undefined;
+    if (!slug) continue;
+
+    const id = row["Id"] ?? hashRow(row);
+    const sourceRef = `salesforce://row/${id}`;
+    const { readInteractions } = await import("../fs/interactions-writer.js");
+    const existing = await readInteractions(dir, slug).catch(() => "");
+    if (existing.includes(sourceRef)) { result.skipped++; continue; }
+
+    const date = row["ActivityDate"] ?? row["CreatedDate"] ?? new Date().toISOString().slice(0, 10);
+    const notes = (row["Description"] ?? row["Subject"] ?? "").slice(0, 500);
+    const t = (row["Type"] ?? "").toLowerCase();
+    const type = t.includes("call") ? "Call" as const : t.includes("email") ? "Email" as const : t.includes("meeting") ? "Meeting" as const : "Note" as const;
+
+    try {
+      await appendInteraction(dir, slug, { date, type, with: slug, summary: notes, nextSteps: [], sourceRef, synced: new Date().toISOString() });
+      result.interactionsImported++;
+    } catch (err) {
+      result.errors.push(`Activity ${id}: ${(err as Error).message}`);
+    }
+  }
+
+  if (tmpDir) fs.rmSync(tmpDir, { recursive: true });
+  return result;
+}
+
+async function runPipedriveFileImport(
+  sourcePath: string,
+  opts: { dryRun?: boolean },
+  dir: string
+): Promise<ImportResult> {
+  const result: ImportResult = { customersCreated: 0, interactionsImported: 0, skipped: 0, errors: [] };
+
+  let dataDir = sourcePath;
+  let tmpDir: string | null = null;
+
+  if (sourcePath.endsWith(".zip")) {
+    tmpDir = await extractZip(sourcePath);
+    dataDir = tmpDir;
+  }
+
+  if (!fs.statSync(dataDir).isDirectory()) {
+    result.errors.push("Pipedrive file import requires a directory or .zip file");
+    return result;
+  }
+
+  const orgsCsv = readCsvFromDirectory(dataDir, "organizations.csv")
+    ?? readCsvFromDirectory(dataDir, "Organizations.csv");
+  const activitiesCsv = readCsvFromDirectory(dataDir, "activities.csv")
+    ?? readCsvFromDirectory(dataDir, "Activities.csv");
+
+  if (!orgsCsv) {
+    result.errors.push("Could not find organizations.csv in Pipedrive export");
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true });
+    return result;
+  }
+
+  const orgs = parseCSV(orgsCsv);
+  const activities = activitiesCsv ? parseCSV(activitiesCsv) : [];
+
+  if (opts.dryRun) {
+    console.log(info(`Dry run — ${orgs.length} organizations, ${activities.length} activities from Pipedrive export`));
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true });
+    return result;
+  }
+
+  const slugMap = new Map<string, string>();
+  for (const row of orgs) {
+    const name = (row["name"] ?? row["Name"] ?? "").trim();
+    if (!name) continue;
+    const id = row["id"] ?? row["ID"] ?? "";
+    try {
+      const { slug, created } = ensureCustomer(dir, name, "", "", false);
+      if (id) slugMap.set(id, slug);
+      slugMap.set(name.toLowerCase(), slug);
+      if (created) result.customersCreated++;
+    } catch (err) {
+      result.errors.push(`Organization '${name}': ${(err as Error).message}`);
+    }
+  }
+
+  for (const row of activities) {
+    const orgId = row["org_id"] ?? row["organization_id"] ?? "";
+    const slug = orgId ? slugMap.get(orgId) : undefined;
+    if (!slug) continue;
+
+    const id = row["id"] ?? hashRow(row);
+    const sourceRef = `pipedrive://row/${id}`;
+    const { readInteractions } = await import("../fs/interactions-writer.js");
+    const existing = await readInteractions(dir, slug).catch(() => "");
+    if (existing.includes(sourceRef)) { result.skipped++; continue; }
+
+    const date = row["due_date"] ?? row["add_time"]?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+    const notes = (row["note"] ?? row["subject"] ?? "").slice(0, 500);
+    const t = (row["type"] ?? "").toLowerCase();
+    const type = t === "call" ? "Call" as const : t === "email" ? "Email" as const : t === "meeting" ? "Meeting" as const : "Note" as const;
+
+    try {
+      await appendInteraction(dir, slug, { date, type, with: slug, summary: notes, nextSteps: [], sourceRef, synced: new Date().toISOString() });
+      result.interactionsImported++;
+    } catch (err) {
+      result.errors.push(`Activity ${id}: ${(err as Error).message}`);
+    }
+  }
+
+  if (tmpDir) fs.rmSync(tmpDir, { recursive: true });
+  return result;
+}
+
 export async function runImport(
   sourcePath: string,
   opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string },
@@ -120,6 +310,14 @@ export async function runImport(
   }
   if (opts.from === "pipedrive" && opts.mode === "api") {
     return runPipedriveApiImport(opts, dir);
+  }
+
+  // File/directory import for Salesforce and Pipedrive
+  if (opts.from === "salesforce" && sourcePath) {
+    return runSalesforceFileImport(sourcePath, opts, dir);
+  }
+  if (opts.from === "pipedrive" && sourcePath) {
+    return runPipedriveFileImport(sourcePath, opts, dir);
   }
 
   if (!fs.existsSync(sourcePath)) {

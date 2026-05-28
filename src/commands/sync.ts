@@ -68,7 +68,7 @@ export const syncCommand = new Command("sync")
       console.log(info("  Gmail: not configured (add domain/email to sources.json)"));
     }
 
-    // Microsoft sync
+    // Microsoft sync (email + calendar)
     if (syncMicrosoft) {
       try {
         console.log(info(`  Syncing Microsoft Outlook for ${bold(slug)}...`));
@@ -78,9 +78,14 @@ export const syncCommand = new Command("sync")
           console.log(info("  Microsoft: no token found (.agentic/microsoft-token.json)"));
         } else {
           const { syncMicrosoft: doMsSync } = await import("../sync/microsoft-sync.js");
-          const result = await doMsSync({ slug, dataDir, accessToken: token, since });
-          totalSynced += result.synced;
-          console.log(success(`  ✓ Microsoft: +${result.synced} synced, ${result.skipped} skipped`));
+          const emailResult = await doMsSync({ slug, dataDir, accessToken: token, since });
+          totalSynced += emailResult.synced;
+          console.log(success(`  ✓ Microsoft Email: +${emailResult.synced} synced, ${emailResult.skipped} skipped`));
+
+          const { syncMicrosoftCalendar } = await import("../sync/microsoft-calendar.js");
+          const calResult = await syncMicrosoftCalendar({ slug, dataDir, accessToken: token, since });
+          totalSynced += calResult.synced;
+          console.log(success(`  ✓ Microsoft Calendar: +${calResult.synced} synced, ${calResult.skipped} skipped`));
         }
       } catch (err) {
         console.error(error(`  ✗ Microsoft sync failed: ${(err as Error).message}`));

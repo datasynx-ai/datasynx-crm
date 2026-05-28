@@ -134,3 +134,54 @@ describe("runStatus — unmatched", () => {
     logSpy.mockRestore();
   });
 });
+
+// ─── team overview via --team ─────────────────────────────────────────────────
+
+describe("runStatus — team overview", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("shows team sessions when server returns sessions", async () => {
+    vol.fromJSON({});
+    const sessions = [
+      { customerSlug: "acme-corp", customerName: "Acme Corp", owner: "alice", startedAt: "2026-05-28T10:00:00Z" },
+      { customerSlug: "beta-gmbh", customerName: "Beta GmbH", owner: "bob", startedAt: "2026-05-28T11:00:00Z" },
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ sessions }),
+    }));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runStatus } = await import("../../src/commands/status.js");
+    await runStatus({ team: "http://localhost:3847" }, "/data");
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("alice");
+    expect(output).toContain("Acme Corp");
+    expect(output).toContain("bob");
+    logSpy.mockRestore();
+  });
+
+  it("shows 'keine aktiven Sessions' when server returns empty list", async () => {
+    vol.fromJSON({});
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ sessions: [] }),
+    }));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runStatus } = await import("../../src/commands/status.js");
+    await runStatus({ team: "http://localhost:3847" }, "/data");
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toMatch(/keine.*session|no.*session/i);
+    logSpy.mockRestore();
+  });
+
+  it("shows server unreachable message when fetch fails", async () => {
+    vol.fromJSON({});
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runStatus } = await import("../../src/commands/status.js");
+    await runStatus({ team: "http://localhost:9999" }, "/data");
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toMatch(/nicht erreichbar|unreachable/i);
+    logSpy.mockRestore();
+  });
+});

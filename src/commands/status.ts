@@ -44,8 +44,19 @@ function getCustomerSlugs(dataDir: string): string[] {
   }
 }
 
+async function fetchTeamSessions(serverUrl: string): Promise<Array<{ customerSlug: string; customerName: string; owner?: string; startedAt: string }> | null> {
+  try {
+    const res = await fetch(`${serverUrl.replace(/\/$/, "")}/sessions`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { sessions?: Array<{ customerSlug: string; customerName: string; owner?: string; startedAt: string }> };
+    return data.sessions ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function runStatus(
-  opts: { unmatched?: boolean },
+  opts: { unmatched?: boolean; team?: string },
   dataDir?: string
 ): Promise<void> {
   const dir = dataDir ?? process.cwd();
@@ -119,10 +130,28 @@ export async function runStatus(
     console.log(` Unmatched:   0 Transcripts`);
   }
 
+  // Team overview via HTTP server
+  const serverUrl = opts.team ?? process.env["DXCRM_SERVER_URL"];
+  if (serverUrl) {
+    const teamSessions = await fetchTeamSessions(serverUrl);
+    if (teamSessions && teamSessions.length > 0) {
+      console.log(bold("\n Team-Übersicht:"));
+      for (const s of teamSessions) {
+        const ownerPart = s.owner ? `${s.owner}` : "anonym";
+        console.log(info(`   ${ownerPart.padEnd(15)} → ${s.customerName} (${s.customerSlug})`));
+      }
+    } else if (teamSessions !== null) {
+      console.log(info(" Team: keine aktiven Sessions"));
+    } else {
+      console.log(info(` Team: Server nicht erreichbar (${serverUrl})`));
+    }
+  }
+
   console.log(sep);
 }
 
 export const statusCommand = new Command("status")
   .description("Show CRM status: daemon, sync state, customer counts")
   .option("--unmatched", "Show unmatched transcript queue")
+  .option("--team <url>", "Show team sessions from HTTP server (or set DXCRM_SERVER_URL)")
   .action((opts) => runStatus(opts));
