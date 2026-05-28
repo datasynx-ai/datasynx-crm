@@ -365,6 +365,33 @@ describe("pursueGoal", () => {
     await pursueGoal(DATA_DIR, { description: "Close €300k", deadline: "2026-12-31" }, { buildInputFn: mockBuildFn });
     expect(readGoals(DATA_DIR)).toHaveLength(2);
   });
+
+  it("throws on invalid deadline format", async () => {
+    vol.fromJSON({});
+    const { pursueGoal } = await import("../../src/core/goal-engine.js");
+    await expect(
+      pursueGoal(DATA_DIR, { description: "Close €100k", deadline: "not-a-date" }, { buildInputFn: mockBuildFn })
+    ).rejects.toThrow("deadline: invalid date");
+  });
+
+  it("throws on out-of-range deadline (month 13)", async () => {
+    vol.fromJSON({});
+    const { pursueGoal } = await import("../../src/core/goal-engine.js");
+    await expect(
+      pursueGoal(DATA_DIR, { description: "Close €100k", deadline: "2026-13-01" }, { buildInputFn: mockBuildFn })
+    ).rejects.toThrow("deadline: invalid date");
+  });
+
+  it("concurrent pursueGoal calls all persist without data loss", async () => {
+    vol.fromJSON({});
+    const { pursueGoal, readGoals } = await import("../../src/core/goal-engine.js");
+    await Promise.all([
+      pursueGoal(DATA_DIR, { description: "Goal A €100k", deadline: "2026-09-30" }, { buildInputFn: mockBuildFn }),
+      pursueGoal(DATA_DIR, { description: "Goal B €200k", deadline: "2026-09-30" }, { buildInputFn: mockBuildFn }),
+      pursueGoal(DATA_DIR, { description: "Goal C €300k", deadline: "2026-09-30" }, { buildInputFn: mockBuildFn }),
+    ]);
+    expect(readGoals(DATA_DIR)).toHaveLength(3);
+  });
 });
 
 // ─── getActiveGoals / updateGoalProgress / cancelGoal ─────────────────────────
@@ -400,7 +427,7 @@ describe("updateGoalProgress", () => {
     const { pursueGoal, updateGoalProgress } = await import("../../src/core/goal-engine.js");
     const mockBuildFn = async () => ({ deals: [], externalSignals: [] as [], iterations: 100, horizon: "quarter" as const, today: "2026-05-27" });
     const goal = await pursueGoal(DATA_DIR, { description: "Close €100k", deadline: "2026-09-30" }, { buildInputFn: mockBuildFn });
-    const updated = updateGoalProgress(DATA_DIR, goal.id, 45);
+    const updated = await updateGoalProgress(DATA_DIR, goal.id, 45);
     expect(updated).not.toBeNull();
     expect(updated!.progress).toBe(45);
   });
@@ -408,7 +435,22 @@ describe("updateGoalProgress", () => {
   it("returns null for unknown goalId", async () => {
     vol.fromJSON({});
     const { updateGoalProgress } = await import("../../src/core/goal-engine.js");
-    expect(updateGoalProgress(DATA_DIR, "goal_unknown_123456", 50)).toBeNull();
+    expect(await updateGoalProgress(DATA_DIR, "goal_unknown_123456", 50)).toBeNull();
+  });
+
+  it("concurrent progress updates are serialized without data loss", async () => {
+    vol.fromJSON({});
+    const { pursueGoal, updateGoalProgress, readGoals } = await import("../../src/core/goal-engine.js");
+    const mockBuildFn = async () => ({ deals: [], externalSignals: [] as [], iterations: 1, horizon: "quarter" as const, today: "2026-05-27" });
+    const goal = await pursueGoal(DATA_DIR, { description: "Close €100k", deadline: "2026-09-30" }, { buildInputFn: mockBuildFn });
+    await Promise.all([
+      updateGoalProgress(DATA_DIR, goal.id, 25),
+      updateGoalProgress(DATA_DIR, goal.id, 50),
+      updateGoalProgress(DATA_DIR, goal.id, 75),
+    ]);
+    const goals = readGoals(DATA_DIR);
+    expect(goals).toHaveLength(1);
+    expect([25, 50, 75]).toContain(goals[0]!.progress);
   });
 });
 
@@ -418,13 +460,13 @@ describe("cancelGoal", () => {
     const { pursueGoal, cancelGoal, readGoals } = await import("../../src/core/goal-engine.js");
     const mockBuildFn = async () => ({ deals: [], externalSignals: [] as [], iterations: 100, horizon: "quarter" as const, today: "2026-05-27" });
     const goal = await pursueGoal(DATA_DIR, { description: "Close €100k", deadline: "2026-09-30" }, { buildInputFn: mockBuildFn });
-    cancelGoal(DATA_DIR, goal.id);
+    await cancelGoal(DATA_DIR, goal.id);
     expect(readGoals(DATA_DIR)[0]!.status).toBe("cancelled");
   });
 
   it("returns null for unknown goalId", async () => {
     vol.fromJSON({});
     const { cancelGoal } = await import("../../src/core/goal-engine.js");
-    expect(cancelGoal(DATA_DIR, "goal_unknown_999999")).toBeNull();
+    expect(await cancelGoal(DATA_DIR, "goal_unknown_999999")).toBeNull();
   });
 });

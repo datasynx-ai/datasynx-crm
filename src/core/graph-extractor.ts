@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import type { GraphNode, GraphEdge, EdgeType } from "./graph.js";
-import { readGraph, writeGraph, upsertNode, upsertEdge } from "./graph.js";
+import type { GraphNode, GraphEdge, EdgeType, CustomerGraph } from "./graph.js";
+import { writeGraph, upsertNode, upsertEdge } from "./graph.js";
 
 export interface ExtractionInput {
   slug: string;
@@ -143,12 +143,11 @@ export async function updateGraphFromInteraction(
       : undefined;
   const edges = extractEdges(personId, companyId, input.interactionDate);
 
-  let graph = readGraph(dataDir, slug);
-  for (const node of nodes) {
-    graph = upsertNode(graph, node);
-  }
-  for (const edge of edges) {
-    graph = upsertEdge(graph, edge);
-  }
-  writeGraph(dataDir, slug, graph);
+  await writeGraph(dataDir, slug, (current) => {
+    const empty: CustomerGraph = { schemaVersion: "1", slug, nodes: [], edges: [], updatedAt: new Date().toISOString() };
+    let graph = current ?? empty;
+    for (const node of nodes) graph = upsertNode(graph, node);
+    for (const edge of edges) graph = upsertEdge(graph, edge);
+    return graph;
+  });
 }

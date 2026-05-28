@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { withJsonFile } from "./file-lock.js";
 
 export type NodeType = "person" | "company" | "deal" | "product" | "event";
 
@@ -70,7 +71,7 @@ export function graphPath(dataDir: string, slug: string): string {
   return path.join(dataDir, "customers", slug, "graph.json");
 }
 
-function emptyGraph(slug: string): CustomerGraph {
+export function emptyGraph(slug: string): CustomerGraph {
   return {
     schemaVersion: "1",
     slug,
@@ -93,12 +94,15 @@ export function readGraph(dataDir: string, slug: string): CustomerGraph {
   }
 }
 
-export function writeGraph(dataDir: string, slug: string, graph: CustomerGraph): void {
-  const p = graphPath(dataDir, slug);
-  const dir = path.dirname(p);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const updated: CustomerGraph = { ...graph, updatedAt: new Date().toISOString() };
-  fs.writeFileSync(p, JSON.stringify(updated, null, 2), "utf-8");
+export async function writeGraph(
+  dataDir: string,
+  slug: string,
+  updater: (current: CustomerGraph | null) => CustomerGraph
+): Promise<CustomerGraph> {
+  return withJsonFile<CustomerGraph>(graphPath(dataDir, slug), (current) => {
+    const g = updater(current);
+    return { ...g, updatedAt: new Date().toISOString() };
+  });
 }
 
 // ─── Node operations ──────────────────────────────────────────────────────────

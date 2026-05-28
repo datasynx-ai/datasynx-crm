@@ -52,7 +52,7 @@ describe("writeGraph + readGraph roundtrip", () => {
     const { readGraph, writeGraph, upsertNode } = await import("../../src/core/graph.js");
     let g = readGraph(DATA_DIR, SLUG);
     g = upsertNode(g, { id: "person:x@y.com", type: "person", label: "X", properties: {} });
-    writeGraph(DATA_DIR, SLUG, g);
+    await writeGraph(DATA_DIR, SLUG, () => g);
     const g2 = readGraph(DATA_DIR, SLUG);
     expect(g2.nodes).toHaveLength(1);
     expect(g2.nodes[0]!.id).toBe("person:x@y.com");
@@ -64,9 +64,20 @@ describe("writeGraph + readGraph roundtrip", () => {
     const g = readGraph(DATA_DIR, SLUG);
     const before = g.updatedAt;
     await new Promise((r) => setTimeout(r, 2));
-    writeGraph(DATA_DIR, SLUG, g);
+    await writeGraph(DATA_DIR, SLUG, () => g);
     const g2 = readGraph(DATA_DIR, SLUG);
     expect(g2.updatedAt).not.toBe(before);
+  });
+
+  it("concurrent writes are serialized without corruption", async () => {
+    vol.fromJSON({});
+    const { readGraph, writeGraph, upsertNode } = await import("../../src/core/graph.js");
+    await Promise.all([
+      writeGraph(DATA_DIR, SLUG, (cur) => upsertNode(cur ?? { schemaVersion: "1", slug: SLUG, nodes: [], edges: [], updatedAt: "" }, { id: "person:a@x.com", type: "person", label: "A", properties: {} })),
+      writeGraph(DATA_DIR, SLUG, (cur) => upsertNode(cur ?? { schemaVersion: "1", slug: SLUG, nodes: [], edges: [], updatedAt: "" }, { id: "person:b@x.com", type: "person", label: "B", properties: {} })),
+      writeGraph(DATA_DIR, SLUG, (cur) => upsertNode(cur ?? { schemaVersion: "1", slug: SLUG, nodes: [], edges: [], updatedAt: "" }, { id: "person:c@x.com", type: "person", label: "C", properties: {} })),
+    ]);
+    expect(readGraph(DATA_DIR, SLUG).nodes).toHaveLength(3);
   });
 });
 

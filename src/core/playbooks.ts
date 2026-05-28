@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { callLlm } from "./llm.js";
+import { withFileQueue } from "../fs/write-queue.js";
 import type { DealSnapshot } from "./revenue-simulation.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -89,12 +90,14 @@ export function readPlaybook(dataDir: string, slug: string, name: string): Playb
   };
 }
 
-export function writePlaybook(dataDir: string, slug: string, playbook: Playbook): void {
+export async function writePlaybook(dataDir: string, slug: string, playbook: Playbook): Promise<void> {
   const dir = playbooksDir(dataDir, slug);
-  fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, `${playbook.name}.md`);
-  const raw = matter.stringify(playbook.content, playbook.frontmatter);
-  fs.writeFileSync(filePath, raw, "utf-8");
+  await withFileQueue(filePath, async () => {
+    fs.mkdirSync(dir, { recursive: true });
+    const raw = matter.stringify(playbook.content, playbook.frontmatter);
+    fs.writeFileSync(filePath, raw, "utf-8");
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -298,6 +301,6 @@ export async function distillPlaybook(
     path: path.join(playbooksDir(dataDir, slug), `${name}.md`),
   };
 
-  writePlaybook(dataDir, slug, playbook);
+  await writePlaybook(dataDir, slug, playbook);
   return { ok: true, playbook, reasoning: distillation.reasoning };
 }

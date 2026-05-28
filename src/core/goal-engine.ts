@@ -3,6 +3,8 @@ import path from "path";
 import { runSimulation } from "./revenue-simulation.js";
 import { callLlm } from "./llm.js";
 import { getActor } from "../fs/audit-log.js";
+import { withJsonFile } from "./file-lock.js";
+import { guardIsoDate } from "./input-guard.js";
 import type { DealSnapshot, SimulationInput } from "./revenue-simulation.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -300,6 +302,7 @@ export async function pursueGoal(
     actor?: string;
   } = {}
 ): Promise<Goal> {
+  guardIsoDate(input.deadline, "deadline");
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const actor = options.actor ?? getActor();
 
@@ -347,8 +350,10 @@ export async function pursueGoal(
     actor,
   };
 
-  const existing = readGoals(dataDir);
-  writeGoals(dataDir, [...existing, goal]);
+  await withJsonFile<{ goals: Goal[]; updatedAt: string }>(goalsPath(dataDir), (current) => {
+    const existing: Goal[] = Array.isArray(current?.goals) ? current.goals : [];
+    return { goals: [...existing, goal], updatedAt: new Date().toISOString() };
+  });
   return goal;
 }
 
@@ -358,22 +363,30 @@ export function getActiveGoals(dataDir: string): Goal[] {
   return readGoals(dataDir).filter((g) => g.status === "active");
 }
 
-export function updateGoalProgress(dataDir: string, goalId: string, progress: number): Goal | null {
-  const goals = readGoals(dataDir);
-  const idx = goals.findIndex((g) => g.id === goalId);
-  if (idx < 0) return null;
-  const updated = { ...goals[idx]!, progress, updatedAt: new Date().toISOString() };
-  goals[idx] = updated;
-  writeGoals(dataDir, goals);
+export async function updateGoalProgress(dataDir: string, goalId: string, progress: number): Promise<Goal | null> {
+  let updated: Goal | null = null;
+  await withJsonFile<{ goals: Goal[]; updatedAt: string }>(goalsPath(dataDir), (current) => {
+    const goals: Goal[] = Array.isArray(current?.goals) ? [...current.goals] : [];
+    const idx = goals.findIndex((g) => g.id === goalId);
+    if (idx >= 0) {
+      updated = { ...goals[idx]!, progress, updatedAt: new Date().toISOString() };
+      goals[idx] = updated;
+    }
+    return { goals, updatedAt: new Date().toISOString() };
+  });
   return updated;
 }
 
-export function cancelGoal(dataDir: string, goalId: string): Goal | null {
-  const goals = readGoals(dataDir);
-  const idx = goals.findIndex((g) => g.id === goalId);
-  if (idx < 0) return null;
-  const updated = { ...goals[idx]!, status: "cancelled" as const, updatedAt: new Date().toISOString() };
-  goals[idx] = updated;
-  writeGoals(dataDir, goals);
-  return updated;
+export async function cancelGoal(dataDir: string, goalId: string): Promise<Goal | null> {
+  let cancelled: Goal | null = null;
+  await withJsonFile<{ goals: Goal[]; updatedAt: string }>(goalsPath(dataDir), (current) => {
+    const goals: Goal[] = Array.isArray(current?.goals) ? [...current.goals] : [];
+    const idx = goals.findIndex((g) => g.id === goalId);
+    if (idx >= 0) {
+      cancelled = { ...goals[idx]!, status: "cancelled" as const, updatedAt: new Date().toISOString() };
+      goals[idx] = cancelled;
+    }
+    return { goals, updatedAt: new Date().toISOString() };
+  });
+  return cancelled;
 }

@@ -33,7 +33,7 @@ export async function handleCreatePlaybook(
       path: filePath,
     };
 
-    writePlaybook(dataDir, input.slug, playbook);
+    await writePlaybook(dataDir, input.slug, playbook);
 
     return {
       content: [{
