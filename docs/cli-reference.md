@@ -480,6 +480,27 @@ registerPlugin({
 
 ---
 
+## dxcrm goal
+
+Manage revenue goals and decomposed action plans.
+
+```bash
+dxcrm goal set "Close 3 enterprise deals" --deadline 2026-12-31  # Create goal
+dxcrm goal status                                                  # Show active goals + progress bars
+dxcrm goal update goal-2026-001 --progress 42                     # Update progress %
+dxcrm goal cancel goal-2026-001                                    # Cancel a goal
+```
+
+**Subcommands:**
+- `set <description> --deadline <YYYY-MM-DD>` — Create a goal, decompose into sub-goals, show action plan
+- `status` — List all active goals with ASCII progress bars, target, deadline, days remaining
+- `update <goalId> --progress <0-100>` — Update completion percentage
+- `cancel <goalId>` — Remove goal from active list
+
+**See also:** `pursue_goal` / `get_goal_status` MCP tools for agent-driven goal tracking.
+
+---
+
 ## dxcrm import (HubSpot v4 API)
 
 Import contacts and activities directly from the HubSpot API (v4 Associations).
