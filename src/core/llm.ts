@@ -159,6 +159,11 @@ const FIELD_ALIASES: Record<string, string[]> = {
   industry: ["industry", "sector", "branche", "vertical"],
   primary_contact: ["contact name", "contact person", "contact", "ansprechpartner", "kontakt"],
   timezone: ["timezone", "time zone", "tz"],
+  // Import-specific fields
+  notes: ["notes", "description", "body", "comment", "details", "note", "inhalt", "subject", "summary"],
+  date: ["activity date", "activity_date", "due date", "date", "created_at", "timestamp", "time"],
+  activityType: ["activity type", "activity_type", "activitytype", "type", "category", "art"],
+  sourceId: ["record id", "record_id", "source id", "source_id", "external id", "external_id", "activity id"],
 };
 
 export function mapCsvFieldsHeuristic(
@@ -188,6 +193,15 @@ export function mapCsvFieldsHeuristic(
   return result;
 }
 
+const FIELD_SEMANTICS = `CRM field semantics:
+- name: Company or organization name (required)
+- email: Contact email address
+- domain: Company website or domain (e.g. "acme.com")
+- notes: Interaction notes, description, or subject text
+- date: Date of activity/interaction (ISO 8601 or YYYY-MM-DD)
+- activityType: Type of interaction — Call, Email, Meeting, Note
+- sourceId: Unique ID from the source system used for deduplication`;
+
 export async function mapCsvFields(
   headers: string[],
   targetFields: string[],
@@ -202,16 +216,23 @@ export async function mapCsvFields(
       system: [
         {
           type: "text",
-          text: `You are a CRM data mapping assistant. Map CSV column headers to CRM field names.
-Return ONLY valid JSON: { "<crmField>": "<csvColumn>" | null, ... }
-Use null when no column matches. Each CSV column may only be used once.`,
+          text: `You are a CRM data-import assistant. Map CSV column headers to internal CRM field names.
+
+${FIELD_SEMANTICS}
+
+Rules:
+1. Return ONLY valid JSON: { "<crmField>": "<csvColumn>" | null, ... }
+2. Every requested CRM field must appear as a key in the response.
+3. Use null when no column is a reasonable match.
+4. Each CSV column may only be assigned to one CRM field.
+5. Only use column names that appear exactly in the provided CSV columns list.`,
           cache_control: { type: "ephemeral" },
         },
       ],
       messages: [
         {
           role: "user",
-          content: `CSV columns: ${JSON.stringify(headers)}\nCRM fields to map: ${JSON.stringify(targetFields)}`,
+          content: `CSV columns: ${JSON.stringify(headers)}\nMap to CRM fields: ${JSON.stringify(targetFields)}`,
         },
       ],
     });
@@ -220,7 +241,16 @@ Use null when no column matches. Each CSV column may only be used once.`,
     if (!textBlock || textBlock.type !== "text") return mapCsvFieldsHeuristic(headers, targetFields);
 
     try {
-      return JSON.parse(textBlock.text) as FieldMapping;
+      const raw = JSON.parse(textBlock.text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim()) as Record<string, string | null>;
+      const validated: FieldMapping = {};
+      const headerSet = new Set(headers);
+      for (const field of targetFields) {
+        const col = raw[field] ?? null;
+        validated[field] = col !== null && headerSet.has(col) ? col : null;
+      }
+      // Require at least 'name' to be mapped; fall back otherwise
+      if (!validated["name"]) return mapCsvFieldsHeuristic(headers, targetFields);
+      return validated;
     } catch {
       return mapCsvFieldsHeuristic(headers, targetFields);
     }

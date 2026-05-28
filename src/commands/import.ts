@@ -36,33 +36,7 @@ function parseCSV(content: string): Array<Record<string, string>> {
   });
 }
 
-function detectFieldMapping(
-  headers: string[],
-  source: string
-): Record<string, string> {
-  const lower = headers.map((h) => h.toLowerCase());
-
-  if (source === "hubspot") {
-    return {
-      name: headers.find((_, i) => ["company name", "company"].includes(lower[i]!)) ?? "",
-      email: headers.find((_, i) => lower[i]!.includes("email")) ?? "",
-      domain: headers.find((_, i) => lower[i]!.includes("domain") || lower[i]!.includes("website")) ?? "",
-      notes: headers.find((_, i) => lower[i]!.includes("note") || lower[i]!.includes("description")) ?? "",
-      activityType: headers.find((_, i) => lower[i]!.includes("type") || lower[i]!.includes("activity")) ?? "",
-      activityDate: headers.find((_, i) => lower[i]!.includes("date") || lower[i]!.includes("time")) ?? "",
-      activityId: headers.find((_, i) => lower[i]!.includes("id") || lower[i]!.includes("record id")) ?? "",
-    };
-  }
-
-  // generic CSV — best-effort mapping
-  return {
-    name: headers.find((_, i) => ["name", "company", "organization"].includes(lower[i]!)) ?? headers[0] ?? "",
-    email: headers.find((_, i) => lower[i]!.includes("email")) ?? "",
-    domain: headers.find((_, i) => lower[i]!.includes("domain") || lower[i]!.includes("website")) ?? "",
-    notes: headers.find((_, i) => lower[i]!.includes("note") || lower[i]!.includes("description")) ?? "",
-    activityDate: headers.find((_, i) => lower[i]!.includes("date")) ?? "",
-  };
-}
+const IMPORT_TARGET_FIELDS = ["name", "email", "domain", "notes", "date", "activityType", "sourceId"] as const;
 
 function ensureCustomer(
   dataDir: string,
@@ -334,7 +308,8 @@ export async function runImport(
   }
 
   const headers = Object.keys(rows[0]!);
-  const mapping = detectFieldMapping(headers, opts.from);
+  const { mapCsvFields } = await import("../core/llm.js");
+  const mapping = await mapCsvFields(headers, [...IMPORT_TARGET_FIELDS]);
 
   if (opts.dryRun) {
     console.log(info(`Dry run — ${rows.length} rows, field mapping:`));
@@ -369,11 +344,11 @@ export async function runImport(
 
   // Pass 2: Import activities/notes
   for (const row of rows) {
-    const activityType = (row[mapping.activityType ?? ""] ?? "").trim();
-    const notes = (row[mapping.notes ?? ""] ?? "").trim();
-    const activityDate = (row[mapping.activityDate ?? ""] ?? "").trim();
-    const activityId = (row[mapping.activityId ?? ""] ?? "").trim();
-    const name = (row[mapping.name ?? ""] ?? "").trim();
+    const activityType = (row[mapping["activityType"] ?? ""] ?? "").trim();
+    const notes = (row[mapping["notes"] ?? ""] ?? "").trim();
+    const activityDate = (row[mapping["date"] ?? ""] ?? "").trim();
+    const sourceIdVal = (row[mapping["sourceId"] ?? ""] ?? "").trim();
+    const name = (row[mapping["name"] ?? ""] ?? "").trim();
 
     if (!notes && !activityType) continue;
 
@@ -382,8 +357,8 @@ export async function runImport(
 
     const rowHash = hashRow(row);
     const prefix = opts.from === "hubspot" ? "hubspot" : "csv";
-    const sourceRef = activityId
-      ? `${prefix}://activity/${activityId}`
+    const sourceRef = sourceIdVal
+      ? `${prefix}://activity/${sourceIdVal}`
       : `${prefix}://row/${rowHash}`;
 
     const date = activityDate
