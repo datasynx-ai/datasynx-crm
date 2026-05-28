@@ -260,6 +260,9 @@ new CronJob(
       if (result.errors.length > 0) {
         process.stderr.write(`[proactive] Errors: ${result.errors.join(", ")}\n`);
       }
+      const { drainProactiveQueue } = await import("../core/notification-dispatcher.js");
+      const drain = await drainProactiveQueue(DATA_DIR);
+      process.stderr.write(`[proactive] Dispatched ${drain.sent} task(s), ${drain.failed} failed\n`);
     } catch (err) {
       process.stderr.write(`[proactive] Daily check failed: ${(err as Error).message}\n`);
     }

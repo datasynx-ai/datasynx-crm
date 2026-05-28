@@ -153,6 +153,19 @@ dxcrm daemon stop     # Stop daemon
 dxcrm daemon status   # Check if running + PID
 ```
 
+The daemon runs four scheduled jobs:
+
+| Schedule | Job | Description |
+|---|---|---|
+| `*/${DXCRM_DAEMON_INTERVAL:-30} * * * *` | Gmail sync | Syncs emails for all customers |
+| `*/60 * * * *` | Backup check | Runs backup if >1 day since last |
+| `0 6 * * *` | Push renewal | Renews expiring Gmail push subscriptions |
+| `0 7 * * *` | Proactive checks | Relationship decay + deal risk + daily briefing → dispatched |
+
+**Proactive dispatch** (`0 7 * * *`): Runs `runDailyProactiveChecks` then `drainProactiveQueue`.
+Tasks sent to Telegram (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`) or Slack (`SLACK_WEBHOOK_URL`).
+If neither is configured, tasks are silently marked done for `get_proactive_briefing` to consume.
+
 ---
 
 ## dxcrm status
