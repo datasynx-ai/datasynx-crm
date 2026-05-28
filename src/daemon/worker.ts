@@ -247,6 +247,32 @@ new CronJob(
   true
 );
 
+// Daily proactive checks at 07:00 — relationship decay, deal risk, daily briefing
+new CronJob(
+  "0 7 * * *",
+  async () => {
+    try {
+      const { runDailyProactiveChecks } = await import("../daemon/proactive-worker.js");
+      const result = await runDailyProactiveChecks(DATA_DIR);
+      process.stderr.write(
+        `[proactive] Daily check: ${result.customersChecked} customers, ${result.tasksEnqueued} tasks enqueued\n`
+      );
+      if (result.errors.length > 0) {
+        process.stderr.write(`[proactive] Errors: ${result.errors.join(", ")}\n`);
+      }
+    } catch (err) {
+      process.stderr.write(`[proactive] Daily check failed: ${(err as Error).message}\n`);
+    }
+  },
+  null,
+  true,
+  undefined,
+  null,
+  false,
+  undefined,
+  true // waitForCompletion
+);
+
 await startWatcher();
 
 // Signal ready
