@@ -3,6 +3,7 @@ import path from "path";
 import matter from "gray-matter";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { canSeeCustomer } from "../../core/rbac.js";
 
 const DATA_DIR = process.cwd();
 
@@ -87,6 +88,10 @@ export async function handleListCustomers(
           stage.toLowerCase().includes(filterLower);
         if (!matches) continue;
       }
+
+      // RBAC data-visibility: rep role only sees owned customers
+      const actor = process.env["DXCRM_ACTOR"] ?? "system";
+      if (!canSeeCustomer(dataDir, actor, entry)) continue;
 
       customers.push(summary);
     } catch {

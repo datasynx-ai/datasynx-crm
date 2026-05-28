@@ -6,6 +6,7 @@ import { buildContext } from "../../core/context-builder.js";
 import { getSession } from "../../core/session-store.js";
 import { getLastGmailSync, updateSlugSyncState } from "../../fs/sync-state.js";
 import { getGmailAuth } from "../../core/oauth-store.js";
+import { canSeeCustomer } from "../../core/rbac.js";
 
 const DATA_DIR = process.cwd();
 
@@ -56,6 +57,15 @@ export async function handleGetCustomerContext(
           text: "No customer specified and no active session. Use: get_customer_context({ slug: 'acme-corp' })",
         },
       ],
+      isError: true,
+    };
+  }
+
+  // RBAC data-visibility: rep role only sees owned customers
+  const actor = process.env["DXCRM_ACTOR"] ?? "system";
+  if (!canSeeCustomer(dataDir, actor, targetSlug)) {
+    return {
+      content: [{ type: "text", text: `Access denied: '${actor}' cannot view customer '${targetSlug}'.` }],
       isError: true,
     };
   }

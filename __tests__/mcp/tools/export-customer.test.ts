@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { vol } from "memfs";
 import matter from "gray-matter";
 import { handleExportCustomer } from "../../../src/mcp/tools/export-customer.js";
@@ -25,6 +25,13 @@ function makePipeline(): string {
 describe("export_customer tool", () => {
   beforeEach(() => {
     vol.reset();
+    vi.resetModules();
+    vi.clearAllMocks();
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  afterEach(() => {
+    delete process.env["DXCRM_ACTOR"];
   });
 
   it("exports customer as JSON by default", async () => {
@@ -91,5 +98,51 @@ describe("export_customer tool", () => {
     const text = (result.content[0] as { type: string; text: string }).text;
     const parsed = JSON.parse(text) as { interactionsCount: number };
     expect(parsed.interactionsCount).toBe(2);
+  });
+});
+
+describe("export_customer — RBAC enforcement", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+    vi.clearAllMocks();
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  afterEach(() => {
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  it("throws 'Access denied' when rep calls export_customer and rbac.json exists", async () => {
+    vol.fromJSON({
+      "/data/.agentic/rbac.json": JSON.stringify({ actors: { alice: "rep" } }),
+      "/data/customers/acme-corp/main_facts.md": makeMainFacts("Acme Corp"),
+    });
+    process.env["DXCRM_ACTOR"] = "alice";
+
+    const { handleExportCustomer: handler } = await import("../../../src/mcp/tools/export-customer.js");
+    await expect(handler({ slug: "acme-corp" }, "/data")).rejects.toThrow(/access denied/i);
+  });
+
+  it("succeeds when admin calls export_customer", async () => {
+    vol.fromJSON({
+      "/data/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" } }),
+      "/data/customers/acme-corp/main_facts.md": makeMainFacts("Acme Corp"),
+    });
+    process.env["DXCRM_ACTOR"] = "alice";
+
+    const { handleExportCustomer: handler } = await import("../../../src/mcp/tools/export-customer.js");
+    const result = await handler({ slug: "acme-corp" }, "/data");
+    expect(result.isError).toBeFalsy();
+  });
+
+  it("open access (no rbac.json) allows any actor to export", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/main_facts.md": makeMainFacts("Acme Corp"),
+    });
+
+    const { handleExportCustomer: handler } = await import("../../../src/mcp/tools/export-customer.js");
+    const result = await handler({ slug: "acme-corp" }, "/data");
+    expect(result.isError).toBeFalsy();
   });
 });

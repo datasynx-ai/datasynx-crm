@@ -6,6 +6,7 @@ export type Role = "admin" | "manager" | "rep";
 export interface RbacConfig {
   actors: Record<string, Role>;
   default?: Role;
+  owned_customers?: Record<string, string[]>;
 }
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
@@ -56,4 +57,15 @@ export function enforceRbac(dataDir: string, tool: string): void {
   const actor = process.env["DXCRM_ACTOR"] ?? "system";
   const role = getRole(dataDir, actor);
   assertCanWrite(role, tool, actor);
+}
+
+export function canSeeCustomer(dataDir: string, actor: string, slug: string): boolean {
+  if (!fs.existsSync(rbacPath(dataDir))) return true; // open access
+  const config = getRbacConfig(dataDir);
+  const role = config.actors[actor] ?? config.default ?? "rep";
+  if (role === "admin" || role === "manager") return true;
+  // rep: only sees customers listed in owned_customers[actor]
+  const owned = config.owned_customers;
+  if (!owned) return false;
+  return (owned[actor] ?? []).includes(slug);
 }

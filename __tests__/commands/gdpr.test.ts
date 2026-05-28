@@ -294,3 +294,21 @@ describe("gdprCommand — Commander integration", () => {
     expect(optNames).toContain("--confirm");
   });
 });
+
+// ─── LanceDB cleanup on erasure ───────────────────────────────────────────────
+
+describe("runGdprErase — LanceDB cleanup", () => {
+  it("calls dropCustomerTable with correct dataDir and slug", async () => {
+    const dropMock = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("../../src/core/lancedb.js", () => ({ dropCustomerTable: dropMock }));
+
+    seedCustomer("acme-corp");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runGdprErase } = await import("../../src/commands/gdpr.js");
+
+    await runGdprErase("acme-corp", { confirm: true }, "/crm");
+
+    expect(dropMock).toHaveBeenCalledWith("/crm", "acme-corp");
+    logSpy.mockRestore();
+  });
+});

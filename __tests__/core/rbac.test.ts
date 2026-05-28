@@ -218,3 +218,67 @@ describe("assertCanWrite", () => {
     expect(() => assertCanWrite("rep", "update_customer_facts", "bob")).toThrow(/update_customer_facts/);
   });
 });
+
+describe("canSeeCustomer", () => {
+  it("returns true when no rbac.json exists (open access)", async () => {
+    vol.fromJSON({});
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "alice", "acme-corp")).toBe(true);
+  });
+
+  it("admin can see any customer", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" } }),
+    });
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "alice", "acme-corp")).toBe(true);
+    expect(canSeeCustomer("/crm", "alice", "beta-gmbh")).toBe(true);
+  });
+
+  it("manager can see any customer", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { bob: "manager" } }),
+    });
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "bob", "acme-corp")).toBe(true);
+  });
+
+  it("rep can see owned customers", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({
+        actors: { carol: "rep" },
+        owned_customers: { carol: ["acme-corp", "beta-gmbh"] },
+      }),
+    });
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "carol", "acme-corp")).toBe(true);
+    expect(canSeeCustomer("/crm", "carol", "beta-gmbh")).toBe(true);
+  });
+
+  it("rep cannot see unowned customers", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({
+        actors: { carol: "rep" },
+        owned_customers: { carol: ["acme-corp"] },
+      }),
+    });
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "carol", "beta-gmbh")).toBe(false);
+  });
+
+  it("rep with no owned_customers entry sees nothing", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { carol: "rep" } }),
+    });
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "carol", "acme-corp")).toBe(false);
+  });
+
+  it("rep with empty owned_customers map sees nothing", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { carol: "rep" }, owned_customers: {} }),
+    });
+    const { canSeeCustomer } = await import("../../src/core/rbac.js");
+    expect(canSeeCustomer("/crm", "carol", "acme-corp")).toBe(false);
+  });
+});

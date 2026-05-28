@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { readPipeline } from "../../fs/pipeline-writer.js";
+import { enforceRbac } from "../../core/rbac.js";
 
 const DATA_DIR = process.cwd();
 
@@ -20,6 +21,8 @@ export async function handleExportCustomer(
   content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
 }> {
+  enforceRbac(dataDir, "export_customer");
+
   const customerDir = path.join(dataDir, "customers", input.slug);
 
   if (!fs.existsSync(customerDir)) {
