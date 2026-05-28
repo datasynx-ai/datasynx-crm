@@ -508,6 +508,111 @@ describe("toKebabCase", () => {
   });
 });
 
+// ─── parseTriggerFull ─────────────────────────────────────────────────────────
+
+describe("parseTriggerFull", () => {
+  it("returns AND operator for AND-separated trigger", async () => {
+    const { parseTriggerFull } = await import("../../src/core/playbooks.js");
+    const result = parseTriggerFull("deal_stage_negotiation AND value > 50000");
+    expect(result.operator).toBe("AND");
+    expect(result.conditions).toHaveLength(2);
+  });
+
+  it("returns OR operator for OR-separated trigger", async () => {
+    const { parseTriggerFull } = await import("../../src/core/playbooks.js");
+    const result = parseTriggerFull("deal_stage_negotiation OR no_champion");
+    expect(result.operator).toBe("OR");
+    expect(result.conditions).toHaveLength(2);
+  });
+
+  it("returns AND operator and empty conditions for empty string", async () => {
+    const { parseTriggerFull } = await import("../../src/core/playbooks.js");
+    const result = parseTriggerFull("");
+    expect(result.operator).toBe("AND");
+    expect(result.conditions).toHaveLength(0);
+  });
+
+  it("parses OR conditions correctly", async () => {
+    const { parseTriggerFull } = await import("../../src/core/playbooks.js");
+    const result = parseTriggerFull("health < 50 OR days_stalled > 14");
+    expect(result.operator).toBe("OR");
+    expect(result.conditions[0]).toEqual({ type: "health_lt", value: 50 });
+    expect(result.conditions[1]).toEqual({ type: "days_stalled_gt", value: 14 });
+  });
+
+  it("single token defaults to AND operator", async () => {
+    const { parseTriggerFull } = await import("../../src/core/playbooks.js");
+    const result = parseTriggerFull("no_champion");
+    expect(result.operator).toBe("AND");
+    expect(result.conditions).toHaveLength(1);
+  });
+});
+
+describe("evaluateTrigger with OR operator", () => {
+  it("OR: returns true when any condition matches", async () => {
+    const { evaluateTrigger } = await import("../../src/core/playbooks.js");
+    const conds = [
+      { type: "stage" as const, stage: "proposal" }, // false
+      { type: "value_gt" as const, value: 50000 },   // true (deal.value=75000)
+    ];
+    expect(evaluateTrigger(conds, makeDealSnap({ stage: "negotiation", value: 75000 }), 0, "OR")).toBe(true);
+  });
+
+  it("OR: returns false when no condition matches", async () => {
+    const { evaluateTrigger } = await import("../../src/core/playbooks.js");
+    const conds = [
+      { type: "stage" as const, stage: "proposal" },  // false
+      { type: "value_gt" as const, value: 100000 },   // false (deal.value=75000)
+    ];
+    expect(evaluateTrigger(conds, makeDealSnap({ stage: "negotiation", value: 75000 }), 0, "OR")).toBe(false);
+  });
+
+  it("AND still requires all conditions to match (default operator unchanged)", async () => {
+    const { evaluateTrigger } = await import("../../src/core/playbooks.js");
+    const conds = [
+      { type: "stage" as const, stage: "negotiation" },
+      { type: "value_gt" as const, value: 50000 },
+    ];
+    expect(evaluateTrigger(conds, makeDealSnap({ stage: "negotiation", value: 75000 }), 0, "AND")).toBe(true);
+    expect(evaluateTrigger(conds, makeDealSnap({ stage: "proposal", value: 75000 }), 0, "AND")).toBe(false);
+  });
+});
+
+describe("matchPlaybooks OR trigger", () => {
+  it("matches playbook with OR trigger when one condition is true", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/playbooks/or-pb.md`]: makePlaybookMd({ trigger: "deal_stage_proposal OR no_champion" }),
+    });
+    const { listPlaybooks, matchPlaybooks } = await import("../../src/core/playbooks.js");
+    const pbs = listPlaybooks(DATA_DIR, SLUG);
+    // stage=negotiation (not proposal) but championPresent=false → no_champion matches
+    const matches = matchPlaybooks(pbs, makeDealSnap({ stage: "negotiation", championPresent: false }), 0);
+    expect(matches).toHaveLength(1);
+  });
+
+  it("does not match OR playbook when no condition is true", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/playbooks/or-pb.md`]: makePlaybookMd({ trigger: "deal_stage_proposal OR has_champion" }),
+    });
+    const { listPlaybooks, matchPlaybooks } = await import("../../src/core/playbooks.js");
+    const pbs = listPlaybooks(DATA_DIR, SLUG);
+    // stage=negotiation (not proposal) AND no champion → no match
+    const matches = matchPlaybooks(pbs, makeDealSnap({ stage: "negotiation", championPresent: false }), 0);
+    expect(matches).toHaveLength(0);
+  });
+
+  it("AND playbook still excluded when only partial match", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/playbooks/and-pb.md`]: makePlaybookMd({ trigger: "deal_stage_proposal AND value > 50000" }),
+    });
+    const { listPlaybooks, matchPlaybooks } = await import("../../src/core/playbooks.js");
+    const pbs = listPlaybooks(DATA_DIR, SLUG);
+    // value > 50000 matches but stage=proposal doesn't match negotiation
+    const matches = matchPlaybooks(pbs, makeDealSnap({ stage: "negotiation", value: 75000 }), 0);
+    expect(matches).toHaveLength(0);
+  });
+});
+
 // ─── distillPlaybook (integration, memfs) ─────────────────────────────────────
 
 describe("distillPlaybook", () => {

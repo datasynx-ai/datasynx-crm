@@ -112,9 +112,12 @@ export function toKebabCase(name: string): string {
 
 // ─── Trigger DSL ──────────────────────────────────────────────────────────────
 
-export function parseTrigger(triggerStr: string | null | undefined): TriggerCondition[] {
-  if (!triggerStr?.trim()) return [];
-  const tokens = triggerStr.split(/\s+AND\s+/).map((t) => t.trim()).filter(Boolean);
+export interface ParsedTrigger {
+  conditions: TriggerCondition[];
+  operator: "AND" | "OR";
+}
+
+function parseTokens(tokens: string[]): TriggerCondition[] {
   return tokens.flatMap((token): TriggerCondition[] => {
     if (token.startsWith("deal_stage_")) {
       return [{ type: "stage", stage: token.slice("deal_stage_".length) }];
@@ -144,6 +147,22 @@ export function parseTrigger(triggerStr: string | null | undefined): TriggerCond
   });
 }
 
+export function parseTrigger(triggerStr: string | null | undefined): TriggerCondition[] {
+  if (!triggerStr?.trim()) return [];
+  const tokens = triggerStr.split(/\s+AND\s+/).map((t) => t.trim()).filter(Boolean);
+  return parseTokens(tokens);
+}
+
+export function parseTriggerFull(triggerStr: string | null | undefined): ParsedTrigger {
+  if (!triggerStr?.trim()) return { conditions: [], operator: "AND" };
+  const orTokens = triggerStr.split(/\s+OR\s+/).map((t) => t.trim()).filter(Boolean);
+  if (orTokens.length > 1) {
+    return { conditions: parseTokens(orTokens), operator: "OR" };
+  }
+  const andTokens = triggerStr.split(/\s+AND\s+/).map((t) => t.trim()).filter(Boolean);
+  return { conditions: parseTokens(andTokens), operator: "AND" };
+}
+
 export function evaluateCondition(
   cond: TriggerCondition,
   deal: DealSnapshot,
@@ -167,8 +186,12 @@ export function evaluateCondition(
 export function evaluateTrigger(
   conditions: TriggerCondition[],
   deal: DealSnapshot,
-  daysSinceContact: number = 0
+  daysSinceContact: number = 0,
+  operator: "AND" | "OR" = "AND"
 ): boolean {
+  if (operator === "OR") {
+    return conditions.some((c) => evaluateCondition(c, deal, daysSinceContact));
+  }
   return conditions.every((c) => evaluateCondition(c, deal, daysSinceContact));
 }
 
@@ -181,10 +204,11 @@ export function matchPlaybooks(
 ): PlaybookMatch[] {
   const results: PlaybookMatch[] = [];
   for (const pb of playbooks) {
-    const conditions = parseTrigger(pb.frontmatter.trigger);
+    const { conditions, operator } = parseTriggerFull(pb.frontmatter.trigger);
     if (conditions.length === 0) continue;
     const matched = conditions.filter((c) => evaluateCondition(c, deal, daysSinceContact));
-    if (matched.length === conditions.length) {
+    const isMatch = operator === "OR" ? matched.length > 0 : matched.length === conditions.length;
+    if (isMatch) {
       results.push({ playbook: pb, score: 1.0, matchedConditions: matched, totalConditions: conditions.length });
     }
   }

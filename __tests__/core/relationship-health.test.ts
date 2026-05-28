@@ -236,6 +236,16 @@ describe("calcAvgCadence", () => {
     ]);
     expect(result).toBe(9);
   });
+
+  it("DST-safe: correctly computes 1 day across US spring-forward boundary", async () => {
+    const { calcAvgCadence } = await import("../../src/core/relationship-health.js");
+    // 2024-03-10 is DST spring-forward in US; without UTC-explicit parsing this could yield 0
+    const result = calcAvgCadence([
+      { date: "2024-03-10", type: "Call", withStr: "a" },
+      { date: "2024-03-09", type: "Call", withStr: "a" },
+    ]);
+    expect(result).toBe(1);
+  });
 });
 
 // ─── gradeFromScore ───────────────────────────────────────────────────────────
@@ -504,6 +514,18 @@ describe("computeContactHealth", () => {
       interactions: [{ date: "2026-04-20", type: "Call", withStr: "max@acme.com" }], // 37 days
     };
     expect(computeContactHealth(group, "2026-05-27", false).trend).toBe("cold");
+  });
+
+  it("DST-safe: daysSinceContact is 1 across US spring-forward boundary", async () => {
+    const { computeContactHealth } = await import("../../src/core/relationship-health.js");
+    const group = {
+      contactId: "person:max@acme.com",
+      name: "Max",
+      interactions: [{ date: "2024-03-09", type: "Call", withStr: "max@acme.com" }],
+    };
+    // 2024-03-10 is DST spring-forward; UTC parsing guarantees exactly 1 day
+    const h = computeContactHealth(group, "2024-03-10", false);
+    expect(h.daysSinceContact).toBe(1);
   });
 
   it("sets no email property when group has no email", async () => {
