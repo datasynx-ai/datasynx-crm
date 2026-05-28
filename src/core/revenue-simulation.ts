@@ -157,20 +157,11 @@ export function runSimulation(
   const todayMs = new Date(input.today).getTime();
   const adjustedProbs = deals.map((d) => adjustProbability(d, externalSignals));
   const outcomes: number[] = [];
-
-  // Pre-collect all unique close months so byCloseMonth uses an unconditional distribution
-  // (every iteration contributes 0 for months where no deal closed, not just winning iterations)
-  const allMonths = new Set<string>();
-  for (const deal of deals) {
-    if (deal.closeDate) allMonths.add(deal.closeDate.slice(0, 7));
-  }
   const byMonthOutcomes: Record<string, number[]> = {};
-  for (const month of allMonths) byMonthOutcomes[month] = [];
 
   for (let i = 0; i < iterations; i++) {
     let total = 0;
     const monthTotals: Record<string, number> = {};
-    for (const month of allMonths) monthTotals[month] = 0;
 
     for (let j = 0; j < deals.length; j++) {
       const deal = deals[j]!;
@@ -186,8 +177,12 @@ export function runSimulation(
     }
 
     outcomes.push(total);
-    for (const month of allMonths) {
-      byMonthOutcomes[month]!.push(monthTotals[month]!);
+    // Winning-only: only record months where at least one deal closed in this iteration
+    for (const [month, val] of Object.entries(monthTotals)) {
+      if (val > 0) {
+        byMonthOutcomes[month] ??= [];
+        byMonthOutcomes[month]!.push(val);
+      }
     }
   }
 

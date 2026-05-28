@@ -470,3 +470,84 @@ describe("cancelGoal", () => {
     expect(await cancelGoal(DATA_DIR, "goal_unknown_999999")).toBeNull();
   });
 });
+
+// ─── syncGoalProgressFromPipeline ─────────────────────────────────────────────
+
+describe("syncGoalProgressFromPipeline", () => {
+  const PIPELINE_MD = [
+    "# Pipeline",
+    "",
+    "| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |",
+    "|------|-------|-------|----------|-------------|------------|-------|---------|",
+    "| Deal A | won | 30000 |  | 100 | 2026-05-01 | | 2026-05-01 |",
+    "| Deal B | won | 20000 |  | 100 | 2026-05-10 | | 2026-05-10 |",
+    "| Deal C | negotiation | 50000 |  | 75 | 2026-06-15 | | 2026-05-20 |",
+  ].join("\n");
+
+  it("updates progress for active revenue goals based on won deals", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: PIPELINE_MD,
+      [`${DATA_DIR}/.agentic/.keep`]: "",
+    });
+    const { pursueGoal, syncGoalProgressFromPipeline, readGoals } = await import("../../src/core/goal-engine.js");
+    const goal = await pursueGoal(
+      DATA_DIR,
+      { description: "Close €100k revenue by end of Q2", deadline: "2026-06-30" },
+      { buildInputFn: async () => ({ deals: [], externalSignals: [], iterations: 100, horizon: "quarter", today: "2026-05-28" }), today: "2026-05-28" }
+    );
+    await syncGoalProgressFromPipeline(DATA_DIR, "2026-05-28");
+    const goals = readGoals(DATA_DIR);
+    const updated = goals.find((g) => g.id === goal.id);
+    // Won: 30000 + 20000 = 50000, target 100000 → 50%
+    expect(updated!.progress).toBeCloseTo(50, 0);
+  });
+
+  it("does not update completed or cancelled goals", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: PIPELINE_MD,
+      [`${DATA_DIR}/.agentic/.keep`]: "",
+    });
+    const { pursueGoal, cancelGoal, syncGoalProgressFromPipeline, readGoals } = await import("../../src/core/goal-engine.js");
+    const goal = await pursueGoal(
+      DATA_DIR,
+      { description: "Close €50k revenue by end of Q2", deadline: "2026-06-30" },
+      { buildInputFn: async () => ({ deals: [], externalSignals: [], iterations: 100, horizon: "quarter", today: "2026-05-28" }), today: "2026-05-28" }
+    );
+    await cancelGoal(DATA_DIR, goal.id);
+    await syncGoalProgressFromPipeline(DATA_DIR, "2026-05-28");
+    const goals = readGoals(DATA_DIR);
+    const cancelled = goals.find((g) => g.id === goal.id);
+    expect(cancelled!.status).toBe("cancelled");
+    expect(cancelled!.progress).toBe(0); // unchanged
+  });
+
+  it("returns empty result when no active goals", async () => {
+    vol.fromJSON({ [`${DATA_DIR}/.agentic/.keep`]: "" });
+    const { syncGoalProgressFromPipeline } = await import("../../src/core/goal-engine.js");
+    const result = await syncGoalProgressFromPipeline(DATA_DIR, "2026-05-28");
+    expect(result).toEqual({ updated: [], skipped: 0 });
+  });
+
+  it("clamps progress to 100 when won exceeds target", async () => {
+    const bigWinPipeline = [
+      "# Pipeline",
+      "",
+      "| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |",
+      "|------|-------|-------|----------|-------------|------------|-------|---------|",
+      "| Mega | won | 200000 |  | 100 | 2026-05-01 | | 2026-05-01 |",
+    ].join("\n");
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: bigWinPipeline,
+      [`${DATA_DIR}/.agentic/.keep`]: "",
+    });
+    const { pursueGoal, syncGoalProgressFromPipeline, readGoals } = await import("../../src/core/goal-engine.js");
+    await pursueGoal(
+      DATA_DIR,
+      { description: "Close €50k revenue", deadline: "2026-06-30" },
+      { buildInputFn: async () => ({ deals: [], externalSignals: [], iterations: 100, horizon: "quarter", today: "2026-05-28" }), today: "2026-05-28" }
+    );
+    await syncGoalProgressFromPipeline(DATA_DIR, "2026-05-28");
+    const goals = readGoals(DATA_DIR);
+    expect(goals[0]!.progress).toBe(100);
+  });
+});

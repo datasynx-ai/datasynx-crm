@@ -416,16 +416,15 @@ describe("runSimulation — statistical properties", () => {
     expect(result.atRiskRevenue).toBe(30000);
   });
 
-  it("byCloseMonth key is always present when deal has closeDate (unconditional)", async () => {
+  it("byCloseMonth key is absent when no deal wins in that month (winning-only)", async () => {
     const { runSimulation } = await import("../../src/core/revenue-simulation.js");
     const deals = [makeSnap({ name: "A", value: 50000, closeDate: "2026-06-15", probability: 75 })];
-    // Even when all deals lose, the key is pre-populated from deal close dates
+    // randFn=0.99 → no deal wins (adjustedProb < 0.99) → no entry emitted for the month
     const result = runSimulation(makeInput(deals, 100), () => 0.99);
-    expect(result.byCloseMonth["2026-06"]).toBeDefined();
-    expect(result.byCloseMonth["2026-06"]!.p50).toBe(0);
+    expect(result.byCloseMonth["2026-06"]).toBeUndefined();
   });
 
-  it("byCloseMonth p50 > 0 when deals win in that month", async () => {
+  it("byCloseMonth p50 > 0 when deals win in that month (winning-only values)", async () => {
     const { runSimulation } = await import("../../src/core/revenue-simulation.js");
     const deals = [makeSnap({ name: "A", value: 50000, closeDate: "2026-06-15", probability: 75 })];
     // randFn=0: 0 < adjustedProb → all deals win, variance=1.0 (0.5 midpoint)
@@ -436,6 +435,23 @@ describe("runSimulation — statistical properties", () => {
     });
     expect(result.byCloseMonth["2026-06"]).toBeDefined();
     expect(result.byCloseMonth["2026-06"]!.p50).toBeGreaterThan(0);
+  });
+
+  it("byCloseMonth only includes winning iterations — no zeros in distribution", async () => {
+    const { runSimulation } = await import("../../src/core/revenue-simulation.js");
+    const deals = [makeSnap({ name: "A", value: 50000, closeDate: "2026-06-15", probability: 50 })];
+    // alternating: even iterations win, odd iterations lose
+    let callCount = 0;
+    const result = runSimulation(makeInput(deals, 100), () => {
+      callCount++;
+      // win check: every other call returns 0 (win) or 1 (lose)
+      return callCount % 2 === 1 ? 0 : 0.5;
+    });
+    // All recorded values should be > 0 (winning iterations only)
+    if (result.byCloseMonth["2026-06"]) {
+      expect(result.byCloseMonth["2026-06"]!.p50).toBeGreaterThan(0);
+      expect(result.byCloseMonth["2026-06"]!.range[0]).toBeGreaterThan(0);
+    }
   });
 
   it("sensitivityMap contains entry for each deal", async () => {

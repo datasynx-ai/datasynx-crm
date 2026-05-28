@@ -375,3 +375,114 @@ describe("makeEdgeId", () => {
     expect(makeEdgeId("WORKS_AT", "p:a", "c:b")).toBe(makeEdgeId("WORKS_AT", "p:a", "c:b"));
   });
 });
+
+// ─── pruneStaleNodes ──────────────────────────────────────────────────────────
+
+describe("pruneStaleNodes", () => {
+  it("marks nodes older than maxAgeDays as inactive", async () => {
+    const { pruneStaleNodes } = await import("../../src/core/graph.js");
+    const staleNode = {
+      id: "person:old@acme.com",
+      type: "person" as const,
+      label: "Old Contact",
+      properties: {},
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+    const graph = {
+      schemaVersion: "1" as const,
+      slug: "acme-corp",
+      nodes: [staleNode],
+      edges: [],
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+    const result = pruneStaleNodes(graph, 365, "2026-05-28");
+    expect(result.nodes[0]!.status).toBe("inactive");
+  });
+
+  it("leaves recent nodes unchanged (no status added)", async () => {
+    const { pruneStaleNodes } = await import("../../src/core/graph.js");
+    const freshNode = {
+      id: "person:new@acme.com",
+      type: "person" as const,
+      label: "Fresh Contact",
+      properties: {},
+      createdAt: "2026-05-01T00:00:00Z",
+      updatedAt: "2026-05-01T00:00:00Z",
+    };
+    const graph = {
+      schemaVersion: "1" as const,
+      slug: "acme-corp",
+      nodes: [freshNode],
+      edges: [],
+      updatedAt: "2026-05-01T00:00:00Z",
+    };
+    const result = pruneStaleNodes(graph, 365, "2026-05-28");
+    expect(result.nodes[0]!.status).toBeUndefined();
+  });
+
+  it("does not re-mark already-inactive nodes", async () => {
+    const { pruneStaleNodes } = await import("../../src/core/graph.js");
+    const inactiveNode = {
+      id: "person:old@acme.com",
+      type: "person" as const,
+      label: "Old",
+      properties: {},
+      status: "inactive" as const,
+      createdAt: "2020-01-01T00:00:00Z",
+      updatedAt: "2020-01-01T00:00:00Z",
+    };
+    const graph = {
+      schemaVersion: "1" as const,
+      slug: "acme-corp",
+      nodes: [inactiveNode],
+      edges: [],
+      updatedAt: "2020-01-01T00:00:00Z",
+    };
+    const result = pruneStaleNodes(graph, 365, "2026-05-28");
+    expect(result.nodes[0]!.status).toBe("inactive");
+  });
+
+  it("does not mutate the original graph", async () => {
+    const { pruneStaleNodes } = await import("../../src/core/graph.js");
+    const staleNode = {
+      id: "person:old@acme.com",
+      type: "person" as const,
+      label: "Old",
+      properties: {},
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+    const graph = {
+      schemaVersion: "1" as const,
+      slug: "acme-corp",
+      nodes: [staleNode],
+      edges: [],
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+    pruneStaleNodes(graph, 365, "2026-05-28");
+    expect((graph.nodes[0] as { status?: string }).status).toBeUndefined();
+  });
+
+  it("marks nodes inactive with default 365-day threshold", async () => {
+    const { pruneStaleNodes } = await import("../../src/core/graph.js");
+    const node = {
+      id: "person:a@b.com",
+      type: "person" as const,
+      label: "A",
+      properties: {},
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+    const graph = {
+      schemaVersion: "1" as const,
+      slug: "s",
+      nodes: [node],
+      edges: [],
+      updatedAt: "2024-01-01T00:00:00Z",
+    };
+    // ~880 days ago from 2026-05-28 → stale at default 365 days
+    const result = pruneStaleNodes(graph, undefined, "2026-05-28");
+    expect(result.nodes[0]!.status).toBe("inactive");
+  });
+});

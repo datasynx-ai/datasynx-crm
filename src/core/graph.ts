@@ -18,6 +18,7 @@ export interface GraphNode {
   id: string;
   type: NodeType;
   label: string;
+  status?: "active" | "inactive";
   properties: {
     email?: string;
     title?: string;
@@ -252,4 +253,25 @@ export function getStakeholders(graph: CustomerGraph): StakeholderSummary {
   }
 
   return { champions, blockers, economicBuyers, allContacts, missingRoles };
+}
+
+// ─── Pruning ──────────────────────────────────────────────────────────────────
+
+export function pruneStaleNodes(
+  graph: CustomerGraph,
+  maxAgeDays = 365,
+  today?: string
+): CustomerGraph {
+  const todayMs = today ? new Date(`${today}T00:00:00Z`).getTime() : Date.now();
+  const threshold = maxAgeDays * 86_400_000;
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => {
+      const age = todayMs - new Date(node.updatedAt).getTime();
+      if (age > threshold && node.status !== "inactive") {
+        return { ...node, status: "inactive" as const };
+      }
+      return node;
+    }),
+  };
 }

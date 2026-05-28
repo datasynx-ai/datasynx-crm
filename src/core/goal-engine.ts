@@ -6,6 +6,7 @@ import { getActor } from "../fs/audit-log.js";
 import { withJsonFile } from "./file-lock.js";
 import { guardIsoDate } from "./input-guard.js";
 import type { DealSnapshot, SimulationInput } from "./revenue-simulation.js";
+import { readPipeline } from "../fs/pipeline-writer.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -389,4 +390,44 @@ export async function cancelGoal(dataDir: string, goalId: string): Promise<Goal 
     return { goals, updatedAt: new Date().toISOString() };
   });
   return cancelled;
+}
+
+// ─── Pipeline-driven progress sync ────────────────────────────────────────────
+
+export interface SyncResult {
+  updated: string[];
+  skipped: number;
+}
+
+export async function syncGoalProgressFromPipeline(
+  dataDir: string,
+  _today?: string
+): Promise<SyncResult> {
+  const activeGoals = getActiveGoals(dataDir);
+  const revenueGoals = activeGoals.filter((g) => g.metric === "revenue" && g.target > 0);
+
+  if (revenueGoals.length === 0) return { updated: [], skipped: activeGoals.length };
+
+  const customersDir = path.join(dataDir, "customers");
+  let totalWon = 0;
+  if (fs.existsSync(customersDir)) {
+    const slugs = fs.readdirSync(customersDir).filter((d) =>
+      fs.statSync(path.join(customersDir, d)).isDirectory()
+    );
+    for (const slug of slugs) {
+      const deals = await readPipeline(dataDir, slug).catch(() => []);
+      for (const deal of deals) {
+        if (deal.stage === "won") totalWon += deal.value ?? 0;
+      }
+    }
+  }
+
+  const updated: string[] = [];
+  for (const goal of revenueGoals) {
+    const progress = Math.min(100, Math.round((totalWon / goal.target) * 100));
+    const result = await updateGoalProgress(dataDir, goal.id, progress);
+    if (result) updated.push(goal.id);
+  }
+
+  return { updated, skipped: activeGoals.length - revenueGoals.length };
 }
