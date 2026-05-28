@@ -34,6 +34,7 @@ import { registerGetGoalStatus } from "./tools/get-goal-status.js";
 import { registerRegisterPushSubscription } from "./tools/register-push-subscription.js";
 import { registerGetPushStatus } from "./tools/get-push-status.js";
 import { registerGetOrgIntelligence } from "./tools/get-org-intelligence.js";
+import { registerOpenDealRoom } from "./tools/open-deal-room.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -41,7 +42,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 28 tools
+  // Register all 29 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -71,6 +72,7 @@ export function createMcpServer(): McpServer {
   registerRegisterPushSubscription(server);
   registerGetPushStatus(server);
   registerGetOrgIntelligence(server);
+  registerOpenDealRoom(server);
 
   return server;
 }
