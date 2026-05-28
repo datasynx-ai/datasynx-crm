@@ -171,3 +171,125 @@ describe("runImport — HubSpot", () => {
     expect(types).toContain("Meeting");
   });
 });
+
+// ─── Salesforce directory import ──────────────────────────────────────────────
+
+const SF_ACCOUNTS_CSV = `Id,Name,Website
+sf-001,Acme Corp,https://acme.com
+sf-002,Beta GmbH,https://beta.de
+`;
+
+const SF_ACTIVITIES_CSV = `Id,AccountId,ActivityDate,Type,Description
+task-1,sf-001,2026-01-15,Call,Discussed enterprise deal
+task-2,sf-001,2026-01-16,Email,Sent proposal
+task-3,sf-002,2026-01-17,Meeting,Product demo
+`;
+
+describe("runImport — Salesforce directory", () => {
+  it("creates customers from Accounts.csv", async () => {
+    vol.fromJSON({
+      "/crm/sf-export/Accounts.csv": SF_ACCOUNTS_CSV,
+    });
+    readInteractions.mockResolvedValue("");
+    const result = await runImport("/crm/sf-export", { from: "salesforce" }, "/crm");
+    expect(result.customersCreated).toBe(2);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("imports interactions from Activities.csv", async () => {
+    vol.fromJSON({
+      "/crm/sf-export/Accounts.csv": SF_ACCOUNTS_CSV,
+      "/crm/sf-export/Activities.csv": SF_ACTIVITIES_CSV,
+    });
+    readInteractions.mockResolvedValue("");
+    const result = await runImport("/crm/sf-export", { from: "salesforce" }, "/crm");
+    expect(result.interactionsImported).toBe(3);
+    expect(appendInteraction).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses salesforce://row/<id> sourceRef format", async () => {
+    vol.fromJSON({
+      "/crm/sf-export/Accounts.csv": SF_ACCOUNTS_CSV,
+      "/crm/sf-export/Activities.csv": SF_ACTIVITIES_CSV,
+    });
+    readInteractions.mockResolvedValue("");
+    await runImport("/crm/sf-export", { from: "salesforce" }, "/crm");
+    const call = appendInteraction.mock.calls[0]!;
+    const entry = call[2] as { sourceRef: string };
+    expect(entry.sourceRef).toMatch(/^salesforce:\/\/row\//);
+  });
+
+  it("dry-run shows counts without writing", async () => {
+    vol.fromJSON({
+      "/crm/sf-export/Accounts.csv": SF_ACCOUNTS_CSV,
+      "/crm/sf-export/Activities.csv": SF_ACTIVITIES_CSV,
+    });
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const result = await runImport("/crm/sf-export", { from: "salesforce", dryRun: true }, "/crm");
+    expect(result.customersCreated).toBe(0);
+    expect(appendInteraction).not.toHaveBeenCalled();
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("Dry run");
+    logSpy.mockRestore();
+  });
+
+  it("returns error when Accounts.csv not found", async () => {
+    vol.fromJSON({ "/crm/sf-empty/": null });
+    const result = await runImport("/crm/sf-empty", { from: "salesforce" }, "/crm");
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("Accounts.csv");
+  });
+});
+
+// ─── Pipedrive directory import ───────────────────────────────────────────────
+
+const PD_ORGS_CSV = `id,name
+101,Acme Corp
+102,Beta GmbH
+`;
+
+const PD_ACTIVITIES_CSV = `id,org_id,due_date,type,note
+act-1,101,2026-02-10,call,Discovery call with Acme
+act-2,101,2026-02-11,email,Sent pricing
+act-3,102,2026-02-12,meeting,Introductory meeting
+`;
+
+describe("runImport — Pipedrive directory", () => {
+  it("creates customers from organizations.csv", async () => {
+    vol.fromJSON({ "/crm/pd-export/organizations.csv": PD_ORGS_CSV });
+    readInteractions.mockResolvedValue("");
+    const result = await runImport("/crm/pd-export", { from: "pipedrive" }, "/crm");
+    expect(result.customersCreated).toBe(2);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("imports activities from activities.csv", async () => {
+    vol.fromJSON({
+      "/crm/pd-export/organizations.csv": PD_ORGS_CSV,
+      "/crm/pd-export/activities.csv": PD_ACTIVITIES_CSV,
+    });
+    readInteractions.mockResolvedValue("");
+    const result = await runImport("/crm/pd-export", { from: "pipedrive" }, "/crm");
+    expect(result.interactionsImported).toBe(3);
+    expect(appendInteraction).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses pipedrive://row/<id> sourceRef format", async () => {
+    vol.fromJSON({
+      "/crm/pd-export/organizations.csv": PD_ORGS_CSV,
+      "/crm/pd-export/activities.csv": PD_ACTIVITIES_CSV,
+    });
+    readInteractions.mockResolvedValue("");
+    await runImport("/crm/pd-export", { from: "pipedrive" }, "/crm");
+    const call = appendInteraction.mock.calls[0]!;
+    const entry = call[2] as { sourceRef: string };
+    expect(entry.sourceRef).toMatch(/^pipedrive:\/\/row\//);
+  });
+
+  it("returns error when organizations.csv not found", async () => {
+    vol.fromJSON({ "/crm/pd-empty/": null });
+    const result = await runImport("/crm/pd-empty", { from: "pipedrive" }, "/crm");
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("organizations.csv");
+  });
+});

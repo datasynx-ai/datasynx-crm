@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { vol } from "memfs";
 import { setSession, getSession, clearSession } from "../../src/core/session-store.js";
 
 describe("session store", () => {
@@ -62,5 +63,51 @@ describe("session store", () => {
       setSession({ customerSlug: "acme", customerName: "Acme", startedAt: "2026-01-02", owner: "bob" });
       expect(getSession()?.owner).toBe("bob");
     });
+  });
+});
+
+// ─── persistSession / readAllSessions ────────────────────────────────────────
+
+describe("persistSession + readAllSessions", () => {
+  beforeEach(() => vol.reset());
+
+  it("writes session JSON to .agentic/sessions/", async () => {
+    vol.fromJSON({});
+    const { persistSession, readAllSessions } = await import("../../src/commands/session.js");
+    persistSession("/data", {
+      customerSlug: "acme-corp",
+      customerName: "Acme Corp",
+      startedAt: "2026-05-28T10:00:00Z",
+      owner: "alice",
+    });
+    const sessions = readAllSessions("/data");
+    expect(sessions.length).toBe(1);
+    expect(sessions[0]!.customerSlug).toBe("acme-corp");
+    expect(sessions[0]!.owner).toBe("alice");
+  });
+
+  it("multiple sessions accumulate", async () => {
+    vol.fromJSON({});
+    const { persistSession, readAllSessions } = await import("../../src/commands/session.js");
+    persistSession("/data", { customerSlug: "acme", customerName: "Acme", startedAt: "2026-05-28T10:00:00Z", owner: "alice" });
+    persistSession("/data", { customerSlug: "beta", customerName: "Beta", startedAt: "2026-05-28T11:00:00Z", owner: "bob" });
+    const sessions = readAllSessions("/data");
+    expect(sessions.length).toBe(2);
+  });
+
+  it("clearPersistedSession removes the file", async () => {
+    vol.fromJSON({});
+    const { persistSession, clearPersistedSession, readAllSessions } = await import("../../src/commands/session.js");
+    persistSession("/data", { customerSlug: "acme", customerName: "Acme", startedAt: "2026-05-28T10:00:00Z", owner: "alice" });
+    clearPersistedSession("/data", "alice");
+    const sessions = readAllSessions("/data");
+    expect(sessions.length).toBe(0);
+  });
+
+  it("returns empty array when sessions dir does not exist", async () => {
+    vol.fromJSON({});
+    const { readAllSessions } = await import("../../src/commands/session.js");
+    const sessions = readAllSessions("/nonexistent");
+    expect(sessions).toHaveLength(0);
   });
 });

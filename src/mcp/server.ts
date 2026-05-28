@@ -111,6 +111,16 @@ export async function startHttp(port = 3847): Promise<void> {
 
   const dataDir = process.cwd();
 
+  app.get("/sessions", async (_req, res) => {
+    try {
+      const { readAllSessions } = await import("../commands/session.js");
+      const sessions = readAllSessions(dataDir);
+      res.json({ sessions });
+    } catch {
+      res.json({ sessions: [] });
+    }
+  });
+
   // Gmail Pub/Sub webhook
   app.post("/webhooks/gmail", async (req, res) => {
     const token = process.env["GMAIL_PUBSUB_TOKEN"] ?? "";
