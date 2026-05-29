@@ -60,10 +60,16 @@ const ALL_TOOLS = [
   "update_ticket",
   "list_tickets",
   "close_ticket",
+  // NPS/CSAT Survey (H7)
+  "send_nps_survey",
+  "get_survey_results",
+  // Knowledge Base (H8)
+  "search_knowledge_base",
+  "create_kb_article",
 ] as const;
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
-export const TOOL_COUNT = ALL_TOOLS.length; // 44
+export const TOOL_COUNT = ALL_TOOLS.length; // 48
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -175,6 +181,14 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`list_tickets({ slug?, status?, priority?, assignee? })\` — list tickets sorted by priority
 - \`close_ticket({ slug, ticketId, resolution? })\` — close ticket and optionally log resolution
 
+### NPS/CSAT Surveys (H7)
+- \`send_nps_survey({ slug, contactEmail, surveyId, serverUrl? })\` — generate survey token and email body for NPS/CSAT survey
+- \`get_survey_results({ surveyId, slug? })\` — NPS score, promoters/passives/detractors, all responses
+
+### Knowledge Base (H8)
+- \`search_knowledge_base({ query, publicOnly? })\` — full-text search across KB articles
+- \`create_kb_article({ id, title, body, category?, tags?, public?, sourceTicketId? })\` — create or update KB article
+
 ## Rules
 - Never discuss a customer without first loading their context
 - Always log interactions — calls, emails, Slack, demos, proposals
@@ -188,7 +202,7 @@ ${dataDir}`.trim();
 /** OpenClaw / Hermes: SOUL.md */
 export function buildSoulMd(framework: "openclaw" | "hermes"): string {
   return `# Identity
-I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (44 MCP tools).
+I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (48 MCP tools).
 My purpose is to help manage customer relationships proactively — acting before being asked.
 
 # Core Behaviors
@@ -272,6 +286,10 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 
 **Tickets (H6):** create_ticket · update_ticket · list_tickets · close_ticket
 
+**NPS/CSAT (H7):** send_nps_survey · get_survey_results
+
+**Knowledge Base (H8):** search_knowledge_base · create_kb_article
+
 ## Never
 - Discuss a customer without context loaded
 - Skip logging — every touchpoint matters
@@ -287,7 +305,7 @@ export function buildHermesSkillMd(): string {
   return `---
 name: datasynx-crm
 version: 2.0.0
-description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (44 MCP tools)
+description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (48 MCP tools)
 triggers:
   - "customer"
   - "client"
@@ -421,7 +439,9 @@ open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
 generate_quote · get_quote_status · get_booking_link ·
-create_ticket · update_ticket · list_tickets · close_ticket
+create_ticket · update_ticket · list_tickets · close_ticket ·
+send_nps_survey · get_survey_results ·
+search_knowledge_base · create_kb_article
 
 ## Data: ${dataDir}`.trim();
 }
@@ -487,7 +507,9 @@ open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
 generate_quote · get_quote_status · get_booking_link ·
-create_ticket · update_ticket · list_tickets · close_ticket
+create_ticket · update_ticket · list_tickets · close_ticket ·
+send_nps_survey · get_survey_results ·
+search_knowledge_base · create_kb_article
 
 ## Never
 - Discuss a customer without loading context first

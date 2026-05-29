@@ -50,6 +50,10 @@ import { registerCreateTicket } from "./tools/create-ticket.js";
 import { registerUpdateTicket } from "./tools/update-ticket.js";
 import { registerListTickets } from "./tools/list-tickets.js";
 import { registerCloseTicket } from "./tools/close-ticket.js";
+import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
+import { registerGetSurveyResults } from "./tools/get-survey-results.js";
+import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
+import { registerCreateKbArticle } from "./tools/create-kb-article.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -57,7 +61,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 45 tools
+  // Register all 48 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -103,6 +107,10 @@ export function createMcpServer(): McpServer {
   registerUpdateTicket(server);
   registerListTickets(server);
   registerCloseTicket(server);
+  registerSendNpsSurvey(server);
+  registerGetSurveyResults(server);
+  registerSearchKnowledgeBase(server);
+  registerCreateKbArticle(server);
 
   return server;
 }
