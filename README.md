@@ -82,7 +82,10 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | Command | Description |
 |---|---|
 | `dxcrm import <file>` | Import from CSV (`--from csv`, `--dry-run`) |
-| `dxcrm import --from hubspot` | Import HubSpot export CSV |
+| `dxcrm import ./export/ --from hubspot` | Import HubSpot multi-file export directory |
+| `dxcrm import ./export/ --from hubspot --analyze` | Pre-flight: counts, custom props, owners |
+| `dxcrm import ./export/ --from hubspot --resume` | Resume interrupted import |
+| `dxcrm import ./export/ --from hubspot --owner-map "alice@hs.com=alice"` | Map HubSpot owners to reps |
 | `dxcrm import --from hubspot --mode api` | Import HubSpot via API (v4 Associations) |
 | `dxcrm import --from salesforce --mode api` | Import Salesforce contacts + activities |
 | `dxcrm import --from pipedrive --mode api` | Import Pipedrive persons + activities |
@@ -158,12 +161,18 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 | `dxcrm gdpr list-erasures` | Show erasure log |
 | `dxcrm security-report [--output <file>]` | Generate Markdown security questionnaire |
 
-### Backup & Restore
+### Backup & Restore (Enterprise)
 
 | Command | Description |
 |---|---|
-| `dxcrm backup [path]` | Backup customers/ directory |
-| `dxcrm backup schedule --every day --keep 7` | Schedule automatic backups |
+| `dxcrm backup [path]` | Backup `customers/` + `.agentic/` with SHA-256 manifest |
+| `dxcrm backup --encrypt` | AES-256-GCM encrypted backup |
+| `dxcrm backup --remote s3://bucket/path/` | Backup + upload to S3 |
+| `dxcrm backup --remote rsync://host:/path/` | Backup + rsync to remote |
+| `dxcrm backup verify <path>` | Verify backup integrity (unzip -t + manifest check) |
+| `dxcrm backup list` | List all logged backups with size + verification status |
+| `dxcrm backup schedule --every day --keep 7` | Daily backups, keep last 7 |
+| `dxcrm backup schedule --every week --keep 4 --monthly 12` | Grandfathering retention |
 | `dxcrm restore <path>` | Restore from backup |
 
 ### Email Sequences (H1)
@@ -213,7 +222,7 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 
 ---
 
-## MCP Tools (for AI Agents)
+## MCP Tools (50 tools for AI Agents)
 
 These tools are available to any AI agent connected via MCP (Claude Code, Codex, Cursor, etc.):
 
@@ -267,6 +276,8 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `get_survey_results` | NPS score, promoters/passives/detractors, all responses | any |
 | `search_knowledge_base` | Full-text search across KB articles | any |
 | `create_kb_article` | Create or update knowledge base article | rep+ |
+| `backup_now` | Trigger immediate backup with manifest + integrity check | admin |
+| `list_backups` | List backups with date, size, verification status | any |
 
 ### Tool Examples
 
