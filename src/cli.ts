@@ -24,6 +24,7 @@ import { pushCommand } from "./commands/push.js";
 import { attachCommand } from "./commands/attach.js";
 import { templateCommand } from "./commands/template.js";
 import { sequenceCommand } from "./commands/sequence.js";
+import { quoteCommand } from "./commands/quote.js";
 
 const program = new Command();
 program
@@ -58,5 +59,6 @@ program.addCommand(pushCommand);
 program.addCommand(attachCommand);
 program.addCommand(templateCommand);
 program.addCommand(sequenceCommand);
+program.addCommand(quoteCommand);
 
 await program.parseAsync(process.argv);

@@ -286,7 +286,18 @@ export async function runImport(
     return runPipedriveApiImport(opts, dir);
   }
 
-  // File/directory import for Salesforce and Pipedrive
+  // HubSpot multi-file export directory: route to dedicated importer
+  // Single-file HubSpot CSV falls through to generic LLM-mapping flow below
+  if (opts.from === "hubspot" && sourcePath && fs.existsSync(sourcePath) && fs.statSync(sourcePath).isDirectory()) {
+    const { runHubSpotCsvImport } = await import("./import-hubspot.js");
+    const r = await runHubSpotCsvImport(sourcePath, dir, opts);
+    return {
+      customersCreated: r.companiesProcessed,
+      interactionsImported: r.engagementsImported + r.dealsImported + r.contactsImported,
+      skipped: 0,
+      errors: r.errors,
+    };
+  }
   if (opts.from === "salesforce" && sourcePath) {
     return runSalesforceFileImport(sourcePath, opts, dir);
   }
