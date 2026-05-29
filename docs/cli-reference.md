@@ -223,29 +223,48 @@ dxcrm agent remove acme-corp                             # Remove agent config
 
 ## dxcrm import
 
-Import customers and interactions from HubSpot or generic CSV exports. Two-pass: creates customers first, then imports activities. Idempotent — re-running skips already-imported rows.
+Import customers and interactions from HubSpot, Salesforce, Pipedrive, or generic CSV.
 
 ```bash
-dxcrm import contacts.csv --from csv                    # Import generic CSV
-dxcrm import hubspot-export.csv --from hubspot           # Import HubSpot export
-dxcrm import hubspot-export.csv --from hubspot --dry-run # Preview field mapping
+dxcrm import contacts.csv --from csv                              # Generic CSV
+dxcrm import ./hubspot-export/ --from hubspot                     # HubSpot multi-file export dir
+dxcrm import ./hubspot-export/ --from hubspot --dry-run           # Preview without writing
+dxcrm import ./hubspot-export/ --from hubspot --analyze           # Pre-flight analysis report
+dxcrm import ./hubspot-export/ --from hubspot --resume            # Resume interrupted import
+dxcrm import ./hubspot-export/ --from hubspot \
+  --owner-map "alice@acme.com=alice,bob@acme.com=bob"            # Map HubSpot owners to reps
 ```
 
 **Options:**
-- `--from <source>` — Source format: `hubspot` | `csv`. Default: `csv`
+- `--from <source>` — Source: `hubspot` | `csv` | `salesforce` | `pipedrive`. Default: `csv`
 - `--dry-run` — Preview what would be imported without writing
+- `--analyze` — Show pre-flight report (company/contact/deal counts, custom props, owners, unknown stages) without importing
+- `--resume` — Resume a previously interrupted HubSpot import (reads `.agentic/import-progress.json`)
+- `--owner-map <mapping>` — Map HubSpot owner emails to rep names: `"alice@hs.com=alice,bob@hs.com=bob"`
 
-**Field mapping (HubSpot):**
-- `Company Name` → customer name
-- `Email` → contact email
-- `Domain/Website` → domain
-- `Notes` / `Description` → interaction summary
-- `Activity Type` → interaction type (Call/Email/Meeting/Note)
-- `Activity Date` → interaction date
-- `Record ID` → source reference ID
+**HubSpot Export Directory** (recommended for migrations):
+
+Export from HubSpot → Settings → Data Management → Export. Place all CSVs in one directory:
+
+```
+hubspot-export/
+  companies.csv        # Company records
+  contacts.csv         # Contact records (multi-contact per company)
+  deals.csv            # Pipeline deals
+  engagements.csv      # Calls, emails, meetings, notes
+```
+
+**What gets imported:**
+- Companies → `customers/<slug>/main_facts.md` (15+ field mappings)
+- Contacts → `customers/<slug>/contacts.json` (all contacts, first = primary)
+- Custom HubSpot properties → `customers/<slug>/custom_properties.json`
+- Deals → pipeline stage mapped (prospecting→lead, qualification→qualified, etc.)
+- Engagements → interactions with call duration, outcome, and recording URL preserved
 
 **sourceRef format:**
-- HubSpot: `hubspot://activity/<Record ID>`
+- HubSpot company: `hubspot://company/<Record ID>`
+- HubSpot deal: `hubspot://deal/<Record ID>`
+- HubSpot engagement: `hubspot://engagement/<Record ID>`
 - CSV: `csv://row/<sha256-of-row>`
 
 ---
@@ -411,17 +430,39 @@ dxcrm import --from salesforce --mode api \
 
 ---
 
-## dxcrm backup / restore
+## dxcrm backup (Enterprise)
 
 ```bash
-dxcrm backup [./backup.zip]                    # Backup customers/ directory
-dxcrm restore ./backup.zip                      # Restore from backup
-dxcrm backup schedule --every day --keep 7      # Schedule daily backups, keep last 7
-dxcrm backup schedule --status                  # Show current schedule
-dxcrm backup schedule --clear                   # Remove backup schedule
+dxcrm backup [./backup.zip]                           # Backup customers/ + .agentic/
+dxcrm backup --encrypt                                 # AES-256-GCM encrypted backup
+dxcrm backup --remote s3://my-bucket/crm-backups/     # Backup + upload to S3
+dxcrm backup --remote rsync://host:/path/to/backups/  # Backup + rsync to remote
+dxcrm backup verify ./dxcrm-backup-2026-05-29.zip     # Verify backup integrity
+dxcrm backup list                                      # List all logged backups
+dxcrm backup schedule --every day --keep 7             # Daily backups, keep last 7
+dxcrm backup schedule --every week --keep 4            # Weekly backups, keep last 4
+dxcrm backup schedule --status                         # Show current schedule
+dxcrm backup schedule --clear                          # Remove backup schedule
 ```
 
-**Backup schedule** is stored in `.agentic/config.json` and executed by the daemon (hourly check, runs if >1 day since last backup). Old backups are pruned automatically to keep only the last N.
+**Options:**
+- `--encrypt` — AES-256-GCM encryption (key derived from `DXCRM_BACKUP_KEY` env var)
+- `--remote <url>` — Upload after backup: `s3://`, `rsync://`, or local path
+
+**What's backed up:** `customers/` (all CRM data) + `.agentic/` (config, audit log, GDPR log, sequences, goals, agent queue)
+
+**Manifest:** Each backup ZIP contains `manifest.json` with SHA-256 hash, file count, customer count, and timestamp. Verified automatically after creation.
+
+**Retention / Grandfathering:**
+```json
+// .agentic/config.json
+{ "backup": { "retention": { "daily": 7, "weekly": 4, "monthly": 12 } } }
+```
+Keeps last 7 daily, last 4 weekly (last backup of each week), last 12 monthly (last backup of each month).
+
+**Backup log:** `.agentic/backup-log.json` — JSON array of all backups with metadata (size, verified, encrypted, customer count).
+
+**MCP equivalents:** `backup_now({ remote? })` · `list_backups({ limit? })`
 
 ---
 

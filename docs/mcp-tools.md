@@ -1,6 +1,6 @@
-# MCP Tools Reference — datasynx-opencrm v2 (30 Tools)
+# MCP Tools Reference — datasynx-opencrm v2 (50 Tools)
 
-All 30 tools are registered via `server.registerTool()` (MCP SDK v1.x).
+All 50 tools are registered via `server.registerTool()` (MCP SDK v1.x).
 Server name: `datasynx-opencrm`
 Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 
@@ -1307,5 +1307,57 @@ Create or update a knowledge base article.
   "tags": ["api", "limits"],
   "public": true,
   "sourceTicketId": "T-042"
+}
+```
+
+---
+
+## Enterprise Backup
+
+### backup_now
+
+Trigger an immediate backup of `customers/` + `.agentic/`. Creates a timestamped ZIP with an embedded SHA-256 manifest. Optionally encrypts (AES-256-GCM) and uploads to S3/rsync remote.
+
+**Input:** `{ remote?: string, note?: string }`
+
+- `remote` — Upload destination: `s3://bucket/path`, `rsync://host:/path`, or local dir
+- `note` — Optional label stored in the backup log
+
+**Output:**
+```json
+{
+  "path": "/backups/dxcrm-backup-2026-05-29T17-52-00.zip",
+  "createdAt": "2026-05-29T17:52:00.000Z",
+  "customerCount": 47,
+  "fileCount": 312,
+  "sizeMb": "4.2 MB",
+  "directories": ["customers", ".agentic"],
+  "verified": true,
+  "uploadedTo": "s3://my-bucket/crm-backups/dxcrm-backup-2026-05-29T17-52-00.zip"
+}
+```
+
+### list_backups
+
+List available CRM backups with metadata. Reads from `.agentic/backup-log.json` (rich metadata) with fallback to directory scan.
+
+**Input:** `{ limit?: number }` (1–50, default 10)
+
+**Output:**
+```json
+{
+  "count": 3,
+  "totalAvailable": 12,
+  "backups": [
+    {
+      "filename": "dxcrm-backup-2026-05-29T17-52-00.zip",
+      "createdAt": "2026-05-29T17:52:00.000Z",
+      "sizeMb": "4.2 MB",
+      "verified": true,
+      "encrypted": false,
+      "customerCount": 47,
+      "fileCount": 312
+    }
+  ]
 }
 ```
