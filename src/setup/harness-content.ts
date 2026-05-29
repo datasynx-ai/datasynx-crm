@@ -66,10 +66,13 @@ const ALL_TOOLS = [
   // Knowledge Base (H8)
   "search_knowledge_base",
   "create_kb_article",
+  // Backup (Enterprise)
+  "backup_now",
+  "list_backups",
 ] as const;
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
-export const TOOL_COUNT = ALL_TOOLS.length; // 48
+export const TOOL_COUNT = ALL_TOOLS.length; // 50
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -189,6 +192,10 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`search_knowledge_base({ query, publicOnly? })\` — full-text search across KB articles
 - \`create_kb_article({ id, title, body, category?, tags?, public?, sourceTicketId? })\` — create or update KB article
 
+### Backup (Enterprise)
+- \`backup_now({ remote?, note? })\` — trigger immediate backup of customers/ + .agentic/ with manifest + integrity check
+- \`list_backups({ limit? })\` — list available backups with date, size, verification status, customer count
+
 ## Rules
 - Never discuss a customer without first loading their context
 - Always log interactions — calls, emails, Slack, demos, proposals
@@ -202,7 +209,7 @@ ${dataDir}`.trim();
 /** OpenClaw / Hermes: SOUL.md */
 export function buildSoulMd(framework: "openclaw" | "hermes"): string {
   return `# Identity
-I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (48 MCP tools).
+I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (50 MCP tools).
 My purpose is to help manage customer relationships proactively — acting before being asked.
 
 # Core Behaviors
@@ -290,6 +297,8 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 
 **Knowledge Base (H8):** search_knowledge_base · create_kb_article
 
+**Backup (Enterprise):** backup_now · list_backups
+
 ## Never
 - Discuss a customer without context loaded
 - Skip logging — every touchpoint matters
@@ -305,7 +314,7 @@ export function buildHermesSkillMd(): string {
   return `---
 name: datasynx-crm
 version: 2.0.0
-description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (48 MCP tools)
+description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (50 MCP tools)
 triggers:
   - "customer"
   - "client"
@@ -441,7 +450,8 @@ enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · lis
 generate_quote · get_quote_status · get_booking_link ·
 create_ticket · update_ticket · list_tickets · close_ticket ·
 send_nps_survey · get_survey_results ·
-search_knowledge_base · create_kb_article
+search_knowledge_base · create_kb_article ·
+backup_now · list_backups
 
 ## Data: ${dataDir}`.trim();
 }
