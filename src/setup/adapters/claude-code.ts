@@ -73,7 +73,7 @@ export class ClaudeCodeAdapter implements FrameworkAdapter {
       transport: "stdio",
       configPath: CLAUDE_JSON,
       harnessFiles,
-      notes: "alwaysAllow set for all 37 MCP tools. CLAUDE.md written to CRM root.",
+      notes: "alwaysAllow set for all 44 MCP tools. CLAUDE.md written to CRM root.",
     };
   }
 

@@ -45,6 +45,11 @@ import { registerUnenrollFromSequence } from "./tools/unenroll-from-sequence.js"
 import { registerListSequences } from "./tools/list-sequences.js";
 import { registerGenerateQuote } from "./tools/generate-quote.js";
 import { registerGetQuoteStatus } from "./tools/get-quote-status.js";
+import { registerGetBookingLink } from "./tools/get-booking-link.js";
+import { registerCreateTicket } from "./tools/create-ticket.js";
+import { registerUpdateTicket } from "./tools/update-ticket.js";
+import { registerListTickets } from "./tools/list-tickets.js";
+import { registerCloseTicket } from "./tools/close-ticket.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -52,7 +57,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 39 tools
+  // Register all 45 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -93,6 +98,11 @@ export function createMcpServer(): McpServer {
   registerListSequences(server);
   registerGenerateQuote(server);
   registerGetQuoteStatus(server);
+  registerGetBookingLink(server);
+  registerCreateTicket(server);
+  registerUpdateTicket(server);
+  registerListTickets(server);
+  registerCloseTicket(server);
 
   return server;
 }

@@ -1,0 +1,119 @@
+import fs from "fs";
+import path from "path";
+import { TicketSchema, type Ticket } from "../schemas/ticket.js";
+
+const TICKET_HEADER = "# Tickets\n\n";
+const TABLE_HEADER = `| ID | Title | Status | Priority | Assignee | Created | SLA Due | Resolved |
+|----|-------|--------|----------|----------|---------|---------|---------|`;
+
+function ticketsPath(dataDir: string, slug: string): string {
+  return path.join(dataDir, "customers", slug, "tickets.md");
+}
+
+function escapeMd(s: string | undefined): string {
+  return (s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+}
+
+function parseTicketsFromMarkdown(content: string): Ticket[] {
+  const tickets: Ticket[] = [];
+  const lines = content.split("\n");
+  let inTable = false;
+
+  for (const line of lines) {
+    if (line.startsWith("| ID |") || line.startsWith("|----")) {
+      inTable = true;
+      continue;
+    }
+    if (!inTable) continue;
+    if (!line.startsWith("|")) { inTable = false; continue; }
+
+    const cols = line.split("|").slice(1, -1).map((c) => c.trim());
+    if (cols.length < 8) continue;
+    const [id, title, status, priority, assignee, created, slaDue, resolved] = cols;
+    if (!id || !title || id === "ID") continue;
+
+    const raw = {
+      id,
+      title,
+      status: status || "open",
+      priority: priority || "normal",
+      ...(assignee ? { assignee } : {}),
+      created: created || new Date().toISOString().slice(0, 10),
+      ...(slaDue ? { slaDue } : {}),
+      ...(resolved ? { resolved } : {}),
+    };
+
+    const parsed = TicketSchema.safeParse(raw);
+    if (parsed.success) tickets.push(parsed.data);
+  }
+  return tickets;
+}
+
+function serializeTickets(tickets: Ticket[]): string {
+  const rows = tickets.map((t) =>
+    `| ${t.id} | ${escapeMd(t.title)} | ${t.status} | ${t.priority} | ${t.assignee ?? ""} | ${t.created} | ${t.slaDue ?? ""} | ${t.resolved ?? ""} |`
+  );
+  return `${TICKET_HEADER}${TABLE_HEADER}\n${rows.join("\n")}\n`;
+}
+
+export async function readTickets(dataDir: string, slug: string): Promise<Ticket[]> {
+  const p = ticketsPath(dataDir, slug);
+  if (!fs.existsSync(p)) return [];
+  return parseTicketsFromMarkdown(fs.readFileSync(p, "utf-8") as string);
+}
+
+export async function upsertTicket(dataDir: string, slug: string, ticket: Ticket): Promise<void> {
+  const p = ticketsPath(dataDir, slug);
+  const existing = await readTickets(dataDir, slug);
+  const idx = existing.findIndex((t) => t.id === ticket.id);
+  if (idx >= 0) {
+    existing[idx] = ticket;
+  } else {
+    existing.push(ticket);
+  }
+  fs.writeFileSync(p, serializeTickets(existing), "utf-8");
+}
+
+export function nextTicketId(tickets: Ticket[]): string {
+  const nums = tickets
+    .map((t) => parseInt(t.id.replace("T-", ""), 10))
+    .filter((n) => !isNaN(n));
+  const max = nums.length > 0 ? Math.max(...nums) : 0;
+  return `T-${String(max + 1).padStart(3, "0")}`;
+}
+
+export async function listAllTickets(
+  dataDir: string,
+  filter?: { slug?: string; status?: string; priority?: string; assignee?: string }
+): Promise<Array<{ slug: string; ticket: Ticket }>> {
+  const customersDir = path.join(dataDir, "customers");
+  if (!fs.existsSync(customersDir)) return [];
+
+  const slugs = filter?.slug
+    ? [filter.slug]
+    : fs.readdirSync(customersDir).filter((s) => {
+        try { return fs.statSync(path.join(customersDir, s)).isDirectory(); } catch { return false; }
+      });
+
+  const results: Array<{ slug: string; ticket: Ticket }> = [];
+  for (const slug of slugs) {
+    const tickets = await readTickets(dataDir, slug);
+    for (const ticket of tickets) {
+      if (filter?.status && ticket.status !== filter.status) continue;
+      if (filter?.priority && ticket.priority !== filter.priority) continue;
+      if (filter?.assignee && ticket.assignee !== filter.assignee) continue;
+      results.push({ slug, ticket });
+    }
+  }
+
+  // Sort: urgent first, then by created date
+  const priorityOrder: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+  results.sort((a, b) => {
+    const pa = priorityOrder[a.ticket.priority] ?? 2;
+    const pb = priorityOrder[b.ticket.priority] ?? 2;
+    if (pa !== pb) return pa - pb;
+    return a.ticket.created.localeCompare(b.ticket.created);
+  });
+
+  return results;
+}

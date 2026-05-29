@@ -1,7 +1,7 @@
 // src/setup/harness-content.ts
-// Single Source of Truth for all harness file content — v2 (39 MCP tools, growing).
+// Single Source of Truth for all harness file content — v2 (44 MCP tools, growing).
 
-// All 37 registered MCP tools — keep in sync with src/mcp/server.ts
+// All registered MCP tools — keep in sync with src/mcp/server.ts
 const ALL_TOOLS = [
   // Core v1
   "get_capabilities",
@@ -53,10 +53,17 @@ const ALL_TOOLS = [
   // Quote Generator (H4)
   "generate_quote",
   "get_quote_status",
+  // Calendly Scheduler (H3)
+  "get_booking_link",
+  // Ticket Management (H6)
+  "create_ticket",
+  "update_ticket",
+  "list_tickets",
+  "close_ticket",
 ] as const;
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
-export const TOOL_COUNT = ALL_TOOLS.length; // 39
+export const TOOL_COUNT = ALL_TOOLS.length; // 44
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -96,7 +103,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 1. \`run_deal_agent({ slug, dealName, autonomyLevel: "suggest" })\`
 2. Present the plan, ask for approval before acting
 
-## All 39 MCP Tools
+## All ${TOOL_COUNT} MCP Tools
 
 ### Foundation
 - \`get_capabilities()\` — complete tool reference with schemas
@@ -159,6 +166,15 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`generate_quote({ slug, dealName, lineItems, vatPercent?, validUntilDays? })\` — create HTML quote with auto-numbering Q-YYYY-NNN
 - \`get_quote_status({ quoteNumber?, slug? })\` — get quote or list all quotes for customer
 
+### Meeting Scheduler (H3)
+- \`get_booking_link({ slug, eventType?, prefillName? })\` — get Calendly booking URL, optionally pre-filled with customer name/email
+
+### Ticket Management (H6)
+- \`create_ticket({ slug, title, priority?, assignee? })\` — open support ticket with auto-SLA due date
+- \`update_ticket({ slug, ticketId, status?, assignee? })\` — update ticket status or assignee
+- \`list_tickets({ slug?, status?, priority?, assignee? })\` — list tickets sorted by priority
+- \`close_ticket({ slug, ticketId, resolution? })\` — close ticket and optionally log resolution
+
 ## Rules
 - Never discuss a customer without first loading their context
 - Always log interactions — calls, emails, Slack, demos, proposals
@@ -172,7 +188,7 @@ ${dataDir}`.trim();
 /** OpenClaw / Hermes: SOUL.md */
 export function buildSoulMd(framework: "openclaw" | "hermes"): string {
   return `# Identity
-I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (39 MCP tools).
+I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (44 MCP tools).
 My purpose is to help manage customer relationships proactively — acting before being asked.
 
 # Core Behaviors
@@ -252,6 +268,10 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 
 **Quotes (H4):** generate_quote · get_quote_status
 
+**Calendly (H3):** get_booking_link
+
+**Tickets (H6):** create_ticket · update_ticket · list_tickets · close_ticket
+
 ## Never
 - Discuss a customer without context loaded
 - Skip logging — every touchpoint matters
@@ -267,7 +287,7 @@ export function buildHermesSkillMd(): string {
   return `---
 name: datasynx-crm
 version: 2.0.0
-description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (39 MCP tools)
+description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (44 MCP tools)
 triggers:
   - "customer"
   - "client"
@@ -400,7 +420,8 @@ pursue_goal · get_goal_status · register_push_subscription · get_push_status 
 open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
-generate_quote · get_quote_status
+generate_quote · get_quote_status · get_booking_link ·
+create_ticket · update_ticket · list_tickets · close_ticket
 
 ## Data: ${dataDir}`.trim();
 }
@@ -465,7 +486,8 @@ pursue_goal · get_goal_status · register_push_subscription · get_push_status 
 open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
-generate_quote · get_quote_status
+generate_quote · get_quote_status · get_booking_link ·
+create_ticket · update_ticket · list_tickets · close_ticket
 
 ## Never
 - Discuss a customer without loading context first
