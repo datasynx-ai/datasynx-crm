@@ -26,6 +26,8 @@ import { templateCommand } from "./commands/template.js";
 import { sequenceCommand } from "./commands/sequence.js";
 import { quoteCommand } from "./commands/quote.js";
 import { ticketCommand } from "./commands/ticket.js";
+import { surveyCommand } from "./commands/survey.js";
+import { kbCommand } from "./commands/kb.js";
 
 const program = new Command();
 program
@@ -62,5 +64,7 @@ program.addCommand(templateCommand);
 program.addCommand(sequenceCommand);
 program.addCommand(quoteCommand);
 program.addCommand(ticketCommand);
+program.addCommand(surveyCommand);
+program.addCommand(kbCommand);
 
 await program.parseAsync(process.argv);

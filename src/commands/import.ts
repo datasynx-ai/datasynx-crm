@@ -272,7 +272,7 @@ async function runPipedriveFileImport(
 
 export async function runImport(
   sourcePath: string,
-  opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string },
+  opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string; ownerMap?: Record<string, string>; resume?: boolean },
   dataDir?: string
 ): Promise<ImportResult> {
   const dir = dataDir ?? process.cwd();
@@ -290,7 +290,17 @@ export async function runImport(
   // Single-file HubSpot CSV falls through to generic LLM-mapping flow below
   if (opts.from === "hubspot" && sourcePath && fs.existsSync(sourcePath) && fs.statSync(sourcePath).isDirectory()) {
     const { runHubSpotCsvImport } = await import("./import-hubspot.js");
-    const r = await runHubSpotCsvImport(sourcePath, dir, opts);
+    const r = await runHubSpotCsvImport(sourcePath, dir, {
+      ...(opts.dryRun ? { dryRun: true } : {}),
+      ...(opts.resume ? { resume: true } : {}),
+      ownerMap: opts.ownerMap ?? {},
+    });
+    if (r.customPropertiesSaved > 0) {
+      console.error(`[import] Custom properties saved: ${r.customPropertiesSaved}`);
+    }
+    if (r.ownersResolved > 0) {
+      console.error(`[import] Owners resolved: ${r.ownersResolved}`);
+    }
     return {
       customersCreated: r.companiesProcessed,
       interactionsImported: r.engagementsImported + r.dealsImported + r.contactsImported,
@@ -586,20 +596,69 @@ export async function runPipedriveApiImport(
 
 export const importCommand = new Command("import")
   .description("Import customers and interactions from HubSpot, Salesforce, Pipedrive, or CSV")
-  .argument("[path]", "Path to export file (CSV), optional for API modes")
+  .argument("[path]", "Path to export file or directory")
   .option("--from <source>", "Source CRM: hubspot | csv | salesforce | pipedrive", "csv")
   .option("--dry-run", "Preview what would be imported without writing")
   .option("--mode <mode>", "Import mode: file | api")
-  .option("--token <token>", "API token (Salesforce, Pipedrive)")
-  .option("--url <url>", "Instance URL (e.g. https://myco.salesforce.com or https://myco.pipedrive.com)")
-  .action(async (sourcePath: string, opts: { from: string; dryRun?: boolean; mode?: string; token?: string; url?: string }) => {
+  .option("--token <token>", "API token (Salesforce, Pipedrive, HubSpot)")
+  .option("--url <url>", "Instance URL (e.g. https://myco.salesforce.com)")
+  .option("--analyze", "Analyze export and show what would be imported (no write)")
+  .option("--resume", "Resume a previously interrupted import")
+  .option("--owner-map <mapping>", 'Map HubSpot owner emails to reps: "alice@hs.com=alice,bob@hs.com=bob"')
+  .action(async (sourcePath: string, opts: {
+    from: string; dryRun?: boolean; mode?: string; token?: string; url?: string;
+    analyze?: boolean; resume?: boolean; ownerMap?: string;
+  }) => {
     const dryRun = opts.dryRun ?? false;
+
+    // Parse owner map
+    const ownerMap: Record<string, string> = {};
+    if (opts.ownerMap) {
+      for (const pair of opts.ownerMap.split(",")) {
+        const [hs, rep] = pair.split("=");
+        if (hs && rep) ownerMap[hs.trim()] = rep.trim();
+      }
+    }
+
+    // HubSpot analyze mode
+    if (opts.analyze && opts.from === "hubspot" && sourcePath) {
+      const { analyzeHubSpotExport } = await import("./import-hubspot.js");
+      const analysis = await analyzeHubSpotExport(sourcePath);
+      console.log(bold("\nDatasynxOpenCRM — HubSpot Import Analysis"));
+      console.log("==========================================");
+      console.log(info(`Companies:      ${analysis.companiesFound}`));
+      console.log(info(`Contacts:       ${analysis.contactsFound} (${analysis.unmappedContacts} unmapped companies)`));
+      console.log(info(`Deals:          ${analysis.dealsFound}`));
+      console.log(info(`Engagements:    ${analysis.engagementsFound}`));
+      if (analysis.customPropertiesDetected.length > 0) {
+        console.log(info(`\nCustom Properties: ${analysis.customPropertiesDetected.length} detected`));
+        console.log(`  ${analysis.customPropertiesDetected.slice(0, 10).join(", ")}${analysis.customPropertiesDetected.length > 10 ? " ..." : ""}`);
+      }
+      if (analysis.ownersDetected.length > 0) {
+        console.log(info(`\nOwners detected: ${analysis.ownersDetected.join(", ")}`));
+        console.log(`  Use --owner-map "${analysis.ownersDetected.map((o) => `${o}=<rep>`).join(",")}"`);
+      }
+      if (analysis.unknownStages.length > 0) {
+        console.log(info(`\nUnknown stages (→ "qualified"): ${analysis.unknownStages.join(", ")}`));
+      }
+      console.log(info(`\nEstimated import time: ~${analysis.estimatedMinutes} min`));
+      console.log(info(`\nRun without --analyze to start import.`));
+      return;
+    }
 
     if (!dryRun) {
       console.log(info(`Importing from ${bold(opts.from)}: ${sourcePath}`));
     }
 
-    const result = await runImport(sourcePath, opts);
+    const result = await runImport(sourcePath, {
+      from: opts.from,
+      ...(dryRun ? { dryRun: true } : {}),
+      ...(opts.mode ? { mode: opts.mode } : {}),
+      ...(opts.token ? { token: opts.token } : {}),
+      ...(opts.url ? { url: opts.url } : {}),
+      ...(opts.resume ? { resume: true } : {}),
+      ownerMap,
+    });
 
     if (!dryRun) {
       console.log(success(`✓ Import complete:`));

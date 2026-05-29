@@ -43,6 +43,26 @@ files on your machine. No cloud, no HubSpot, no per-seat pricing.
 | get_org_intelligence | Stakeholder map: champions, buyers, blockers, health scores, risk flags, recommendation | any |
 | open_deal_room | Multi-agent deal brief: graph + health + deal health + simulation + playbook in one call | any |
 | get_proactive_briefing | Daily briefing: urgent alerts, opportunities, P50/P90 forecast, top action | any |
+| list_email_templates | List all saved email templates with category and subject | any |
+| get_email_template | Retrieve a single email template by ID | any |
+| draft_email | Draft a personalized email from a template for a customer | rep+ |
+| enroll_in_sequence | Enroll a contact in a multi-step email sequence | rep+ |
+| list_sequence_enrollments | List active sequence enrollments (optionally filtered) | any |
+| unenroll_from_sequence | Remove a contact from an active sequence | rep+ |
+| list_sequences | List all defined email sequences | any |
+| generate_quote | Generate a structured quote document for a deal | rep+ |
+| get_quote_status | Retrieve a generated quote with full line items | any |
+| get_booking_link | Get a scheduling/Calendly link for a meeting | rep+ |
+| create_ticket | Create a support ticket for a customer with SLA due date | rep+ |
+| update_ticket | Update ticket status or assignee | rep+ |
+| list_tickets | List open/closed tickets filtered by customer, status, or priority | any |
+| close_ticket | Close a ticket and optionally log resolution note | rep+ |
+| send_nps_survey | Generate NPS/CSAT survey token + HTML email body | rep+ |
+| get_survey_results | NPS score, promoter/passive/detractor breakdown, all responses | any |
+| search_knowledge_base | Full-text search across all KB articles (title, body, tags) | any |
+| create_kb_article | Create or update a knowledge base article | rep+ |
+| backup_now | Trigger immediate backup of customers/ + .agentic/ with integrity check | admin |
+| list_backups | List available backups with date, size, verification status | any |
 
 ## Tool Reference
 
@@ -459,4 +479,171 @@ get_proactive_briefing()                         // today
 get_proactive_briefing({ date: "2026-05-28" })   // specific date
 \`\`\`
 Returns: { date, generatedAt, urgent: string[], opportunities: string[], forecast: string, topAction: string }
+
+## H2 — Email Templates
+
+### list_email_templates (MCP)
+List all saved email templates. Returns id, name, category, subject, and body preview.
+\`\`\`
+list_email_templates()
+list_email_templates({ category: "follow-up" })
+\`\`\`
+Returns: { templates: [{ id, name, category, subject, bodyPreview }] }
+
+### get_email_template (MCP)
+Retrieve a single email template with full body and all variables.
+\`\`\`
+get_email_template({ id: "proposal-follow-up" })
+\`\`\`
+Returns: { id, name, category, subject, body, variables: string[] }
+
+### draft_email (MCP)
+Draft a personalized email from a template, substituting variables from customer context.
+\`\`\`
+draft_email({ slug: "acme-corp", templateId: "proposal-follow-up", overrides: { subject: "Following up on your proposal" } })
+\`\`\`
+Returns: { subject, body, suggestedTo, suggestedCc?, variables }
+
+## H1 — Email Sequences
+
+### enroll_in_sequence (MCP)
+Enroll a customer contact in a multi-step email sequence. Steps are sent automatically.
+\`\`\`
+enroll_in_sequence({ slug: "acme-corp", sequenceId: "onboarding-7day", contactEmail: "alice@acme.com" })
+\`\`\`
+Returns: { enrollmentId, slug, sequenceId, contactEmail, enrolledAt, nextStepDue, totalSteps }
+
+### list_sequence_enrollments (MCP)
+List active (and optionally completed) sequence enrollments.
+\`\`\`
+list_sequence_enrollments()
+list_sequence_enrollments({ slug: "acme-corp", status: "active" })
+\`\`\`
+Returns: { enrollments: [{ enrollmentId, slug, sequenceId, contactEmail, currentStep, nextStepDue, status }] }
+
+### unenroll_from_sequence (MCP)
+Remove a contact from an active sequence (marks as cancelled).
+\`\`\`
+unenroll_from_sequence({ enrollmentId: "enr_abc123" })
+\`\`\`
+Returns: { success: boolean, enrollmentId }
+
+### list_sequences (MCP)
+List all defined email sequences with step count and description.
+\`\`\`
+list_sequences()
+\`\`\`
+Returns: { sequences: [{ id, name, description, steps: number, triggerOn? }] }
+
+## H4 — Quotes
+
+### generate_quote (MCP)
+Generate a structured quote document for a customer deal.
+\`\`\`
+generate_quote({ slug: "acme-corp", dealName: "Enterprise License", lineItems: [{ description: "Platform (12 mo)", quantity: 1, unitPrice: 24000 }], validDays: 30 })
+\`\`\`
+Returns: { quoteId, slug, dealName, total, currency, validUntil, markdownTable, fullText }
+
+### get_quote_status (MCP)
+Retrieve a generated quote with full line items and total.
+\`\`\`
+get_quote_status({ quoteId: "Q-2026-001" })
+\`\`\`
+Returns: { quoteId, slug, dealName, lineItems, subtotal, total, validUntil, status }
+
+## H3 — Meeting Scheduler
+
+### get_booking_link (MCP)
+Get a scheduling link for a meeting with a customer. Configure via DXCRM_CALENDLY_URL or per-customer sources.json.
+\`\`\`
+get_booking_link({ slug: "acme-corp", meetingType: "demo" })
+\`\`\`
+Returns: { url, meetingType, calendarProvider, prefillEmail?, note? }
+
+## H6 — Ticket Management
+
+### create_ticket (MCP)
+Create a support ticket. Auto-sets SLA due date: critical=4h, high=24h, medium=72h, low=168h.
+\`\`\`
+create_ticket({ slug: "acme-corp", title: "Login broken", priority: "high", description: "Cannot login since yesterday", assignee: "alice" })
+\`\`\`
+Returns: { ticketId, slug, title, priority, status, slaDue, assignee?, createdAt }
+
+### update_ticket (MCP)
+Update ticket status or assignee.
+\`\`\`
+update_ticket({ slug: "acme-corp", ticketId: "T-001", status: "in-progress", assignee: "bob" })
+\`\`\`
+Returns: { ticketId, status, updatedAt }
+
+### list_tickets (MCP)
+List tickets sorted by priority. Filter by customer, status, priority, or assignee.
+\`\`\`
+list_tickets()
+list_tickets({ slug: "acme-corp", status: "open" })
+list_tickets({ priority: "high", assignee: "alice" })
+\`\`\`
+Returns: { tickets: [{ ticketId, slug, title, priority, status, slaDue, assignee?, createdAt }] }
+
+### close_ticket (MCP)
+Close a ticket and optionally log a resolution note to interactions.md.
+\`\`\`
+close_ticket({ slug: "acme-corp", ticketId: "T-001", resolution: "Fixed by updating oauth token" })
+\`\`\`
+Returns: { ticketId, status: "closed", closedAt, resolution? }
+
+## H7 — NPS/CSAT Survey Engine
+
+### send_nps_survey (MCP)
+Generate a survey token and HTML email body. Customers click a score button (0–10) which
+posts to your server's /survey/respond endpoint. Set DXCRM_SERVER_URL or pass serverUrl.
+\`\`\`
+send_nps_survey({ slug: "acme-corp", contactEmail: "alice@acme.com", surveyId: "q1-nps" })
+send_nps_survey({ slug: "acme-corp", contactEmail: "alice@acme.com", surveyId: "q1-nps", serverUrl: "https://crm.myco.com" })
+\`\`\`
+Returns: { token, emailSubject, emailBody (HTML), surveyId, expiresAt }
+
+### get_survey_results (MCP)
+Calculate NPS score and breakdown by promoter/passive/detractor.
+\`\`\`
+get_survey_results({ surveyId: "q1-nps" })
+get_survey_results({ surveyId: "q1-nps", slug: "acme-corp" })
+\`\`\`
+Returns: { surveyId, npsScore (-100 to 100), responseCount, promoters, passives, detractors, responses: [{ slug, contactEmail, score, comment?, respondedAt }] }
+
+## H8 — Knowledge Base
+
+### search_knowledge_base (MCP)
+Full-text search across all KB articles (title, body, tags).
+\`\`\`
+search_knowledge_base({ query: "password reset" })
+search_knowledge_base({ query: "billing", publicOnly: true })
+\`\`\`
+Returns: { results: [{ id, title, category, excerpt, public, tags }] }
+
+### create_kb_article (MCP)
+Create or update a knowledge base article (upserts by ID).
+\`\`\`
+create_kb_article({ id: "password-reset", title: "How to reset your password", body: "## Steps\\n1. Go to login...", category: "account", tags: ["password", "auth"], public: true })
+\`\`\`
+Returns: { id, title, createdAt, updatedAt, public }
+
+## Enterprise Backup
+
+### backup_now (MCP)
+Trigger an immediate backup of customers/ + .agentic/. Creates a timestamped ZIP with
+SHA-256 manifest. Optionally encrypts (AES-256-GCM) and uploads to S3/rsync/local.
+\`\`\`
+backup_now({})
+backup_now({ remote: "s3://my-bucket/crm-backups/", note: "Pre-migration backup" })
+\`\`\`
+Returns: { path, createdAt, customerCount, fileCount, sizeMb, directories, verified, uploadedTo? }
+
+### list_backups (MCP)
+List available CRM backups with metadata from .agentic/backup-log.json.
+Falls back to directory scan if log unavailable.
+\`\`\`
+list_backups({ limit: 10 })
+\`\`\`
+Returns: { count, totalAvailable, backups: [{ filename, createdAt, sizeMb, verified, encrypted, customerCount, fileCount }] }
 `.trim();

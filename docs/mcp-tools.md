@@ -1,6 +1,6 @@
-# MCP Tools Reference — datasynx-opencrm v2 (30 Tools)
+# MCP Tools Reference — datasynx-opencrm v2 (50 Tools)
 
-All 30 tools are registered via `server.registerTool()` (MCP SDK v1.x).
+All 50 tools are registered via `server.registerTool()` (MCP SDK v1.x).
 Server name: `datasynx-opencrm`
 Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 
@@ -1035,5 +1035,329 @@ Set quarterly goal:  pursue_goal(goal, deadline)
 Check goal progress: get_goal_status()
 Enable real-time:    register_push_subscription(provider, slug, webhookUrl)
 Push sub status:     get_push_status()
+List templates:      list_email_templates({ category?: "outreach" | "followup" | "support" })
+Draft email:         draft_email({ slug, templateId, overrides? })
+Enroll in sequence:  enroll_in_sequence({ slug, contactEmail, sequenceId })
+List enrollments:    list_sequence_enrollments({ slug?, status? })
+Generate quote:      generate_quote({ slug, dealName, lineItems, vatPercent?, validUntilDays? })
+Booking link:        get_booking_link({ slug, eventType? })
+Create ticket:       create_ticket({ slug, title, priority?, assignee? })
+Update ticket:       update_ticket({ slug, ticketId, status?, assignee? })
+Close ticket:        close_ticket({ slug, ticketId, resolution? })
+Send NPS survey:     send_nps_survey({ slug, contactEmail, surveyId, serverUrl? })
+Survey results:      get_survey_results({ surveyId, slug? })
+Search KB:           search_knowledge_base({ query, publicOnly? })
+Create KB article:   create_kb_article({ id, title, body, category?, tags?, public? })
 Unsure what to use:  get_capabilities()
+```
+
+---
+
+## H1 — Email Sequences
+
+### enroll_in_sequence
+
+Enroll a contact in a multi-step email sequence.
+
+**Input:**
+```json
+{
+  "slug": "acme-corp",
+  "contactEmail": "alice@acme.com",
+  "sequenceId": "onboarding-7day"
+}
+```
+
+**Output:**
+```json
+{
+  "enrollmentId": "enr_1748500000_abc123",
+  "sequenceId": "onboarding-7day",
+  "status": "active",
+  "currentStep": 0
+}
+```
+
+### list_sequence_enrollments
+
+List all enrollments, optionally filtered by slug or status.
+
+**Input:** `{ slug?: string, status?: "active" | "paused" | "completed" | "bounced" }`
+
+### unenroll_from_sequence
+
+Pause an active enrollment.
+
+**Input:** `{ enrollmentId: string }`
+
+### list_sequences
+
+List all configured sequences with step count and active enrollment count.
+
+---
+
+## H2 — Email Templates
+
+### list_email_templates
+
+List templates by category.
+
+**Input:** `{ category?: "outreach" | "followup" | "support" | "proposal" | "renewal" }`
+
+### get_email_template
+
+Get full template with auto-detected variable placeholders.
+
+**Input:** `{ id: string }`
+
+### draft_email
+
+Draft a personalized email from a template + customer facts.
+
+**Input:** `{ slug: string, templateId: string, overrides?: Record<string, string> }`
+
+---
+
+## H4 — Quote Generator
+
+### generate_quote
+
+Create a professional HTML quote with auto-numbering (Q-YYYY-NNN).
+
+**Input:**
+```json
+{
+  "slug": "acme-corp",
+  "dealName": "Enterprise License",
+  "lineItems": [
+    { "description": "CRM Platform License", "qty": 10, "unitPrice": 200 }
+  ],
+  "vatPercent": 19,
+  "validUntilDays": 30
+}
+```
+
+**Output:**
+```json
+{
+  "quoteNumber": "Q-2026-001",
+  "total": 2380,
+  "currency": "EUR",
+  "htmlPath": ".agentic/quotes/Q-2026-001.html",
+  "status": "draft"
+}
+```
+
+### get_quote_status
+
+Get a specific quote or list all quotes for a customer.
+
+**Input:** `{ quoteNumber?: string, slug?: string }`
+
+---
+
+## H3 — Meeting Scheduler (Calendly)
+
+### get_booking_link
+
+Get a Calendly booking URL, optionally pre-filled with customer name/email.
+
+**Input:** `{ slug: string, eventType?: string, prefillName?: string }`
+
+**Output:**
+```json
+{
+  "bookingUrl": "https://calendly.com/team/30min?name=Alice+Jones&email=alice%40acme.com",
+  "eventType": "30min",
+  "customerName": "Alice Jones"
+}
+```
+
+---
+
+## H6 — Ticket Management
+
+### create_ticket
+
+Open a support ticket with auto-calculated SLA due date.
+
+**Input:**
+```json
+{
+  "slug": "acme-corp",
+  "title": "API rate limits too low",
+  "priority": "high",
+  "assignee": "alice@support.com",
+  "description": "Customer hitting 429s on /v2/data endpoint"
+}
+```
+
+**Output:**
+```json
+{
+  "ticketId": "T-001",
+  "status": "open",
+  "priority": "high",
+  "slaDue": "2026-05-31",
+  "created": "2026-05-29"
+}
+```
+
+### update_ticket
+
+Update ticket status or assignee.
+
+**Input:** `{ slug: string, ticketId: string, status?: TicketStatus, assignee?: string }`
+
+### list_tickets
+
+List tickets, optionally cross-customer, sorted by priority.
+
+**Input:** `{ slug?: string, status?: TicketStatus, priority?: TicketPriority, assignee?: string }`
+
+### close_ticket
+
+Close a ticket and optionally log the resolution as a CRM interaction.
+
+**Input:** `{ slug: string, ticketId: string, resolution?: string }`
+
+---
+
+## H7 — NPS/CSAT Survey Engine
+
+### send_nps_survey
+
+Generate a secure survey token and HTML email body. Does not auto-send — returns content for your email provider.
+
+**Input:**
+```json
+{
+  "slug": "acme-corp",
+  "contactEmail": "alice@acme.com",
+  "surveyId": "nps-q2-2026",
+  "serverUrl": "https://crm.yourcompany.com"
+}
+```
+
+**Output:**
+```json
+{
+  "token": "a1b2c3d4e5f6a7b8",
+  "subject": "How likely are you to recommend us?",
+  "body": "<p>Rate us 0-10: ...</p>",
+  "surveyUrl": "https://crm.yourcompany.com/survey/respond?token=a1b2c3d4e5f6a7b8",
+  "note": "Send this email to alice@acme.com to collect NPS response"
+}
+```
+
+### get_survey_results
+
+Get NPS score and full breakdown for a survey.
+
+**Input:** `{ surveyId: string, slug?: string }`
+
+**Output:**
+```json
+{
+  "npsScore": 42,
+  "totalResponses": 7,
+  "promoters": 4,
+  "passives": 2,
+  "detractors": 1,
+  "responses": [...]
+}
+```
+
+---
+
+## H8 — Knowledge Base
+
+### search_knowledge_base
+
+Full-text search across all KB articles (title, body, tags).
+
+**Input:** `{ query: string, publicOnly?: boolean }`
+
+**Output:**
+```json
+{
+  "results": [
+    {
+      "id": "api-rate-limits",
+      "title": "API Rate Limits FAQ",
+      "category": "technical",
+      "excerpt": "Our API allows 1000 requests per minute...",
+      "public": true
+    }
+  ]
+}
+```
+
+### create_kb_article
+
+Create or update a knowledge base article.
+
+**Input:**
+```json
+{
+  "id": "api-rate-limits",
+  "title": "API Rate Limits FAQ",
+  "body": "## Overview\n\nOur API allows...",
+  "category": "technical",
+  "tags": ["api", "limits"],
+  "public": true,
+  "sourceTicketId": "T-042"
+}
+```
+
+---
+
+## Enterprise Backup
+
+### backup_now
+
+Trigger an immediate backup of `customers/` + `.agentic/`. Creates a timestamped ZIP with an embedded SHA-256 manifest. Optionally encrypts (AES-256-GCM) and uploads to S3/rsync remote.
+
+**Input:** `{ remote?: string, note?: string }`
+
+- `remote` — Upload destination: `s3://bucket/path`, `rsync://host:/path`, or local dir
+- `note` — Optional label stored in the backup log
+
+**Output:**
+```json
+{
+  "path": "/backups/dxcrm-backup-2026-05-29T17-52-00.zip",
+  "createdAt": "2026-05-29T17:52:00.000Z",
+  "customerCount": 47,
+  "fileCount": 312,
+  "sizeMb": "4.2 MB",
+  "directories": ["customers", ".agentic"],
+  "verified": true,
+  "uploadedTo": "s3://my-bucket/crm-backups/dxcrm-backup-2026-05-29T17-52-00.zip"
+}
+```
+
+### list_backups
+
+List available CRM backups with metadata. Reads from `.agentic/backup-log.json` (rich metadata) with fallback to directory scan.
+
+**Input:** `{ limit?: number }` (1–50, default 10)
+
+**Output:**
+```json
+{
+  "count": 3,
+  "totalAvailable": 12,
+  "backups": [
+    {
+      "filename": "dxcrm-backup-2026-05-29T17-52-00.zip",
+      "createdAt": "2026-05-29T17:52:00.000Z",
+      "sizeMb": "4.2 MB",
+      "verified": true,
+      "encrypted": false,
+      "customerCount": 47,
+      "fileCount": 312
+    }
+  ]
+}
 ```
