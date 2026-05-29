@@ -13,7 +13,7 @@ import {
 
 const DATA_DIR = "/home/user/crm";
 
-// All 37 registered tool names — must appear in at least one harness output
+// All 39 registered tool names — must appear in at least one harness output
 const ALL_TOOLS = [
   "get_capabilities",
   "get_active_session",
@@ -52,6 +52,8 @@ const ALL_TOOLS = [
   "list_sequence_enrollments",
   "unenroll_from_sequence",
   "list_sequences",
+  "generate_quote",
+  "get_quote_status",
 ] as const;
 
 // v2-critical tools that must appear in CLAUDE.md (highest-value harness file)
@@ -70,8 +72,8 @@ const V2_CRITICAL_TOOLS = [
 ];
 
 describe("TOOL_COUNT", () => {
-  it("exports correct tool count (37)", () => {
-    expect(TOOL_COUNT).toBe(37);
+  it("exports correct tool count (39)", () => {
+    expect(TOOL_COUNT).toBe(39);
   });
 });
 
@@ -79,7 +81,7 @@ describe("buildClaudeMd", () => {
   const content = buildClaudeMd(DATA_DIR);
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("37");
+    expect(content).toContain("39");
   });
 
   it("includes the data directory", () => {
@@ -92,7 +94,7 @@ describe("buildClaudeMd", () => {
     }
   });
 
-  it("contains all 37 tools", () => {
+  it("contains all 39 tools", () => {
     for (const tool of ALL_TOOLS) {
       expect(content, `CLAUDE.md missing: ${tool}`).toContain(tool);
     }
@@ -126,7 +128,7 @@ describe("buildAgentsMd", () => {
   const content = buildAgentsMd(DATA_DIR);
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("37");
+    expect(content).toContain("39");
   });
 
   it("includes the data directory", () => {
@@ -243,7 +245,7 @@ describe("buildAgyGeminiMd — token budget (max 50 lines)", () => {
   });
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("37");
+    expect(content).toContain("39");
   });
 
   it("includes the data directory", () => {
@@ -258,7 +260,7 @@ describe("buildAgyGeminiMd — token budget (max 50 lines)", () => {
     expect(content).toContain("open_deal_room");
   });
 
-  it("all 37 tools appear (may be in compact list)", () => {
+  it("all 39 tools appear (may be in compact list)", () => {
     for (const tool of ALL_TOOLS) {
       expect(content, `GEMINI.md missing: ${tool}`).toContain(tool);
     }
@@ -304,7 +306,7 @@ describe("buildCursorRulesMdc", () => {
   });
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("37");
+    expect(content).toContain("39");
   });
 
   it("includes all v2-critical tools", () => {

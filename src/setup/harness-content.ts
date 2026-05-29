@@ -1,5 +1,5 @@
 // src/setup/harness-content.ts
-// Single Source of Truth for all harness file content — v2 (37 MCP tools).
+// Single Source of Truth for all harness file content — v2 (39 MCP tools, growing).
 
 // All 37 registered MCP tools — keep in sync with src/mcp/server.ts
 const ALL_TOOLS = [
@@ -50,10 +50,13 @@ const ALL_TOOLS = [
   "list_sequence_enrollments",
   "unenroll_from_sequence",
   "list_sequences",
+  // Quote Generator (H4)
+  "generate_quote",
+  "get_quote_status",
 ] as const;
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
-export const TOOL_COUNT = ALL_TOOLS.length; // 37
+export const TOOL_COUNT = ALL_TOOLS.length; // 39
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -93,7 +96,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 1. \`run_deal_agent({ slug, dealName, autonomyLevel: "suggest" })\`
 2. Present the plan, ask for approval before acting
 
-## All 37 MCP Tools
+## All 39 MCP Tools
 
 ### Foundation
 - \`get_capabilities()\` — complete tool reference with schemas
@@ -152,6 +155,10 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`unenroll_from_sequence({ enrollmentId })\` — pause an active enrollment
 - \`list_sequences()\` — all sequences with step count and enrollment count
 
+### Quotes & Invoices (H4)
+- \`generate_quote({ slug, dealName, lineItems, vatPercent?, validUntilDays? })\` — create HTML quote with auto-numbering Q-YYYY-NNN
+- \`get_quote_status({ quoteNumber?, slug? })\` — get quote or list all quotes for customer
+
 ## Rules
 - Never discuss a customer without first loading their context
 - Always log interactions — calls, emails, Slack, demos, proposals
@@ -165,7 +172,7 @@ ${dataDir}`.trim();
 /** OpenClaw / Hermes: SOUL.md */
 export function buildSoulMd(framework: "openclaw" | "hermes"): string {
   return `# Identity
-I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (37 MCP tools).
+I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (39 MCP tools).
 My purpose is to help manage customer relationships proactively — acting before being asked.
 
 # Core Behaviors
@@ -243,6 +250,8 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 
 **Email Sequences (H1):** enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
 
+**Quotes (H4):** generate_quote · get_quote_status
+
 ## Never
 - Discuss a customer without context loaded
 - Skip logging — every touchpoint matters
@@ -258,7 +267,7 @@ export function buildHermesSkillMd(): string {
   return `---
 name: datasynx-crm
 version: 2.0.0
-description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (37 MCP tools)
+description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (39 MCP tools)
 triggers:
   - "customer"
   - "client"
@@ -390,7 +399,8 @@ get_playbook · create_playbook · list_playbooks · distill_playbook ·
 pursue_goal · get_goal_status · register_push_subscription · get_push_status ·
 open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
-enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
+enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
+generate_quote · get_quote_status
 
 ## Data: ${dataDir}`.trim();
 }
@@ -454,7 +464,8 @@ get_playbook · create_playbook · list_playbooks · distill_playbook ·
 pursue_goal · get_goal_status · register_push_subscription · get_push_status ·
 open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
-enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
+enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
+generate_quote · get_quote_status
 
 ## Never
 - Discuss a customer without loading context first
