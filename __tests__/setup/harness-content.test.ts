@@ -13,7 +13,7 @@ import {
 
 const DATA_DIR = "/home/user/crm";
 
-// All 30 registered tool names — must appear in at least one harness output
+// All 33 registered tool names — must appear in at least one harness output
 const ALL_TOOLS = [
   "get_capabilities",
   "get_active_session",
@@ -63,8 +63,8 @@ const V2_CRITICAL_TOOLS = [
 ];
 
 describe("TOOL_COUNT", () => {
-  it("exports correct tool count (30)", () => {
-    expect(TOOL_COUNT).toBe(30);
+  it("exports correct tool count (33)", () => {
+    expect(TOOL_COUNT).toBe(33);
   });
 });
 
@@ -72,7 +72,7 @@ describe("buildClaudeMd", () => {
   const content = buildClaudeMd(DATA_DIR);
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("30");
+    expect(content).toContain("33");
   });
 
   it("includes the data directory", () => {
@@ -85,7 +85,7 @@ describe("buildClaudeMd", () => {
     }
   });
 
-  it("contains all 30 tools", () => {
+  it("contains all 33 tools", () => {
     for (const tool of ALL_TOOLS) {
       expect(content, `CLAUDE.md missing: ${tool}`).toContain(tool);
     }
@@ -119,7 +119,7 @@ describe("buildAgentsMd", () => {
   const content = buildAgentsMd(DATA_DIR);
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("30");
+    expect(content).toContain("33");
   });
 
   it("includes the data directory", () => {
@@ -236,7 +236,7 @@ describe("buildAgyGeminiMd — token budget (max 50 lines)", () => {
   });
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("30");
+    expect(content).toContain("33");
   });
 
   it("includes the data directory", () => {
@@ -297,7 +297,7 @@ describe("buildCursorRulesMdc", () => {
   });
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("30");
+    expect(content).toContain("33");
   });
 
   it("includes all v2-critical tools", () => {

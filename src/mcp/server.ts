@@ -36,6 +36,9 @@ import { registerGetPushStatus } from "./tools/get-push-status.js";
 import { registerGetOrgIntelligence } from "./tools/get-org-intelligence.js";
 import { registerOpenDealRoom } from "./tools/open-deal-room.js";
 import { registerGetProactiveBriefing } from "./tools/get-proactive-briefing.js";
+import { registerListEmailTemplates } from "./tools/list-email-templates.js";
+import { registerGetEmailTemplate } from "./tools/get-email-template.js";
+import { registerDraftEmail } from "./tools/draft-email.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -75,6 +78,9 @@ export function createMcpServer(): McpServer {
   registerGetOrgIntelligence(server);
   registerOpenDealRoom(server);
   registerGetProactiveBriefing(server);
+  registerListEmailTemplates(server);
+  registerGetEmailTemplate(server);
+  registerDraftEmail(server);
 
   return server;
 }

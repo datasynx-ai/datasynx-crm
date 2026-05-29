@@ -1,7 +1,7 @@
 // src/setup/harness-content.ts
-// Single Source of Truth for all harness file content — v2 (30 MCP tools).
+// Single Source of Truth for all harness file content — v2 (33 MCP tools).
 
-// All 30 registered MCP tools — keep in sync with src/mcp/server.ts
+// All 33 registered MCP tools — keep in sync with src/mcp/server.ts
 const ALL_TOOLS = [
   // Core v1
   "get_capabilities",
@@ -41,10 +41,14 @@ const ALL_TOOLS = [
   // Proactive & Deal Room (D19/D20)
   "open_deal_room",
   "get_proactive_briefing",
+  // Email Templates (H2)
+  "list_email_templates",
+  "get_email_template",
+  "draft_email",
 ] as const;
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
-export const TOOL_COUNT = ALL_TOOLS.length; // 30
+export const TOOL_COUNT = ALL_TOOLS.length; // 33
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -84,7 +88,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 1. \`run_deal_agent({ slug, dealName, autonomyLevel: "suggest" })\`
 2. Present the plan, ask for approval before acting
 
-## All 30 MCP Tools
+## All 33 MCP Tools
 
 ### Foundation
 - \`get_capabilities()\` — complete tool reference with schemas
@@ -145,7 +149,7 @@ ${dataDir}`.trim();
 /** OpenClaw / Hermes: SOUL.md */
 export function buildSoulMd(framework: "openclaw" | "hermes"): string {
   return `# Identity
-I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (30 MCP tools).
+I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (33 MCP tools).
 My purpose is to help manage customer relationships proactively — acting before being asked.
 
 # Core Behaviors
@@ -234,7 +238,7 @@ export function buildHermesSkillMd(): string {
   return `---
 name: datasynx-crm
 version: 2.0.0
-description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (30 MCP tools)
+description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (33 MCP tools)
 triggers:
   - "customer"
   - "client"

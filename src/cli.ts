@@ -22,6 +22,7 @@ import { pluginCommand } from "./commands/plugin.js";
 import { goalCommand } from "./commands/goal.js";
 import { pushCommand } from "./commands/push.js";
 import { attachCommand } from "./commands/attach.js";
+import { templateCommand } from "./commands/template.js";
 
 const program = new Command();
 program
@@ -54,5 +55,6 @@ program.addCommand(pluginCommand);
 program.addCommand(goalCommand);
 program.addCommand(pushCommand);
 program.addCommand(attachCommand);
+program.addCommand(templateCommand);
 
 await program.parseAsync(process.argv);
