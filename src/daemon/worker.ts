@@ -285,6 +285,34 @@ new CronJob(
   true   // waitForCompletion
 );
 
+// SLA breach check — daily at 08:00
+new CronJob(
+  "0 8 * * *",
+  async () => {
+    try {
+      const { checkSlaBreaches } = await import("../core/sla-engine.js");
+      const today = new Date().toISOString().slice(0, 10);
+      const breaches = await checkSlaBreaches(DATA_DIR, today);
+      if (breaches.length > 0) {
+        process.stderr.write(`[tickets] ${breaches.length} SLA breach(es) found\n`);
+        for (const { slug, ticket } of breaches) {
+          process.stderr.write(`[tickets] SLA breach: ${slug}/${ticket.id} "${ticket.title}" due ${ticket.slaDue}\n`);
+        }
+      }
+    } catch (err) {
+      process.stderr.write(`[tickets] SLA check failed: ${(err as Error).message}\n`);
+    }
+  },
+  null,
+  true,
+  undefined,
+  null,
+  false,
+  undefined,
+  false, // unrefTimeout — keep event loop alive
+  true   // waitForCompletion
+);
+
 // Email sequence cycle — every 6 hours
 new CronJob(
   "0 */6 * * *",
