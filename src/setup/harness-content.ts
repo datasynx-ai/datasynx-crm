@@ -1,7 +1,7 @@
 // src/setup/harness-content.ts
-// Single Source of Truth for all harness file content — v2 (33 MCP tools).
+// Single Source of Truth for all harness file content — v2 (37 MCP tools).
 
-// All 33 registered MCP tools — keep in sync with src/mcp/server.ts
+// All 37 registered MCP tools — keep in sync with src/mcp/server.ts
 const ALL_TOOLS = [
   // Core v1
   "get_capabilities",
@@ -45,10 +45,15 @@ const ALL_TOOLS = [
   "list_email_templates",
   "get_email_template",
   "draft_email",
+  // Email Sequences (H1)
+  "enroll_in_sequence",
+  "list_sequence_enrollments",
+  "unenroll_from_sequence",
+  "list_sequences",
 ] as const;
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
-export const TOOL_COUNT = ALL_TOOLS.length; // 33
+export const TOOL_COUNT = ALL_TOOLS.length; // 37
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -88,7 +93,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 1. \`run_deal_agent({ slug, dealName, autonomyLevel: "suggest" })\`
 2. Present the plan, ask for approval before acting
 
-## All 33 MCP Tools
+## All 37 MCP Tools
 
 ### Foundation
 - \`get_capabilities()\` — complete tool reference with schemas
@@ -136,6 +141,17 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`open_deal_room({ slug, dealName })\` — orchestrates 7 sub-tools; returns complete deal brief in one call
 - \`get_proactive_briefing({ date? })\` — AI-generated daily briefing: urgent items, opportunities, forecast
 
+### Email Templates (H2)
+- \`list_email_templates({ category? })\` — list templates; filter by category (outreach, followup, support)
+- \`get_email_template({ id })\` — get full template with auto-detected variables
+- \`draft_email({ slug, templateId, overrides? })\` — draft personalized email from template + customer facts
+
+### Email Sequences (H1)
+- \`enroll_in_sequence({ slug, contactEmail, sequenceId })\` — enroll contact in automated email sequence
+- \`list_sequence_enrollments({ slug?, status? })\` — list enrollments; filter by slug or status
+- \`unenroll_from_sequence({ enrollmentId })\` — pause an active enrollment
+- \`list_sequences()\` — all sequences with step count and enrollment count
+
 ## Rules
 - Never discuss a customer without first loading their context
 - Always log interactions — calls, emails, Slack, demos, proposals
@@ -149,7 +165,7 @@ ${dataDir}`.trim();
 /** OpenClaw / Hermes: SOUL.md */
 export function buildSoulMd(framework: "openclaw" | "hermes"): string {
   return `# Identity
-I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (33 MCP tools).
+I am a CRM-integrated AI assistant powered by DatasynxOpenCRM v2 (37 MCP tools).
 My purpose is to help manage customer relationships proactively — acting before being asked.
 
 # Core Behaviors
@@ -203,7 +219,7 @@ At every session start: call \`get_proactive_briefing()\`.
 - Deal stage change → \`update_deal(slug, dealName, { stage, probability })\`
 - Revenue goal → \`pursue_goal(goal, deadline)\`
 
-## Available Tools (30)
+## Available Tools (${TOOL_COUNT})
 **Foundation:** get_capabilities · get_active_session · get_customer_context ·
 search_customer_knowledge · list_customers · log_interaction · update_deal ·
 export_customer · update_customer_facts · get_deal_health · get_pipeline_forecast ·
@@ -223,6 +239,10 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 
 **Synthesis (D19/D20):** open_deal_room · get_proactive_briefing
 
+**Email Templates (H2):** list_email_templates · get_email_template · draft_email
+
+**Email Sequences (H1):** enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
+
 ## Never
 - Discuss a customer without context loaded
 - Skip logging — every touchpoint matters
@@ -238,7 +258,7 @@ export function buildHermesSkillMd(): string {
   return `---
 name: datasynx-crm
 version: 2.0.0
-description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (33 MCP tools)
+description: Proactive CRM workflow skill for DatasynxOpenCRM v2 (37 MCP tools)
 triggers:
   - "customer"
   - "client"
@@ -368,7 +388,9 @@ get_relationship_graph · get_relationship_health · run_deal_agent ·
 approve_agent_action · simulate_revenue · get_org_intelligence ·
 get_playbook · create_playbook · list_playbooks · distill_playbook ·
 pursue_goal · get_goal_status · register_push_subscription · get_push_status ·
-open_deal_room · get_proactive_briefing
+open_deal_room · get_proactive_briefing ·
+list_email_templates · get_email_template · draft_email ·
+enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
 
 ## Data: ${dataDir}`.trim();
 }
@@ -430,7 +452,9 @@ get_relationship_graph · get_relationship_health · run_deal_agent ·
 approve_agent_action · simulate_revenue · get_org_intelligence ·
 get_playbook · create_playbook · list_playbooks · distill_playbook ·
 pursue_goal · get_goal_status · register_push_subscription · get_push_status ·
-open_deal_room · get_proactive_briefing
+open_deal_room · get_proactive_briefing ·
+list_email_templates · get_email_template · draft_email ·
+enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
 
 ## Never
 - Discuss a customer without loading context first

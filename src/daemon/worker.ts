@@ -285,6 +285,29 @@ new CronJob(
   true   // waitForCompletion
 );
 
+// Email sequence cycle — every 6 hours
+new CronJob(
+  "0 */6 * * *",
+  async () => {
+    try {
+      const { runSequenceCycle } = await import("../core/sequence-engine.js");
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await runSequenceCycle(DATA_DIR, today);
+      process.stderr.write(`[sequences] ${result.sent} sent, ${result.completed} completed, ${result.errors.length} errors\n`);
+    } catch (err) {
+      process.stderr.write(`[sequences] cycle failed: ${(err as Error).message}\n`);
+    }
+  },
+  null,
+  true,
+  undefined,
+  null,
+  false,
+  undefined,
+  false, // unrefTimeout — keep event loop alive
+  true   // waitForCompletion
+);
+
 await startWatcher();
 
 // Signal ready

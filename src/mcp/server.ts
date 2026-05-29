@@ -39,6 +39,10 @@ import { registerGetProactiveBriefing } from "./tools/get-proactive-briefing.js"
 import { registerListEmailTemplates } from "./tools/list-email-templates.js";
 import { registerGetEmailTemplate } from "./tools/get-email-template.js";
 import { registerDraftEmail } from "./tools/draft-email.js";
+import { registerEnrollInSequence } from "./tools/enroll-in-sequence.js";
+import { registerListSequenceEnrollments } from "./tools/list-sequence-enrollments.js";
+import { registerUnenrollFromSequence } from "./tools/unenroll-from-sequence.js";
+import { registerListSequences } from "./tools/list-sequences.js";
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
@@ -46,7 +50,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 30 tools
+  // Register all 37 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -81,6 +85,10 @@ export function createMcpServer(): McpServer {
   registerListEmailTemplates(server);
   registerGetEmailTemplate(server);
   registerDraftEmail(server);
+  registerEnrollInSequence(server);
+  registerListSequenceEnrollments(server);
+  registerUnenrollFromSequence(server);
+  registerListSequences(server);
 
   return server;
 }
