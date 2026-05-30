@@ -318,7 +318,7 @@ describe("runDailyProactiveChecks", () => {
 
   it("includes daysToClose in deal risk payload", async () => {
     mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
-    const closeDate = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    const closeDate = new Date(new Date(`${TODAY}T00:00:00Z`).getTime() + 3 * 86_400_000).toISOString().slice(0, 10);
     mockReadPipeline.mockResolvedValue([makeDeal({ close_date: closeDate, stage: "negotiation" })]);
     vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
 

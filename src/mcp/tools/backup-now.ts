@@ -2,9 +2,50 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
-import { createHash } from "crypto";
-import { runBackup, readBackupLog } from "../../commands/backup.js";
+import { runBackup } from "../../commands/backup.js";
+
+const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+
+export async function handleBackupNow(
+  input: { remote?: string; note?: string },
+  dataDir: string = DATA_DIR
+): Promise<{ content: Array<{ type: "text"; text: string }> }> {
+  const zipPath = path.join(
+    dataDir,
+    `dxcrm-backup-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.zip`
+  );
+
+  const manifest = await runBackup(zipPath, dataDir, {
+    ...(input.remote ? { remote: input.remote } : {}),
+  }).catch(() => null);
+
+  if (!manifest) {
+    return { content: [{ type: "text", text: "Backup failed. Check disk space and permissions." }] };
+  }
+
+  const sizeMb = fs.existsSync(zipPath)
+    ? (fs.statSync(zipPath).size / 1024 / 1024).toFixed(1)
+    : "?";
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          path: zipPath,
+          createdAt: manifest.createdAt,
+          customerCount: manifest.customerCount,
+          fileCount: manifest.fileCount,
+          sizeMb: `${sizeMb} MB`,
+          directories: manifest.directories,
+          verified: true,
+          ...(input.remote ? { uploadedTo: input.remote } : {}),
+          ...(input.note ? { note: input.note } : {}),
+        }, null, 2),
+      },
+    ],
+  };
+}
 
 export function registerBackupNow(server: McpServer): void {
   server.registerTool(
@@ -17,43 +58,9 @@ export function registerBackupNow(server: McpServer): void {
         note: z.string().optional().describe("Optional note to tag this backup"),
       }),
     },
-    async (input) => {
-      const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
-      const zipPath = path.join(
-        dataDir,
-        `dxcrm-backup-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.zip`
-      );
-
-      const manifest = await runBackup(zipPath, dataDir, {
-        ...(input.remote ? { remote: input.remote } : {}),
-      }).catch(() => null);
-
-      if (!manifest) {
-        return { content: [{ type: "text" as const, text: "Backup failed. Check disk space and permissions." }] };
-      }
-
-      const sizeMb = fs.existsSync(zipPath)
-        ? (fs.statSync(zipPath).size / 1024 / 1024).toFixed(1)
-        : "?";
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              path: zipPath,
-              createdAt: manifest.createdAt,
-              customerCount: manifest.customerCount,
-              fileCount: manifest.fileCount,
-              sizeMb: `${sizeMb} MB`,
-              directories: manifest.directories,
-              verified: true,
-              ...(input.remote ? { uploadedTo: input.remote } : {}),
-              ...(input.note ? { note: input.note } : {}),
-            }, null, 2),
-          },
-        ],
-      };
-    }
+    ({ remote, note }) => handleBackupNow({
+      ...(remote !== undefined ? { remote } : {}),
+      ...(note !== undefined ? { note } : {}),
+    })
   );
 }
