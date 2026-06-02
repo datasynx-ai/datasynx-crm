@@ -7,6 +7,11 @@ vi.mock("../../src/core/lancedb.js", () => ({
   resetConnection: vi.fn(),
 }));
 
+const mockNotifyAgentWake = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("../../src/core/agent-notifier.js", () => ({
+  notifyAgentWake: mockNotifyAgentWake,
+}));
+
 beforeEach(() => {
   vol.reset();
   vi.clearAllMocks();
@@ -133,5 +138,327 @@ describe("syncGmail", () => {
 
     const callArgs = listMock.mock.calls[0]?.[0] as { q: string } | undefined;
     expect(callArgs?.q).toContain("after:");
+  });
+
+  it("follows nextPageToken to fetch subsequent pages", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+    });
+
+    const { google } = await import("googleapis");
+    const listMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          messages: [{ id: "msg1", threadId: "t1" }],
+          nextPageToken: "page2token",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: { messages: [{ id: "msg2", threadId: "t2" }] },
+      });
+    const getMock = vi.fn().mockResolvedValue({
+      data: {
+        payload: {
+          headers: [
+            { name: "Subject", value: "Test" },
+            { name: "From", value: "a@b.com" },
+            { name: "Date", value: "Mon, 26 May 2026 10:00:00 +0000" },
+          ],
+        },
+        snippet: "snippet",
+      },
+    });
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    const result = await syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+
+    // Both pages fetched → 2 synced messages
+    expect(listMock).toHaveBeenCalledTimes(2);
+    const secondCall = listMock.mock.calls[1]?.[0] as { pageToken?: string } | undefined;
+    expect(secondCall?.pageToken).toBe("page2token");
+    expect(result.synced).toBe(2);
+  });
+
+  it("stops paginating at maxPages limit", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+    });
+
+    const { google } = await import("googleapis");
+    // Always return a nextPageToken — should stop at maxPages (default 5)
+    const listMock = vi.fn().mockResolvedValue({
+      data: {
+        messages: [{ id: "msgX", threadId: "tX" }],
+        nextPageToken: "alwaysMore",
+      },
+    });
+    // Give each "msgX" a unique id so dedup doesn't short-circuit
+    let callCount = 0;
+    const listMockDynamic = vi.fn().mockImplementation(() => {
+      callCount++;
+      return Promise.resolve({
+        data: {
+          messages: [{ id: `msg${callCount}`, threadId: `t${callCount}` }],
+          nextPageToken: "alwaysMore",
+        },
+      });
+    });
+    const getMock = vi.fn().mockResolvedValue({
+      data: {
+        payload: {
+          headers: [
+            { name: "Subject", value: "S" },
+            { name: "From", value: "f@f.com" },
+            { name: "Date", value: "Mon, 26 May 2026 10:00:00 +0000" },
+          ],
+        },
+        snippet: "",
+      },
+    });
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMockDynamic, get: getMock } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    await syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+
+    // Default maxPages = 5, so list should be called exactly 5 times
+    expect(listMockDynamic).toHaveBeenCalledTimes(5);
+  });
+
+  it("retries messages.get on 429 with backoff and succeeds", async () => {
+    vi.useFakeTimers();
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+    });
+
+    const { google } = await import("googleapis");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msg1", threadId: "t1" }] },
+    });
+    const rateLimitError = Object.assign(new Error("Rate limit exceeded"), { status: 429 });
+    const getMock = vi
+      .fn()
+      .mockRejectedValueOnce(rateLimitError)
+      .mockResolvedValueOnce({
+        data: {
+          payload: {
+            headers: [
+              { name: "Subject", value: "Test" },
+              { name: "From", value: "a@b.com" },
+              { name: "Date", value: "Mon, 26 May 2026 10:00:00 +0000" },
+            ],
+          },
+          snippet: "snippet",
+        },
+      });
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    const syncPromise = syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+    await vi.runAllTimersAsync();
+    const result = await syncPromise;
+
+    // Should retry and eventually succeed
+    expect(getMock).toHaveBeenCalledTimes(2);
+    expect(result.synced).toBe(1);
+    expect(result.skipped).toBe(0);
+
+    vi.useRealTimers();
+  });
+
+  it("skips message after exhausting all retries and increments skipped", async () => {
+    vi.useFakeTimers();
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+    });
+
+    const { google } = await import("googleapis");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msg1", threadId: "t1" }] },
+    });
+    const rateLimitError = Object.assign(new Error("Rate limit exceeded"), { status: 429 });
+    // Fail all 4 attempts (initial + 3 retries)
+    const getMock = vi.fn().mockRejectedValue(rateLimitError);
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock } },
+    } as never);
+
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    const syncPromise = syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+    await vi.runAllTimersAsync();
+    const result = await syncPromise;
+
+    // Should not crash; message is skipped
+    expect(result.synced).toBe(0);
+    expect(result.skipped).toBe(1);
+    // Should log to stderr
+    expect(stderrSpy).toHaveBeenCalled();
+    stderrSpy.mockRestore();
+
+    vi.useRealTimers();
+  });
+
+  it("retries non-429 errors (all HTTP errors trigger backoff)", async () => {
+    vi.useFakeTimers();
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+    });
+
+    const { google } = await import("googleapis");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msg1", threadId: "t1" }] },
+    });
+    const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
+    const getMock = vi
+      .fn()
+      .mockRejectedValueOnce(serverError)
+      .mockResolvedValueOnce({
+        data: {
+          payload: {
+            headers: [
+              { name: "Subject", value: "Test" },
+              { name: "From", value: "a@b.com" },
+              { name: "Date", value: "Mon, 26 May 2026 10:00:00 +0000" },
+            ],
+          },
+          snippet: "snippet",
+        },
+      });
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    const syncPromise = syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+    await vi.runAllTimersAsync();
+    const result = await syncPromise;
+
+    expect(getMock).toHaveBeenCalledTimes(2);
+    expect(result.synced).toBe(1);
+
+    vi.useRealTimers();
+  });
+
+  it("calls notifyAgentWake for new inbound email when agent config exists", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+      "/data/.agentic/agents/acme-corp.agent.json": JSON.stringify({
+        slug: "acme-corp",
+        channel: "telegram",
+        wakeOn: ["email"],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        lastWake: null,
+        telegramChatId: "999888",
+      }),
+    });
+
+    const { google } = await import("googleapis");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msg1", threadId: "t1" }] },
+    });
+    const getMock = vi.fn().mockResolvedValue({
+      data: {
+        payload: {
+          headers: [
+            { name: "Subject", value: "New inquiry" },
+            { name: "From", value: "alice@acme.com" },
+            { name: "Date", value: "Mon, 26 May 2026 10:00:00 +0000" },
+          ],
+        },
+        snippet: "Hi, interested in your product",
+      },
+    });
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    await syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:acme.com",
+    });
+
+    expect(mockNotifyAgentWake).toHaveBeenCalledOnce();
+    const callArgs = mockNotifyAgentWake.mock.calls[0] as [string, string, object];
+    expect(callArgs[0]).toBe("/data");
+    expect(callArgs[1]).toBe("acme-corp");
+    expect(callArgs[2]).toMatchObject({
+      trigger: "email",
+      subject: "New inquiry",
+      from: "alice@acme.com",
+    });
+  });
+
+  it("does not call notifyAgentWake when no agent config exists", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+      // No .agentic/agents/acme-corp.agent.json
+    });
+
+    const { google } = await import("googleapis");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msg1", threadId: "t1" }] },
+    });
+    const getMock = vi.fn().mockResolvedValue({
+      data: {
+        payload: {
+          headers: [
+            { name: "Subject", value: "Test" },
+            { name: "From", value: "b@example.com" },
+            { name: "Date", value: "Mon, 26 May 2026 10:00:00 +0000" },
+          ],
+        },
+        snippet: "snippet",
+      },
+    });
+    vi.mocked(google.gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    await syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+
+    expect(mockNotifyAgentWake).not.toHaveBeenCalled();
   });
 });

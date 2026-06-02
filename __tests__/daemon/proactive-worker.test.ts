@@ -195,7 +195,9 @@ describe("runDailyProactiveChecks", () => {
 
   it("enqueues deal_risk_alert for deal closing within 7 days", async () => {
     mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
-    const closeDate = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
+    const closeDate = new Date(new Date(`${TODAY}T00:00:00Z`).getTime() + 5 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     mockReadPipeline.mockResolvedValue([makeDeal({ close_date: closeDate, stage: "proposal" })]);
     vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
 
@@ -211,7 +213,9 @@ describe("runDailyProactiveChecks", () => {
 
   it("enqueues urgent deal_risk_alert for overdue deal", async () => {
     mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
-    const closeDate = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+    const closeDate = new Date(new Date(`${TODAY}T00:00:00Z`).getTime() - 3 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     mockReadPipeline.mockResolvedValue([makeDeal({ close_date: closeDate, stage: "proposal" })]);
     vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
 
@@ -228,7 +232,9 @@ describe("runDailyProactiveChecks", () => {
 
   it("skips won/lost deals", async () => {
     mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
-    const closeDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+    const closeDate = new Date(new Date(`${TODAY}T00:00:00Z`).getTime() + 2 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     mockReadPipeline.mockResolvedValue([
       makeDeal({ close_date: closeDate, stage: "won" }),
       makeDeal({ close_date: closeDate, stage: "lost" }),
@@ -258,7 +264,9 @@ describe("runDailyProactiveChecks", () => {
 
   it("skips deals closing more than 7 days out", async () => {
     mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
-    const closeDate = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+    const closeDate = new Date(new Date(`${TODAY}T00:00:00Z`).getTime() + 30 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     mockReadPipeline.mockResolvedValue([makeDeal({ close_date: closeDate, stage: "proposal" })]);
     vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
 
