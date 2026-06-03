@@ -1,13 +1,29 @@
-# DatasynxOpenCRM (`dxcrm`)
+<div align="center">
 
-> Local-first, MCP-native CRM. One agent per customer. `npm install`.
+# DatasynxOpenCRM&nbsp;·&nbsp;`dxcrm`
+
+**Local-first, MCP-native CRM. One agent per customer. `npm install`.**
+
+[![npm version](https://img.shields.io/npm/v/@datasynx/opencrm.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@datasynx/opencrm)
+[![npm downloads](https://img.shields.io/npm/dm/@datasynx/opencrm.svg?color=cb3837)](https://www.npmjs.com/package/@datasynx/opencrm)
+[![CI](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@datasynx/opencrm.svg?color=3fb950)](./LICENSE)
+[![node](https://img.shields.io/node/v/@datasynx/opencrm.svg)](https://nodejs.org)
+
+[**📖 Documentation**](https://datasynx-ai.github.io/datasynx-crm/) · [**📦 npm**](https://www.npmjs.com/package/@datasynx/opencrm) · [**💻 GitHub**](https://github.com/datasynx-ai/datasynx-crm) · [**💼 LinkedIn**](https://de.linkedin.com/company/datasynx-ai)
+
+</div>
+
+> **You don't open a CRM to find your customer. Your customer's agent finds you — briefed, current, and ready to act.**
+
+DatasynxOpenCRM stores every customer as structured Markdown — no database, no cloud lock-in — and exposes it to any AI agent over the [Model Context Protocol](https://modelcontextprotocol.io). Your data lives on your machine; your agents read and write it natively in Claude Code, Codex, Cursor, and more.
 
 ---
 
 ## 5-Minute Quickstart
 
 ```bash
-npm install -g datasynx-opencrm
+npm install -g @datasynx/opencrm
 
 # 1. Initialize (detects Claude Code, Codex, Cursor, Claude Desktop, ...)
 dxcrm init
@@ -621,7 +637,7 @@ export DXCRM_ACTOR=alice
     "datasynx-opencrm": {
       "type": "stdio",
       "command": "node",
-      "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"]
+      "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"]
     }
   }
 }
@@ -639,7 +655,7 @@ export DXCRM_ACTOR=alice
       "transport": {
         "type": "stdio",
         "command": "node",
-        "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"],
+        "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"],
         "env": { "DXCRM_DATA_DIR": "/path/to/your/.dxcrm" }
       }
     }
@@ -659,7 +675,7 @@ Run `grok inspect` to verify the server is discovered. Grok Build reads `AGENTS.
   "mcpServers": {
     "datasynx-opencrm": {
       "command": "node",
-      "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"]
+      "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"]
     }
   }
 }
@@ -678,7 +694,7 @@ http://localhost:3847/mcp
 ## Development
 
 ```bash
-git clone https://github.com/datasynx/datasynx-crm
+git clone https://github.com/datasynx-ai/datasynx-crm
 cd datasynx-crm
 npm install
 npm test          # All tests (Vitest, TDD)
@@ -699,6 +715,8 @@ npm test -- --reporter verbose     # Verbose output
 
 ## Docs
 
+📖 **Full documentation site:** [datasynx-ai.github.io/datasynx-crm](https://datasynx-ai.github.io/datasynx-crm/)
+
 - [Quickstart — Real Gmail (5 min)](./docs/quickstart-real.md)
 - [CLI Reference](./docs/cli-reference.md)
 - [MCP Tools](./docs/mcp-tools.md)
@@ -706,4 +724,19 @@ npm test -- --reporter verbose     # Verbose output
 - [Framework Integrations](./docs/integrations.md)
 - [Deployment](./docs/deployment.md)
 - [Team Setup](./docs/team-setup.md)
-- [HTML Docs](./docs/index.html) — open locally in browser
+
+---
+
+## Community & Links
+
+- 📦 **npm:** [@datasynx/opencrm](https://www.npmjs.com/package/@datasynx/opencrm)
+- 💻 **GitHub:** [datasynx-ai/datasynx-crm](https://github.com/datasynx-ai/datasynx-crm)
+- 🐛 **Issues:** [Report a bug or request a feature](https://github.com/datasynx-ai/datasynx-crm/issues)
+- 💼 **LinkedIn:** [Datasynx AI](https://de.linkedin.com/company/datasynx-ai)
+- 📄 **License:** [MIT](./LICENSE)
+
+---
+
+<div align="center">
+<sub>Built with TypeScript · Powered by the Model Context Protocol · © 2026 Datasynx</sub>
+</div>

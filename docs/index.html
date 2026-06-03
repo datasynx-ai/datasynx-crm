@@ -25,9 +25,14 @@
     main { margin-left: var(--sidebar-w); padding: 40px 48px; max-width: 960px; width: 100%; }
 
     /* Nav */
-    .nav-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+    .nav-logo { padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
     .nav-logo h1 { font-size: 14px; font-weight: 700; color: var(--text); }
     .nav-logo span { font-size: 12px; color: var(--muted); }
+    .nav-ext { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .nav-ext a { display: inline-flex; align-items: center; padding: 3px 9px; font-size: 11px;
+                 font-weight: 600; color: var(--muted); background: var(--bg3);
+                 border: 1px solid var(--border); border-radius: 12px; border-left: 1px solid var(--border); }
+    .nav-ext a:hover { color: var(--text); border-color: var(--accent); text-decoration: none; }
     .nav-section { padding: 8px 20px 4px; font-size: 11px; font-weight: 600;
                    text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
     nav a { display: block; padding: 5px 20px; font-size: 13px; color: var(--muted);
@@ -104,6 +109,11 @@
   <div class="nav-logo">
     <h1>DatasynxOpenCRM</h1>
     <span>dxcrm · enterprise edition</span>
+    <div class="nav-ext">
+      <a href="https://www.npmjs.com/package/@datasynx/opencrm" target="_blank" rel="noopener">npm</a>
+      <a href="https://github.com/datasynx-ai/datasynx-crm" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://de.linkedin.com/company/datasynx-ai" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
   </div>
 
   <div class="nav-section">Getting Started</div>
@@ -207,7 +217,7 @@
 </div>
 
 <pre><code><span class="comment"># 1. Install globally</span>
-<span class="cmd">npm install -g datasynx-opencrm</span>
+<span class="cmd">npm install -g @datasynx/opencrm</span>
 
 <span class="comment"># 2. Initialize (auto-detects Claude Code, Codex, Cursor, Grok, ...)</span>
 <span class="cmd">dxcrm init</span>
@@ -261,7 +271,7 @@
 
 <h3>Install</h3>
 <pre><code><span class="comment"># Global install (recommended)</span>
-<span class="cmd">npm install -g datasynx-opencrm</span>
+<span class="cmd">npm install -g @datasynx/opencrm</span>
 
 <span class="comment"># Or local to a project</span>
 <span class="cmd">npm install datasynx-opencrm</span>
@@ -1051,7 +1061,7 @@ export GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"..."}
     "datasynx-opencrm": {
       "type": "stdio",
       "command": "node",
-      "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"]
+      "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"]
     }
   }
 }</code></pre>
@@ -1065,7 +1075,7 @@ export GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"..."}
       "transport": {
         "type": "stdio",
         "command": "node",
-        "args": ["/path/to/node_modules/datasynx-opencrm/dist/mcp.js"],
+        "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"],
         "env": { "DXCRM_DATA_DIR": "/path/to/.dxcrm" }
       }
     }
@@ -1299,6 +1309,16 @@ Any free-form notes here are preserved by update_customer_facts.</code></pre>
 | Enterprise License 2026 | negotiation | €75,000 | 75% | 2026-09-30 | 2026-05-27 |</code></pre>
 <p>Stages are configurable via <code>dxcrm stages set</code>. Default stages: <code>lead</code> · <code>qualified</code> · <code>proposal</code> · <code>negotiation</code> · <code>won</code> · <code>lost</code>.</p>
 </section>
+
+<footer style="margin-top:56px;padding-top:24px;border-top:1px solid var(--border);color:var(--muted);font-size:13px;">
+  <p style="margin-bottom:8px;">
+    <a href="https://www.npmjs.com/package/@datasynx/opencrm" target="_blank" rel="noopener">npm</a> ·
+    <a href="https://github.com/datasynx-ai/datasynx-crm" target="_blank" rel="noopener">GitHub</a> ·
+    <a href="https://github.com/datasynx-ai/datasynx-crm/issues" target="_blank" rel="noopener">Issues</a> ·
+    <a href="https://de.linkedin.com/company/datasynx-ai" target="_blank" rel="noopener">LinkedIn</a>
+  </p>
+  <p>© 2026 Datasynx · MIT License · <code>npm install -g @datasynx/opencrm</code></p>
+</footer>
 
 </main>
 </div>
