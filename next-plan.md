@@ -135,7 +135,113 @@ Agentforce + SI).
 
 ---
 
-## 8. Empfohlene Reihenfolge (Now / Next / Later)
-- **Now:** Salesforce-Migration fertig (A1–A7 in `plan.md`) · MCP **Resources + Prompts** (schnell, hoher Hebel, baut auf 52 Tools) · **OAuth 2.1** (schließt B1-Security-Lücke)
-- **Next:** Metadaten-Datenmodell (A1) + Custom Objects/Fields (N5-Kern) · bi-temporaler Memory-Graph-Prototyp (Kùzu)
-- **Later:** Service-/Marketing-/Data-Vertiefung (N3/N4) · Multi-Agent-Orchestrierung & Command-Center (N6) · Registry-Publikation + GTM
+## 8. Arbeitspakete (Backlog)
+
+Jedes Paket ist eigenständig abarbeitbar: **Ziel · Deliverables · Akzeptanz (test-driven) ·
+Abhängigkeiten · Aufwand (S/M/L) · Status**. Workflow je Paket: *research → plan → implement (TDD) →
+optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit · 🔲 offen.
+
+### Status-Board (Übersicht)
+
+| ID | Paket | Track | Aufwand | Status |
+|---|---|---|---|---|
+| SF-1 | Pagination Contacts/Tasks | Migration | S | ✅ |
+| SF-2 | Opportunities → Pipeline | Migration | M | ✅ |
+| SF-3 | Leads → Kunden | Migration | M | ✅ |
+| SF-4 | Events → interactions | Migration | S | 🔲 |
+| SF-5 | Cases → Tickets | Migration | M | 🔲 |
+| SF-6 | Products/LineItems → Deal-Value/Quotes | Migration | M | 🔲 |
+| SF-7 | Notes → interactions | Migration | S | 🔲 |
+| SF-8 | Campaigns / Custom Fields / Owner→Actor / Account-Hierarchie | Migration | L | 🔲 |
+| N1-1 | MCP **Resources** (read-only Entities) | Core/MCP | M | 🔲 |
+| N1-2 | MCP **Prompts** (Playbooks) | Core/MCP | S | 🔲 |
+| N1-3 | **Elicitation** bei Pflichtfeldern | Core/MCP | S | 🔲 |
+| N1-4 | **OAuth 2.1 Resource Server** (HTTP) | Security | L | 🔲 |
+| N1-5 | **Tool-Search / Lazy-Loading** | Core/MCP | M | 🔲 |
+| N1-6 | **Registry-Listing** (`server.json` + OIDC-Publish) | GTM | S | 🔲 |
+| N1-7 | **Metadaten-Datenmodell** (object/fieldMetadata, Runtime-Zod) | Core | L | 🔲 |
+| N2-1 | LLM-Opportunity-Scoring | Sales | M | 🔲 |
+| N3-1 | Omni-Channel-Routing (skill/priority) | Service | M | 🔲 |
+| N3-2 | Vektorisierte KB + Eskalation (transfer-to-human Action) | Service | M | 🔲 |
+| N4-1 | Segmente/Listen | Marketing | M | 🔲 |
+| N4-2 | Journeys (mehrstufig, multichannel) | Marketing | L | 🔲 |
+| N4-3 | CDP: Identity Resolution + Unified Profiles + Calculated Insights | Data | L | 🔲 |
+| N5-1 | Custom Objects/Fields via Metadata-API (No-Migration) | Platform | L | 🔲 |
+| N5-2 | Webhook-CRUD-Events (Backoff + Replay-Store) | Platform | M | 🔲 |
+| N5-3 | Sharing-Rules / Field-/Row-Level-Security | Platform | M | 🔲 |
+| N6-1 | Bi-temporaler Wissensgraph (Kùzu, 4 Zeitstempel/Edge) | Memory | L | 🔲 |
+| N6-2 | Multi-Agent-Orchestrierung (Subagents/Handoffs) | Agentic | L | 🔲 |
+| N6-3 | Command-Center-Observability (Containment/Accuracy) | Agentic | M | 🔲 |
+| X-1 | PII-Masking vor LLM-Call | Compliance | M | 🔲 |
+| X-2 | Guardrails (Toxizität, Prompt-Injection, Indirect-Injection) | Compliance | M | 🔲 |
+| REF-1 | Spark-Framework-Adapter (Stub fertigstellen/entfernen) | Refinement | S | 🔲 |
+| REF-2 | Structured `ContextBlock` (neben string) | Refinement | S | 🔲 |
+| REF-3 | Coverage-Top-ups (`mcp/server.ts`, `sync/index.ts`) | Quality | S | 🔲 |
+| OPS-1 | Go-Live npm (Repo public, Secrets, Pages, Release) | Ops | — | ⏸ user |
+| OPS-2 | 8 alte `claude/*`-Branches löschen | Ops | — | ⏸ user |
+
+---
+
+### Track Migration (Salesforce-Vollexport)
+
+**SF-4 · Events → interactions** — S
+- **Ziel:** Salesforce-Kalenderevents als Meeting-Interactions importieren (heute nur Tasks).
+- **Deliverables:** `SalesforceEvent` + `fetchSalesforceEvents()` (paginiert via `soqlQueryAll`, Felder Id, Subject, Description, ActivityDate/StartDateTime, WhoId, WhatId) in `salesforce-client.ts`; Pass 5 in `runSalesforceApiImport`; `sourceRef = salesforce://event/<id>`.
+- **Akzeptanz:** Unit-Test Client (parse + Pagination); Import-Test: Event → `interactions.md` Typ `Meeting`, dedup, `eventsImported`-Counter.
+- **Abhängig:** SF-1. **Status:** 🔲
+
+**SF-5 · Cases → Tickets** — M
+- **Ziel:** Salesforce-Cases ins Ticket-System überführen (Service-Cloud-Ersatz).
+- **Deliverables:** `SalesforceCase` + `fetchSalesforceCases()` (Id, Subject, Description, Status, Priority, AccountId, ContactId, CreatedDate); Mapping SF-Status/Priority → opencrm-Ticket-Felder (inkl. SLA-Berechnung); schreibt via Ticket-Store (`create_ticket`-Pfad).
+- **Akzeptanz:** Client-Test; Import-Test: Case → Ticket mit gemapptem Status/Priorität + SLA-Due, dedup `salesforce://case/<id>`, `casesImported`-Counter.
+- **Abhängig:** SF-1; Ticket-Store-API. **Status:** 🔲
+
+**SF-6 · Products/OpportunityLineItem → Deal-Value/Quotes** — M
+- **Ziel:** Deal-Ökonomie-Detail (Line Items) erhalten.
+- **Deliverables:** `fetchSalesforceLineItems()` (OpportunityLineItem: Product2.Name, Quantity, UnitPrice, TotalPrice, OpportunityId); je Opportunity Line Items aggregieren → Deal-`value` verifizieren/setzen + optional `generate_quote`-kompatibles Quote-Artefakt.
+- **Akzeptanz:** Client-Test; Import-Test: Line Items summieren auf Deal-Value bzw. erzeugen Quote-Einträge.
+- **Abhängig:** SF-2. **Status:** 🔲
+
+**SF-7 · Notes → interactions** — S
+- **Ziel:** Salesforce-Notes (ContentNote/Note) als Kontext-Interactions.
+- **Deliverables:** `fetchSalesforceNotes()` (Title, Body/TextPreview, ParentId); Pass → `interactions.md` Typ `Note`, `salesforce://note/<id>`.
+- **Akzeptanz:** Client-Test; Import-Test: Note → Note-Interaction, dedup, Counter.
+- **Abhängig:** SF-1. **Status:** 🔲
+
+**SF-8 · Campaigns / Custom Fields / Owner→Actor / Account-Hierarchie** — L
+- **Ziel:** Long-Tail-Vollständigkeit.
+- **Deliverables:** Campaigns+CampaignMember → Kunden-Tags/Interaction; **Custom Fields** (`*__c`) → Frontmatter-Passthrough in `main_facts.md`; OwnerId → RBAC-Actor-Mapping (`ownerMap`); Account `ParentId` → Beziehungsnotiz/Tag.
+- **Akzeptanz:** je Teilaspekt ein Test; konfigurierbares Custom-Field-Mapping; Owner-Auflösung über User-Query.
+- **Abhängig:** SF-1. **Status:** 🔲 *(kann in Unter-Pakete SF-8a..d gesplittet werden)*
+
+### Track N1 — Core & MCP-Vollausbau
+
+**N1-1 · MCP Resources** — M · **Ziel:** Entities/Listen read-only als `crm://people/{id}`, `crm://customers`, `crm://pipeline/{slug}`, `crm://timeline/{slug}` (Resource-Templates, Icons-Metadaten). **Akzeptanz:** `resources/list` + `resources/read` liefern korrekte Records; Integrationstest mit gemocktem FS. **Abhängig:** — **Status:** 🔲
+
+**N1-2 · MCP Prompts** — S · **Ziel:** Playbooks als MCP-Prompts („Deal-Risiko bewerten", „Follow-up entwerfen", „Account-Brief", „Pipeline nach Region"). **Akzeptanz:** `prompts/list` + `prompts/get` mit Argument-Schemas. **Status:** 🔲
+
+**N1-3 · Elicitation** — S · **Ziel:** bei fehlenden Pflichtfeldern strukturiertes Schema statt Fehler (z. B. fehlende Stage in `update_deal`). **Akzeptanz:** Tool gibt Elicitation-Request statt Error; Test. **Abhängig:** SDK-Elicitation-Support. **Status:** 🔲
+
+**N1-4 · OAuth 2.1 Resource Server** — L · **Ziel:** HTTP-`/mcp` absichern (löst B1). **Deliverables:** RFC 9728 `/.well-known/oauth-protected-resource`, 401+`WWW-Authenticate`, RFC 8707 Audience-Binding, PKCE-S256, Tokens nur SHA-256-gehasht, **kein** Token-Passthrough. **Akzeptanz:** Unauthentifizierte Requests → 401 mit Metadata-URL; gültiges Token → Zugriff; Tests für Token-Hashing & Audience-Check. **Status:** 🔲
+
+**N1-5 · Tool-Search / Lazy-Loading** — M · **Ziel:** Kontext-Überlauf bei 52+ Tools vermeiden. **Akzeptanz:** Tool-Discovery liefert relevante Teilmenge; Test. **Status:** 🔲
+
+**N1-6 · Registry-Listing** — S · **Ziel:** `server.json` (Reverse-DNS-Namespace), Publish auf `registry.modelcontextprotocol.io` via `mcp-publisher` + GitHub-OIDC. **Akzeptanz:** valides `server.json`, CI-Step. **Abhängig:** OPS-1 (public). **Status:** 🔲
+
+**N1-7 · Metadaten-Datenmodell** — L · **Ziel:** `object/fieldMetadata`-Äquivalent in `.agentic/schema/`, Composite-Typen, Runtime-Zod-Generierung, permission-aware Query-Layer (Architektur-Entscheidung A1). **Akzeptanz:** Custom-Object/-Field definierbar → Records validiert + lesbar ohne Code-Migration; Tests. **Abhängig:** A1 bestätigt. **Status:** 🔲 *(Fundament für N5-1)*
+
+### Track N2–N6 (Domänen)
+Pakete N2-1, N3-1/2, N4-1/2/3, N5-1/2/3, N6-1/2/3 wie im Status-Board; Detail-Spezifikation jeweils
+beim Start des Pakets (research-Schritt), Ziel/Akzeptanz aus §4 abgeleitet.
+
+### Track Querschnitt / Refinement / Ops
+- **X-1 PII-Masking**, **X-2 Guardrails** — vor N4/N6 verpflichtend.
+- **REF-1 Spark-Adapter**, **REF-2 ContextBlock**, **REF-3 Coverage** — jederzeit als Lückenfüller.
+- **OPS-1/OPS-2** — user-seitig (GitHub-UI), siehe §C/§D im Verlauf; kein Agent-Zugriff in dieser Umgebung.
+
+---
+
+## 9. Empfohlene Reihenfolge (Now / Next / Later)
+- **Now:** SF-4 → SF-7 (Migration fertig) · N1-1 + N1-2 (Resources/Prompts, hoher Hebel) · N1-4 (OAuth, Security)
+- **Next:** N1-7 (Metadaten-Modell) → N5-1 (Custom Objects) · N6-1 (Memory-Graph-Prototyp) · X-1/X-2
+- **Later:** N3/N4 (Service/Marketing/Data) · N6-2/3 (Multi-Agent/Command-Center) · N1-6 + GTM
