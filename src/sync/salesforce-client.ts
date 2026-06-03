@@ -35,6 +35,20 @@ export interface SalesforceLead {
   Website?: string;
 }
 
+export interface SalesforceCase {
+  Id: string;
+  CaseNumber?: string;
+  Subject?: string;
+  Description?: string;
+  Status?: string;
+  Priority?: string;
+  Account?: { Name?: string };
+  AccountId?: string;
+  ContactId?: string;
+  CreatedDate?: string;
+  ClosedDate?: string;
+}
+
 export interface SalesforceEvent {
   Id: string;
   Subject?: string;
@@ -127,6 +141,17 @@ export async function fetchSalesforceEvents(
     instanceUrl,
     token,
     "SELECT+Id,Subject,Description,ActivityDate,StartDateTime,WhoId,WhatId+FROM+Event"
+  );
+}
+
+export async function fetchSalesforceCases(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceCase[]> {
+  return soqlQueryAll<SalesforceCase>(
+    instanceUrl,
+    token,
+    "SELECT+Id,CaseNumber,Subject,Description,Status,Priority,Account.Name,AccountId,ContactId,CreatedDate,ClosedDate+FROM+Case"
   );
 }
 

@@ -414,3 +414,40 @@ describe("fetchSalesforceEvents", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("fetchSalesforceCases", () => {
+  it("returns parsed cases and paginates", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [
+              {
+                Id: "case1",
+                CaseNumber: "00001023",
+                Subject: "Login broken",
+                Description: "User cannot log in",
+                Status: "Working",
+                Priority: "High",
+                Account: { Name: "Acme Corp" },
+                CreatedDate: "2026-04-01T09:00:00Z",
+              },
+            ],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-6000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ records: [{ Id: "case2", Subject: "Bug" }], totalSize: 2, done: true }),
+      });
+    const { fetchSalesforceCases } = await import("../../src/sync/salesforce-client.js");
+    const cases = await fetchSalesforceCases("https://myco.salesforce.com", "tok");
+    expect(cases).toHaveLength(2);
+    expect(cases[0]!.Subject).toBe("Login broken");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

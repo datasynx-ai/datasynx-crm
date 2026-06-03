@@ -13,6 +13,7 @@ interface ImportResult {
   dealsImported?: number;
   leadsImported?: number;
   eventsImported?: number;
+  casesImported?: number;
 }
 
 /** Map a Salesforce StageName to opencrm's fixed pipeline stage enum. */
@@ -26,6 +27,27 @@ function mapSalesforceStage(
   if (s.includes("propos") || s.includes("quote")) return "proposal";
   if (s.includes("qualif")) return "qualified";
   return "lead";
+}
+
+/** Map a Salesforce Case Status to opencrm's ticket status enum. */
+function mapCaseStatus(
+  status?: string
+): "open" | "in-progress" | "waiting" | "resolved" | "closed" {
+  const s = (status ?? "").toLowerCase();
+  if (s.includes("closed")) return "closed";
+  if (s.includes("resolved")) return "resolved";
+  if (s.includes("escalat") || s.includes("wait") || s.includes("hold")) return "waiting";
+  if (s.includes("working") || s.includes("progress")) return "in-progress";
+  return "open";
+}
+
+/** Map a Salesforce Case Priority to opencrm's ticket priority enum. */
+function mapCasePriority(priority?: string): "urgent" | "high" | "normal" | "low" {
+  const p = (priority ?? "").toLowerCase();
+  if (p.includes("urgent") || p.includes("critical")) return "urgent";
+  if (p.includes("high")) return "high";
+  if (p.includes("low")) return "low";
+  return "normal";
 }
 
 function hashRow(row: Record<string, string>): string {
@@ -575,6 +597,7 @@ async function runSalesforceApiImport(
     fetchSalesforceOpportunities,
     fetchSalesforceLeads,
     fetchSalesforceEvents,
+    fetchSalesforceCases,
   } = await import("../sync/salesforce-client.js");
 
   let contacts: Awaited<ReturnType<typeof fetchSalesforceContacts>>;
@@ -582,6 +605,7 @@ async function runSalesforceApiImport(
   let opportunities: Awaited<ReturnType<typeof fetchSalesforceOpportunities>>;
   let leads: Awaited<ReturnType<typeof fetchSalesforceLeads>>;
   let events: Awaited<ReturnType<typeof fetchSalesforceEvents>>;
+  let cases: Awaited<ReturnType<typeof fetchSalesforceCases>>;
 
   try {
     contacts = await fetchSalesforceContacts(instanceUrl, token);
@@ -589,6 +613,7 @@ async function runSalesforceApiImport(
     opportunities = (await fetchSalesforceOpportunities(instanceUrl, token)) ?? [];
     leads = (await fetchSalesforceLeads(instanceUrl, token)) ?? [];
     events = (await fetchSalesforceEvents(instanceUrl, token)) ?? [];
+    cases = (await fetchSalesforceCases(instanceUrl, token)) ?? [];
   } catch (err) {
     result.errors.push(`Salesforce API: ${(err as Error).message}`);
     return result;
@@ -597,7 +622,7 @@ async function runSalesforceApiImport(
   if (opts.dryRun) {
     console.log(
       info(
-        `Dry run — ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities, ${leads.length} leads, ${events.length} events from Salesforce`
+        `Dry run — ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities, ${leads.length} leads, ${events.length} events, ${cases.length} cases from Salesforce`
       )
     );
     return result;
@@ -777,6 +802,57 @@ async function runSalesforceApiImport(
       result.eventsImported = (result.eventsImported ?? 0) + 1;
     } catch (err) {
       result.errors.push(`Event ${event.Id}: ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 6: cases → tickets (status/priority mapped, SLA computed, deduped by case ref)
+  const { readTickets, upsertTicket, nextTicketId } = await import("../fs/ticket-writer.js");
+  const { calcSlaDue, loadSlaRules } = await import("../core/sla-engine.js");
+  const slaRules = loadSlaRules(dir);
+  for (const c of cases) {
+    const accountName = c.Account?.Name?.trim();
+    if (!accountName) {
+      result.skipped++;
+      continue;
+    }
+    let slug = slugMap.get(accountName.toLowerCase());
+    if (!slug) {
+      try {
+        const r = ensureCustomer(dir, accountName, "", "", false);
+        slug = r.slug;
+        slugMap.set(accountName.toLowerCase(), slug);
+        if (r.created) result.customersCreated++;
+      } catch (err) {
+        result.errors.push(`Case '${c.Id}': ${(err as Error).message}`);
+        continue;
+      }
+    }
+
+    const caseRef = `salesforce://case/${c.Id}`;
+    const existingTickets = await readTickets(dir, slug);
+    if (existingTickets.some((t) => (t.description ?? "").includes(caseRef))) {
+      result.skipped++;
+      continue;
+    }
+
+    const created = (c.CreatedDate ?? new Date().toISOString()).slice(0, 10);
+    const status = mapCaseStatus(c.Status);
+    const priority = mapCasePriority(c.Priority);
+    const isDone = status === "closed" || status === "resolved";
+    try {
+      await upsertTicket(dir, slug, {
+        id: nextTicketId(existingTickets),
+        title: c.Subject ?? `Case ${c.CaseNumber ?? c.Id}`,
+        status,
+        priority,
+        created,
+        slaDue: calcSlaDue(created, priority, slaRules),
+        description: `${c.Description ?? ""}\n\n[${caseRef}]`.trim(),
+        ...(isDone ? { resolved: (c.ClosedDate ?? created).slice(0, 10) } : {}),
+      });
+      result.casesImported = (result.casesImported ?? 0) + 1;
+    } catch (err) {
+      result.errors.push(`Case ${c.Id}: ${(err as Error).message}`);
     }
   }
 

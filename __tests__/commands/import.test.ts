@@ -308,6 +308,7 @@ const mockFetchSalesforceTasks = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceOpportunities = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceLeads = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceEvents = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceCases = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/sync/salesforce-client.js", () => ({
   fetchSalesforceContacts: mockFetchSalesforceContacts,
@@ -315,6 +316,7 @@ vi.mock("../../src/sync/salesforce-client.js", () => ({
   fetchSalesforceOpportunities: mockFetchSalesforceOpportunities,
   fetchSalesforceLeads: mockFetchSalesforceLeads,
   fetchSalesforceEvents: mockFetchSalesforceEvents,
+  fetchSalesforceCases: mockFetchSalesforceCases,
 }));
 
 describe("runImport — Salesforce API mode", () => {
@@ -468,6 +470,41 @@ describe("runImport — Salesforce API mode", () => {
     )?.[2] as { type: string; date: string } | undefined;
     expect(entry?.type).toBe("Meeting");
     expect(entry?.date).toBe("2026-05-10");
+  });
+
+  it("imports cases as tickets with mapped status and priority", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceOpportunities.mockResolvedValue([]);
+    mockFetchSalesforceLeads.mockResolvedValue([]);
+    mockFetchSalesforceEvents.mockResolvedValue([]);
+    mockFetchSalesforceCases.mockResolvedValue([
+      {
+        Id: "case1",
+        CaseNumber: "00001023",
+        Subject: "Login broken",
+        Description: "User cannot log in",
+        Status: "Working",
+        Priority: "High",
+        Account: { Name: "Acme Corp" },
+        CreatedDate: "2026-04-01T09:00:00Z",
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://acme.salesforce.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.casesImported).toBe(1);
+    expect(result.customersCreated).toBe(1);
+    const tickets = vol.toJSON()["/crm/customers/acme-corp/tickets.md"] as string;
+    expect(tickets).toContain("Login broken");
+    expect(tickets).toContain("in-progress");
+    expect(tickets).toContain("high");
   });
 
   it("returns error when Salesforce API throws", async () => {
