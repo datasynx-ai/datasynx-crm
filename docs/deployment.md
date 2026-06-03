@@ -144,6 +144,7 @@ dxcrm audit --limit 100          # More entries
 | `ANTHROPIC_API_KEY` | — | API key for LLM email summarization |
 | `DXCRM_MCP_AUTH` | auto | HTTP `/mcp` auth: `required`, `off`, or auto (on once a token exists) |
 | `DXCRM_PII_MASKING` | `off` | When `on`, mask emails/phones in text sent to the LLM (restored in responses) |
+| `DXCRM_GUARDRAILS` | `off` | When `on`, neutralize prompt-injection phrases in untrusted content before LLM calls |
 
 ---
 

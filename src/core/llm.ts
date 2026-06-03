@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { CircuitBreaker } from "./resilience.js";
 import { guardLlmResponse } from "./input-guard.js";
 import { maskPii, piiMaskingEnabled } from "./pii.js";
+import { neutralizeUntrusted, guardrailsEnabled } from "./guardrails.js";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -135,10 +136,11 @@ export async function callLlm(prompt: string): Promise<string> {
   const client = getClient();
   if (!client) throw new Error("ANTHROPIC_API_KEY not set");
 
-  // Opt-in PII masking: redact emails/phones before the call, restore after.
+  // Opt-in guardrails (neutralize prompt-injection) + PII masking, then restore.
+  const guarded = guardrailsEnabled() ? neutralizeUntrusted(prompt) : prompt;
   const { masked, unmask } = piiMaskingEnabled()
-    ? maskPii(prompt)
-    : { masked: prompt, unmask: (t: string) => t };
+    ? maskPii(guarded)
+    : { masked: guarded, unmask: (t: string) => t };
 
   return llmCircuit.call(async () => {
     const response = await client.messages.create({
