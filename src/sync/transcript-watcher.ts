@@ -142,13 +142,39 @@ export async function processTranscriptFileAutoMatch(
     name: readCustomerName(customersDir, slug),
   }));
 
-  const match = fuzzyMatchCustomer(filePath, content, candidates);
+  const matchedSlug = await matchCustomer(filePath, content, candidates);
 
-  if (match) {
-    await processTranscriptFile(filePath, match.slug, dataDir);
+  if (matchedSlug) {
+    await processTranscriptFile(filePath, matchedSlug, dataDir);
   } else {
     await recordUnmatched(dataDir, filePath, "no_customer_match");
   }
+}
+
+/**
+ * Resolve a transcript to a customer slug. Prefers LLM recognition (when an
+ * ANTHROPIC_API_KEY is configured) and falls back to the filename/content
+ * heuristic. The LLM result is only trusted when it names a known candidate
+ * with at least medium confidence — guarding against hallucinated slugs.
+ */
+async function matchCustomer(
+  filePath: string,
+  content: string,
+  candidates: Array<{ slug: string; name: string }>
+): Promise<string | null> {
+  try {
+    const { recognizeCustomer } = await import("../core/llm.js");
+    const llm = await recognizeCustomer(content, candidates);
+    if (llm.slug && llm.confidence !== "low" && candidates.some((c) => c.slug === llm.slug)) {
+      return llm.slug;
+    }
+  } catch (err: unknown) {
+    process.stderr.write(
+      `[transcript-watcher] LLM recognition failed, using heuristic: ${(err as Error).message}\n`
+    );
+  }
+
+  return fuzzyMatchCustomer(filePath, content, candidates)?.slug ?? null;
 }
 
 async function recordUnmatched(

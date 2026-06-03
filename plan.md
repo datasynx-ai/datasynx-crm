@@ -171,7 +171,7 @@ Idempotent: sourceRef-Set, einmal vor der Schleife gelesen (O(1) pro Message).
 ### Link 5 — Transcript Watcher + Indexer ✅
 
 `chokidar` v4 beobachtet Pfade in `.agentic/sources.json`. Neue `.txt`/`.vtt`-Datei → Embed → LanceDB → `interactions.md`.
-> **Abweichung von Plan:** LLM-Kundenerkennung noch nicht implementiert — Transcripts werden dem Default-Kunden (ersten in `customers/`) zugeordnet. Korrekte Zuordnung kommt in Phase 2.
+> **Implementiert (Update):** LLM-Kundenerkennung ✅ — `processTranscriptFileAutoMatch()` nutzt `recognizeCustomer()` (Claude Haiku) und fällt bei fehlendem `ANTHROPIC_API_KEY`, niedriger Confidence oder unbekanntem Slug auf das Filename-/Content-Heuristik-Matching zurück (`src/sync/transcript-watcher.ts`).
 > **Implementiert:** `.agentic/unmatched-transcripts.json` ✅ — `src/fs/unmatched-transcripts.ts` + `src/sync/transcript-watcher.ts`
 
 **Erledigt wenn:** Transcript ablegen → binnen 5 Minuten in `interactions.md`. ✅

@@ -20,6 +20,12 @@ vi.mock("chokidar", () => {
   };
 });
 
+// LLM customer recognition: default to "no match" so the existing heuristic
+// tests are unaffected; the LLM-recognition tests below override per-case.
+vi.mock("../../src/core/llm.js", () => ({
+  recognizeCustomer: vi.fn().mockResolvedValue({ slug: null, confidence: "low" }),
+}));
+
 beforeEach(() => {
   vol.reset();
   vi.clearAllMocks();
@@ -301,6 +307,69 @@ describe("readCustomerName — error handling", () => {
     // This goes through readCustomerName which may throw on malformed frontmatter
     await processTranscriptFileAutoMatch("/crm/transcripts/broken-customer-meeting.txt", "/crm");
 
+    stderrSpy.mockRestore();
+  });
+});
+
+describe("processTranscriptFileAutoMatch — LLM customer recognition", () => {
+  it("uses the recognizeCustomer (LLM) result over the heuristic when confident", async () => {
+    const { recognizeCustomer } = await import("../../src/core/llm.js");
+    // Neither filename nor content gives a heuristic signal → only the LLM can match.
+    vi.mocked(recognizeCustomer).mockResolvedValue({ slug: "acme-corp", confidence: "high" });
+    vol.fromJSON({
+      "/crm/customers/acme-corp/main_facts.md": "---\nname: Acme Corp\n---\n",
+      "/crm/customers/acme-corp/interactions.md": "# Interactions\n\n",
+      "/crm/customers/beta-inc/main_facts.md": "---\nname: Beta Inc\n---\n",
+      "/crm/customers/beta-inc/interactions.md": "# Interactions\n\n",
+      "/transcripts/notes.txt": "Quarterly sync. General discussion, action items noted.",
+    });
+
+    const { processTranscriptFileAutoMatch } = await import("../../src/sync/transcript-watcher.js");
+    await processTranscriptFileAutoMatch("/transcripts/notes.txt", "/crm");
+
+    const { fs } = vol;
+    const interactions = fs.readFileSync(
+      "/crm/customers/acme-corp/interactions.md",
+      "utf-8"
+    ) as string;
+    expect(interactions).toContain("Meeting");
+    expect(vi.mocked(recognizeCustomer)).toHaveBeenCalled();
+  });
+
+  it("falls back to the heuristic when the LLM returns no slug", async () => {
+    const { recognizeCustomer } = await import("../../src/core/llm.js");
+    vi.mocked(recognizeCustomer).mockResolvedValue({ slug: null, confidence: "low" });
+    vol.fromJSON({
+      "/crm/customers/acme-corp/main_facts.md": "---\nname: Acme Corp\n---\n",
+      "/crm/customers/acme-corp/interactions.md": "# Interactions\n\n",
+      "/transcripts/acme-corp-call.txt": "The filename carries the signal here.",
+    });
+
+    const { processTranscriptFileAutoMatch } = await import("../../src/sync/transcript-watcher.js");
+    await processTranscriptFileAutoMatch("/transcripts/acme-corp-call.txt", "/crm");
+
+    const { fs } = vol;
+    const interactions = fs.readFileSync(
+      "/crm/customers/acme-corp/interactions.md",
+      "utf-8"
+    ) as string;
+    expect(interactions).toContain("Meeting");
+  });
+
+  it("ignores an LLM slug that is not a known candidate (hallucination guard)", async () => {
+    const { recognizeCustomer } = await import("../../src/core/llm.js");
+    vi.mocked(recognizeCustomer).mockResolvedValue({ slug: "ghost-co", confidence: "high" });
+    vol.fromJSON({
+      "/crm/customers/acme-corp/main_facts.md": "---\nname: Acme Corp\n---\n",
+      "/crm/customers/acme-corp/interactions.md": "# Interactions\n\n",
+      "/transcripts/random.txt": "Nothing relatable to any known customer here.",
+    });
+
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const { processTranscriptFileAutoMatch } = await import("../../src/sync/transcript-watcher.js");
+    await processTranscriptFileAutoMatch("/transcripts/random.txt", "/crm");
+
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("Unmatched"));
     stderrSpy.mockRestore();
   });
 });
