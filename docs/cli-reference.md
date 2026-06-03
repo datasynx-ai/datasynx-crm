@@ -11,15 +11,15 @@ dxcrm init
 **What it does:**
 1. Detects all installed AI frameworks (Claude Code, Codex, Cursor, Claude Desktop, ...)
 2. Registers the MCP server in each detected framework
-3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 50 MCP tools and proactive usage patterns
+3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 52 MCP tools and proactive usage patterns
 4. Creates `.agentic/` directory with `config.json` + `sources.json`
 5. Starts background daemon for automatic sync
 
 **Harness files written (v2):**
-- `CLAUDE.md` — all 50 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
+- `CLAUDE.md` — all 52 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
 - `AGENTS.md` — for Codex / OpenClaw / Antigravity
 - `SOUL.md` — identity + v2 autonomy boundaries for Hermes / OpenClaw
-- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 50 tools
+- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 52 tools
 - `.grok/settings.json` — Grok Build MCP config
 
 ---
