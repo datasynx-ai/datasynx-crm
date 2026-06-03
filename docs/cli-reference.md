@@ -151,6 +151,18 @@ dxcrm mcp token --actor alice --role admin   # Mint a bearer token (printed once
 HTTP mode exposes `POST /mcp` (StreamableHTTP), `GET /health`, and
 `GET /.well-known/oauth-protected-resource` (RFC 9728). Once a token is minted,
 `/mcp` requires `Authorization: Bearer <token>`. Only token hashes are stored.
+
+## dxcrm fields
+
+Metadata-driven custom fields (extend customers without code changes).
+
+```bash
+dxcrm fields list
+dxcrm fields add arr number --label "Annual Recurring Revenue"
+dxcrm fields add tier select --options gold,silver,bronze
+```
+
+Definitions are stored in `.agentic/schema/custom-fields.json`.
 Set `DXCRM_MCP_MODE=http` + `DXCRM_MCP_PORT=3847` env vars to configure
 when using the server as a subprocess.
 

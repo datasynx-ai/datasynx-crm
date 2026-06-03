@@ -28,6 +28,7 @@ import { quoteCommand } from "./commands/quote.js";
 import { ticketCommand } from "./commands/ticket.js";
 import { surveyCommand } from "./commands/survey.js";
 import { kbCommand } from "./commands/kb.js";
+import { fieldsCommand } from "./commands/fields.js";
 
 const program = new Command();
 program
@@ -66,5 +67,6 @@ program.addCommand(quoteCommand);
 program.addCommand(ticketCommand);
 program.addCommand(surveyCommand);
 program.addCommand(kbCommand);
+program.addCommand(fieldsCommand);
 
 await program.parseAsync(process.argv);
