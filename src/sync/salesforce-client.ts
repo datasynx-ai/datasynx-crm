@@ -31,51 +31,13 @@ interface SoqlResponse<T> {
   nextRecordsUrl?: string;
 }
 
-export async function fetchSalesforceContacts(
-  instanceUrl: string,
-  token: string
-): Promise<SalesforceContact[]> {
-  const query = "SELECT+Id,Name,Email,Account.Website+FROM+Contact+LIMIT+200";
-  const url = `${instanceUrl}/services/data/v58.0/query?q=${query}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (!res.ok) {
-    throw new Error(`Salesforce API error: ${res.status} ${res.statusText}`);
-  }
-  const data = (await res.json()) as SoqlResponse<SalesforceContact>;
-  return data.records;
-}
-
-export async function fetchSalesforceTasks(
-  instanceUrl: string,
-  token: string
-): Promise<SalesforceTask[]> {
-  const query = "SELECT+Id,Subject,Description,ActivityDate,Type,WhoId+FROM+Task+LIMIT+500";
-  const url = `${instanceUrl}/services/data/v58.0/query?q=${query}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (!res.ok) {
-    throw new Error(`Salesforce API error: ${res.status} ${res.statusText}`);
-  }
-  const data = (await res.json()) as SoqlResponse<SalesforceTask>;
-  return data.records;
-}
-
 /**
- * Fetch ALL opportunities, following Salesforce's `nextRecordsUrl` so large
- * orgs are imported completely (the contact/task fetchers above are still
- * single-page and capped — pagination there is a follow-up).
+ * Run a SOQL query and return ALL records, following Salesforce's
+ * `nextRecordsUrl` so large orgs are imported completely (no LIMIT cap).
  */
-export async function fetchSalesforceOpportunities(
-  instanceUrl: string,
-  token: string
-): Promise<SalesforceOpportunity[]> {
-  const query =
-    "SELECT+Id,Name,StageName,Amount,CloseDate,Probability,Account.Name,Account.Website+FROM+Opportunity";
-  let url: string | null = `${instanceUrl}/services/data/v58.0/query?q=${query}`;
-  const all: SalesforceOpportunity[] = [];
+async function soqlQueryAll<T>(instanceUrl: string, token: string, soql: string): Promise<T[]> {
+  let url: string | null = `${instanceUrl}/services/data/v58.0/query?q=${soql}`;
+  const all: T[] = [];
 
   while (url) {
     const res: Response = await fetch(url, {
@@ -84,12 +46,45 @@ export async function fetchSalesforceOpportunities(
     if (!res.ok) {
       throw new Error(`Salesforce API error: ${res.status} ${res.statusText}`);
     }
-    const data = (await res.json()) as SoqlResponse<SalesforceOpportunity>;
+    const data = (await res.json()) as SoqlResponse<T>;
     all.push(...data.records);
     url = data.nextRecordsUrl ? `${instanceUrl}${data.nextRecordsUrl}` : null;
   }
 
   return all;
+}
+
+export async function fetchSalesforceContacts(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceContact[]> {
+  return soqlQueryAll<SalesforceContact>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Name,Email,Account.Website+FROM+Contact"
+  );
+}
+
+export async function fetchSalesforceTasks(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceTask[]> {
+  return soqlQueryAll<SalesforceTask>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Subject,Description,ActivityDate,Type,WhoId+FROM+Task"
+  );
+}
+
+export async function fetchSalesforceOpportunities(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceOpportunity[]> {
+  return soqlQueryAll<SalesforceOpportunity>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Name,StageName,Amount,CloseDate,Probability,Account.Name,Account.Website+FROM+Opportunity"
+  );
 }
 
 export interface SalesforceBulkJobStatus {

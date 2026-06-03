@@ -287,3 +287,54 @@ describe("fetchSalesforceOpportunities", () => {
     ).rejects.toThrow("Salesforce API error");
   });
 });
+
+describe("fetchSalesforceContacts — pagination", () => {
+  it("follows nextRecordsUrl across pages", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "c1", Name: "A" }],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-2000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ records: [{ Id: "c2", Name: "B" }], totalSize: 2, done: true }),
+      });
+    const { fetchSalesforceContacts } = await import("../../src/sync/salesforce-client.js");
+    const contacts = await fetchSalesforceContacts("https://myco.salesforce.com", "tok");
+    expect(contacts).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]![0] as string).toContain("/services/data/v58.0/query/01g-2000");
+  });
+});
+
+describe("fetchSalesforceTasks — pagination", () => {
+  it("follows nextRecordsUrl across pages", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "t1", Subject: "One" }],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-3000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({ records: [{ Id: "t2", Subject: "Two" }], totalSize: 2, done: true }),
+      });
+    const { fetchSalesforceTasks } = await import("../../src/sync/salesforce-client.js");
+    const tasks = await fetchSalesforceTasks("https://myco.salesforce.com", "tok");
+    expect(tasks).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
