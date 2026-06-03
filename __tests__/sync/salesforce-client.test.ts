@@ -338,3 +338,43 @@ describe("fetchSalesforceTasks — pagination", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("fetchSalesforceLeads", () => {
+  it("returns parsed leads and paginates", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [
+              {
+                Id: "l1",
+                Name: "Jane Doe",
+                Company: "Globex",
+                Email: "jane@globex.com",
+                Status: "Open - Not Contacted",
+                Title: "CTO",
+                Website: "https://globex.com",
+              },
+            ],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-4000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "l2", Name: "John Roe", Company: "Initech" }],
+            totalSize: 2,
+            done: true,
+          }),
+      });
+    const { fetchSalesforceLeads } = await import("../../src/sync/salesforce-client.js");
+    const leads = await fetchSalesforceLeads("https://myco.salesforce.com", "tok");
+    expect(leads).toHaveLength(2);
+    expect(leads[0]!.Company).toBe("Globex");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

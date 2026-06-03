@@ -24,6 +24,17 @@ export interface SalesforceOpportunity {
   Account?: { Name?: string; Website?: string };
 }
 
+export interface SalesforceLead {
+  Id: string;
+  Name: string;
+  Company?: string;
+  Email?: string;
+  Title?: string;
+  Phone?: string;
+  Status?: string;
+  Website?: string;
+}
+
 interface SoqlResponse<T> {
   records: T[];
   totalSize: number;
@@ -84,6 +95,17 @@ export async function fetchSalesforceOpportunities(
     instanceUrl,
     token,
     "SELECT+Id,Name,StageName,Amount,CloseDate,Probability,Account.Name,Account.Website+FROM+Opportunity"
+  );
+}
+
+export async function fetchSalesforceLeads(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceLead[]> {
+  return soqlQueryAll<SalesforceLead>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Name,Company,Email,Title,Phone,Status,Website+FROM+Lead"
   );
 }
 

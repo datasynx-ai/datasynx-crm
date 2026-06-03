@@ -306,11 +306,13 @@ describe("runImport — Pipedrive directory", () => {
 const mockFetchSalesforceContacts = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceTasks = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceOpportunities = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceLeads = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/sync/salesforce-client.js", () => ({
   fetchSalesforceContacts: mockFetchSalesforceContacts,
   fetchSalesforceTasks: mockFetchSalesforceTasks,
   fetchSalesforceOpportunities: mockFetchSalesforceOpportunities,
+  fetchSalesforceLeads: mockFetchSalesforceLeads,
 }));
 
 describe("runImport — Salesforce API mode", () => {
@@ -394,6 +396,38 @@ describe("runImport — Salesforce API mode", () => {
     expect(pipeline).toContain("Acme Enterprise License");
     expect(pipeline).toContain("negotiation");
     expect(pipeline).toContain("75000");
+  });
+
+  it("imports leads as customers with a lead interaction", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceOpportunities.mockResolvedValue([]);
+    mockFetchSalesforceLeads.mockResolvedValue([
+      {
+        Id: "l1",
+        Name: "Jane Doe",
+        Company: "Globex",
+        Email: "jane@globex.com",
+        Status: "Open - Not Contacted",
+        Title: "CTO",
+        Website: "https://globex.com",
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://acme.salesforce.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.leadsImported).toBe(1);
+    expect(result.customersCreated).toBe(1);
+    expect(appendInteraction).toHaveBeenCalledTimes(1);
+    const entry = appendInteraction.mock.calls[0]![2] as { sourceRef: string; summary: string };
+    expect(entry.sourceRef).toBe("salesforce://lead/l1");
+    expect(entry.summary).toContain("Open - Not Contacted");
   });
 
   it("returns error when Salesforce API throws", async () => {

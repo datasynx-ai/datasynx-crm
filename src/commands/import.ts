@@ -11,6 +11,7 @@ interface ImportResult {
   skipped: number;
   errors: string[];
   dealsImported?: number;
+  leadsImported?: number;
 }
 
 /** Map a Salesforce StageName to opencrm's fixed pipeline stage enum. */
@@ -567,17 +568,23 @@ async function runSalesforceApiImport(
     process.exit(1);
   }
 
-  const { fetchSalesforceContacts, fetchSalesforceTasks, fetchSalesforceOpportunities } =
-    await import("../sync/salesforce-client.js");
+  const {
+    fetchSalesforceContacts,
+    fetchSalesforceTasks,
+    fetchSalesforceOpportunities,
+    fetchSalesforceLeads,
+  } = await import("../sync/salesforce-client.js");
 
   let contacts: Awaited<ReturnType<typeof fetchSalesforceContacts>>;
   let tasks: Awaited<ReturnType<typeof fetchSalesforceTasks>>;
   let opportunities: Awaited<ReturnType<typeof fetchSalesforceOpportunities>>;
+  let leads: Awaited<ReturnType<typeof fetchSalesforceLeads>>;
 
   try {
     contacts = await fetchSalesforceContacts(instanceUrl, token);
     tasks = await fetchSalesforceTasks(instanceUrl, token);
     opportunities = (await fetchSalesforceOpportunities(instanceUrl, token)) ?? [];
+    leads = (await fetchSalesforceLeads(instanceUrl, token)) ?? [];
   } catch (err) {
     result.errors.push(`Salesforce API: ${(err as Error).message}`);
     return result;
@@ -586,7 +593,7 @@ async function runSalesforceApiImport(
   if (opts.dryRun) {
     console.log(
       info(
-        `Dry run — ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities from Salesforce`
+        `Dry run — ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities, ${leads.length} leads from Salesforce`
       )
     );
     return result;
@@ -684,6 +691,48 @@ async function runSalesforceApiImport(
       result.dealsImported = (result.dealsImported ?? 0) + 1;
     } catch (err) {
       result.errors.push(`Opportunity '${opp.Name}': ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 4: leads → customers (+ a lead interaction capturing status/title)
+  const { readInteractions } = await import("../fs/interactions-writer.js");
+  for (const lead of leads) {
+    const name = lead.Company?.trim() || lead.Name?.trim();
+    if (!name) continue;
+
+    const domain = lead.Website?.replace(/^https?:\/\//, "") ?? lead.Email?.split("@")[1] ?? "";
+    let slug: string;
+    try {
+      const r = ensureCustomer(dir, name, domain, lead.Email ?? "", false);
+      slug = r.slug;
+      slugMap.set(name.toLowerCase(), slug);
+      if (r.created) result.customersCreated++;
+    } catch (err) {
+      result.errors.push(`Lead '${name}': ${(err as Error).message}`);
+      continue;
+    }
+
+    const sourceRef = `salesforce://lead/${lead.Id}`;
+    const existing = await readInteractions(dir, slug).catch(() => "");
+    if (existing.includes(sourceRef)) {
+      result.skipped++;
+      continue;
+    }
+
+    const contactPart = lead.Title ? `${lead.Name}, ${lead.Title}` : lead.Name;
+    try {
+      await appendInteraction(dir, slug, {
+        date: new Date().toISOString().slice(0, 10),
+        type: "Note",
+        with: lead.Name,
+        summary: `Salesforce Lead imported (status: ${lead.Status ?? "n/a"}; contact: ${contactPart})`,
+        nextSteps: [],
+        sourceRef,
+        synced: new Date().toISOString(),
+      });
+      result.leadsImported = (result.leadsImported ?? 0) + 1;
+    } catch (err) {
+      result.errors.push(`Lead ${lead.Id}: ${(err as Error).message}`);
     }
   }
 
