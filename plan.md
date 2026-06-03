@@ -551,6 +551,14 @@ dxcrm import --from salesforce --mode api --token $SFDC_TOKEN
 
 Bewahrt die vollständige Historie inkl. verknüpfter Activities und Multi-Object-Beziehungen.
 
+> **Status (Update):** Salesforce-API-Import deckt ab: Contacts → Kunden, Tasks → interactions,
+> **Opportunities → `pipeline.md`-Deals** (Stage-Mapping SF→opencrm, Amount/Probability/CloseDate)
+> mit voller **Pagination** über `nextRecordsUrl` (`src/sync/salesforce-client.ts`,
+> `runSalesforceApiImport` in `src/commands/import.ts`).
+> **Noch offen für vollständige Migration:** Leads, Events, Cases→Tickets, Notes/Attachments,
+> Products/LineItems, Campaigns, Custom Fields, Owner→Actor-Mapping; Pagination auch für
+> Contacts/Tasks.
+
 ### Domino 4d — Compliance-Paket
 
 ```

@@ -221,3 +221,69 @@ describe("fetchBulkResults", () => {
     }).rejects.toThrow("Salesforce Bulk results error");
   });
 });
+
+describe("fetchSalesforceOpportunities", () => {
+  it("returns parsed opportunities", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          records: [
+            {
+              Id: "o001",
+              Name: "Acme Enterprise License",
+              StageName: "Proposal/Price Quote",
+              Amount: 75000,
+              CloseDate: "2026-09-30",
+              Probability: 60,
+              Account: { Name: "Acme Corp", Website: "https://acme.com" },
+            },
+          ],
+          totalSize: 1,
+          done: true,
+        }),
+    });
+    const { fetchSalesforceOpportunities } = await import("../../src/sync/salesforce-client.js");
+    const opps = await fetchSalesforceOpportunities("https://myco.salesforce.com", "tok");
+    expect(opps).toHaveLength(1);
+    expect(opps[0]!.Name).toBe("Acme Enterprise License");
+    expect(opps[0]!.Account?.Name).toBe("Acme Corp");
+  });
+
+  it("follows nextRecordsUrl pagination across pages", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "o1", Name: "Deal 1", Account: { Name: "A" } }],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g000-2000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "o2", Name: "Deal 2", Account: { Name: "B" } }],
+            totalSize: 2,
+            done: true,
+          }),
+      });
+    const { fetchSalesforceOpportunities } = await import("../../src/sync/salesforce-client.js");
+    const opps = await fetchSalesforceOpportunities("https://myco.salesforce.com", "tok");
+    expect(opps).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const secondUrl = fetchMock.mock.calls[1]![0] as string;
+    expect(secondUrl).toContain("/services/data/v58.0/query/01g000-2000");
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 403, statusText: "Forbidden" });
+    const { fetchSalesforceOpportunities } = await import("../../src/sync/salesforce-client.js");
+    await expect(
+      fetchSalesforceOpportunities("https://myco.salesforce.com", "tok")
+    ).rejects.toThrow("Salesforce API error");
+  });
+});

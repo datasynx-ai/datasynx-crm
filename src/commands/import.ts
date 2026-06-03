@@ -10,6 +10,20 @@ interface ImportResult {
   interactionsImported: number;
   skipped: number;
   errors: string[];
+  dealsImported?: number;
+}
+
+/** Map a Salesforce StageName to opencrm's fixed pipeline stage enum. */
+function mapSalesforceStage(
+  stageName?: string
+): "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost" {
+  const s = (stageName ?? "").toLowerCase();
+  if (s.includes("won")) return "won";
+  if (s.includes("lost")) return "lost";
+  if (s.includes("negoti")) return "negotiation";
+  if (s.includes("propos") || s.includes("quote")) return "proposal";
+  if (s.includes("qualif")) return "qualified";
+  return "lead";
 }
 
 function hashRow(row: Record<string, string>): string {
@@ -553,15 +567,17 @@ async function runSalesforceApiImport(
     process.exit(1);
   }
 
-  const { fetchSalesforceContacts, fetchSalesforceTasks } =
+  const { fetchSalesforceContacts, fetchSalesforceTasks, fetchSalesforceOpportunities } =
     await import("../sync/salesforce-client.js");
 
   let contacts: Awaited<ReturnType<typeof fetchSalesforceContacts>>;
   let tasks: Awaited<ReturnType<typeof fetchSalesforceTasks>>;
+  let opportunities: Awaited<ReturnType<typeof fetchSalesforceOpportunities>>;
 
   try {
     contacts = await fetchSalesforceContacts(instanceUrl, token);
     tasks = await fetchSalesforceTasks(instanceUrl, token);
+    opportunities = (await fetchSalesforceOpportunities(instanceUrl, token)) ?? [];
   } catch (err) {
     result.errors.push(`Salesforce API: ${(err as Error).message}`);
     return result;
@@ -569,7 +585,9 @@ async function runSalesforceApiImport(
 
   if (opts.dryRun) {
     console.log(
-      info(`Dry run — ${contacts.length} contacts, ${tasks.length} tasks from Salesforce`)
+      info(
+        `Dry run — ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities from Salesforce`
+      )
     );
     return result;
   }
@@ -628,6 +646,44 @@ async function runSalesforceApiImport(
       result.interactionsImported++;
     } catch (err) {
       result.errors.push(`Task ${task.Id}: ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 3: opportunities → pipeline deals
+  const { upsertDeal } = await import("../fs/pipeline-writer.js");
+  const today = new Date().toISOString().slice(0, 10);
+  for (const opp of opportunities) {
+    const accountName = opp.Account?.Name?.trim();
+    if (!opp.Name || !accountName) continue;
+
+    let slug = slugMap.get(accountName.toLowerCase());
+    if (!slug) {
+      const domain = opp.Account?.Website?.replace(/^https?:\/\//, "") ?? "";
+      try {
+        const r = ensureCustomer(dir, accountName, domain, "", false);
+        slug = r.slug;
+        slugMap.set(accountName.toLowerCase(), slug);
+        if (r.created) result.customersCreated++;
+      } catch (err) {
+        result.errors.push(`Opportunity '${opp.Name}': ${(err as Error).message}`);
+        continue;
+      }
+    }
+
+    try {
+      await upsertDeal(dir, slug, {
+        name: opp.Name,
+        stage: mapSalesforceStage(opp.StageName),
+        currency: "EUR",
+        updated: today,
+        notes: `Imported from Salesforce (${opp.StageName ?? "unknown stage"})`,
+        ...(typeof opp.Amount === "number" ? { value: opp.Amount } : {}),
+        ...(typeof opp.Probability === "number" ? { probability: opp.Probability } : {}),
+        ...(opp.CloseDate ? { close_date: opp.CloseDate } : {}),
+      });
+      result.dealsImported = (result.dealsImported ?? 0) + 1;
+    } catch (err) {
+      result.errors.push(`Opportunity '${opp.Name}': ${(err as Error).message}`);
     }
   }
 

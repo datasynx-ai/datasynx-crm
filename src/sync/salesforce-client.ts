@@ -14,10 +14,21 @@ export interface SalesforceTask {
   WhoId?: string;
 }
 
+export interface SalesforceOpportunity {
+  Id: string;
+  Name: string;
+  StageName?: string;
+  Amount?: number | null;
+  CloseDate?: string;
+  Probability?: number | null;
+  Account?: { Name?: string; Website?: string };
+}
+
 interface SoqlResponse<T> {
   records: T[];
   totalSize: number;
   done: boolean;
+  nextRecordsUrl?: string;
 }
 
 export async function fetchSalesforceContacts(
@@ -50,6 +61,35 @@ export async function fetchSalesforceTasks(
   }
   const data = (await res.json()) as SoqlResponse<SalesforceTask>;
   return data.records;
+}
+
+/**
+ * Fetch ALL opportunities, following Salesforce's `nextRecordsUrl` so large
+ * orgs are imported completely (the contact/task fetchers above are still
+ * single-page and capped — pagination there is a follow-up).
+ */
+export async function fetchSalesforceOpportunities(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceOpportunity[]> {
+  const query =
+    "SELECT+Id,Name,StageName,Amount,CloseDate,Probability,Account.Name,Account.Website+FROM+Opportunity";
+  let url: string | null = `${instanceUrl}/services/data/v58.0/query?q=${query}`;
+  const all: SalesforceOpportunity[] = [];
+
+  while (url) {
+    const res: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+    if (!res.ok) {
+      throw new Error(`Salesforce API error: ${res.status} ${res.statusText}`);
+    }
+    const data = (await res.json()) as SoqlResponse<SalesforceOpportunity>;
+    all.push(...data.records);
+    url = data.nextRecordsUrl ? `${instanceUrl}${data.nextRecordsUrl}` : null;
+  }
+
+  return all;
 }
 
 export interface SalesforceBulkJobStatus {

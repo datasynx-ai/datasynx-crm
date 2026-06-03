@@ -305,10 +305,12 @@ describe("runImport — Pipedrive directory", () => {
 
 const mockFetchSalesforceContacts = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceTasks = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceOpportunities = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/sync/salesforce-client.js", () => ({
   fetchSalesforceContacts: mockFetchSalesforceContacts,
   fetchSalesforceTasks: mockFetchSalesforceTasks,
+  fetchSalesforceOpportunities: mockFetchSalesforceOpportunities,
 }));
 
 describe("runImport — Salesforce API mode", () => {
@@ -360,6 +362,38 @@ describe("runImport — Salesforce API mode", () => {
     const entry = appendInteraction.mock.calls[0]![2] as { sourceRef: string; type: string };
     expect(entry.sourceRef).toBe("salesforce://task/t1");
     expect(entry.type).toBe("Call");
+  });
+
+  it("imports opportunities into pipeline.md with mapped stages", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceOpportunities.mockResolvedValue([
+      {
+        Id: "o1",
+        Name: "Acme Enterprise License",
+        StageName: "Negotiation/Review",
+        Amount: 75000,
+        CloseDate: "2026-09-30",
+        Probability: 80,
+        Account: { Name: "Acme Corp", Website: "https://acme.com" },
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://acme.salesforce.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.dealsImported).toBe(1);
+    // The account had no contact, so the opportunity creates the customer.
+    expect(result.customersCreated).toBe(1);
+    const pipeline = vol.toJSON()["/crm/customers/acme-corp/pipeline.md"] as string;
+    expect(pipeline).toContain("Acme Enterprise License");
+    expect(pipeline).toContain("negotiation");
+    expect(pipeline).toContain("75000");
   });
 
   it("returns error when Salesforce API throws", async () => {
