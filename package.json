@@ -5,9 +5,24 @@
   "type": "module",
   "license": "MIT",
   "author": "Datasynx Engineering <eng@datasynx.io>",
+  "keywords": [
+    "crm",
+    "mcp",
+    "model-context-protocol",
+    "local-first",
+    "ai-agent",
+    "claude",
+    "cli",
+    "sales",
+    "lancedb"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/datasynx/datasynx-crm.git"
+    "url": "git+https://github.com/datasynx-ai/datasynx-crm.git"
+  },
+  "homepage": "https://github.com/datasynx-ai/datasynx-crm#readme",
+  "bugs": {
+    "url": "https://github.com/datasynx-ai/datasynx-crm/issues"
   },
   "engines": {
     "node": ">=20"
