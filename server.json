@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.datasynx-ai/opencrm",
+  "description": "Local-first, MCP-native CRM. One agent per customer. npm install.",
+  "repository": {
+    "url": "https://github.com/datasynx-ai/datasynx-crm",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@datasynx/opencrm",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "DXCRM_DATA_DIR",
+          "description": "CRM data directory (defaults to the current working directory)",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

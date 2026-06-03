@@ -172,7 +172,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N1-3 | **Elicitation** bei Pflichtfeldern | Core/MCP | S | 🔲 |
 | N1-4 | **OAuth 2.1 Resource Server** (HTTP, token auth) | Security | L | ✅ |
 | N1-5 | **Tool-Search / Lazy-Loading** | Core/MCP | M | 🔲 |
-| N1-6 | **Registry-Listing** (`server.json` + OIDC-Publish) | GTM | S | 🔲 |
+| N1-6 | **Registry-Listing** (`server.json`) | GTM | S | ✅ (Publish via OIDC = OPS) |
 | N1-7 | **Metadaten-Datenmodell** (object/fieldMetadata, Runtime-Zod) | Core | L | 🔲 |
 | N2-1 | LLM-Opportunity-Scoring | Sales | M | 🔲 |
 | N3-1 | Omni-Channel-Routing (skill/priority) | Service | M | 🔲 |
