@@ -72,6 +72,8 @@ import { registerBackupNow } from "./tools/backup-now.js";
 import { registerListBackups } from "./tools/list-backups.js";
 import { registerTriggerSync } from "./tools/trigger-sync.js";
 import { registerGetAuditLog } from "./tools/get-audit-log.js";
+import { registerPrompts } from "./prompts.js";
+import { registerResources } from "./resources.js";
 
 export function surveyThankYouPage(score: number, comment?: string): string {
   const emoji = score >= 9 ? "🎉" : score >= 7 ? "🙂" : "🙏";
@@ -144,6 +146,10 @@ export function createMcpServer(): McpServer {
   registerListBackups(server);
   registerTriggerSync(server);
   registerGetAuditLog(server);
+
+  // MCP Prompts (playbooks) + Resources (read-only entities) — agent-native primitives
+  registerPrompts(server);
+  registerResources(server);
 
   return server;
 }

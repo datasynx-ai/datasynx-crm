@@ -98,6 +98,22 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | trigger_sync | Force immediate Gmail sync for one or all customers | rep+ |
 | get_audit_log | Read audit log — all write operations with actor, tool, customer | admin |
 
+## MCP Resources (read-only)
+
+Besides Tools, the server exposes read-only Resources you can fetch via resources/read:
+- crm://customers — list of all customer slugs (JSON)
+- crm://customer/{slug} — LLM-ready briefing (main facts, recent interactions, pipeline)
+- crm://pipeline/{slug} — deals for a customer (JSON)
+- crm://timeline/{slug} — newest-first interaction history (Markdown)
+
+## MCP Prompts (playbooks)
+
+Reusable playbook prompts via prompts/get (argument: slug):
+- deal_risk_review — assess deal health and risk, recommend next steps
+- draft_follow_up — draft a personalized follow-up email
+- account_brief — concise executive account brief
+- pipeline_summary — pipeline + forecast summary
+
 ## Tool Reference
 
 ### get_capabilities()

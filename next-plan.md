@@ -30,7 +30,7 @@ Workspace-Modell auf — wir erweitern ihn (siehe Architektur-Entscheidung A1).
 | Vision-Baustein (Whitepaper) | opencrm heute | Beleg / Delta |
 |---|---|---|
 | Dual npm-Paket (MCP-Server + SDK) | ✅ `bin` + `exports` (`.` + `./mcp`), Dual ESM/CJS, `prepublishOnly` | `server.json` (Registry) fehlt |
-| MCP-Server | ✅ **52 Tools** (`registerTool`), stdio **+** stateless Streamable HTTP | **0 Resources, 0 Prompts, kein `instructions`-Feld, kein Tool-Search** (`server.ts`) |
+| MCP-Server | ✅ **52 Tools**, **4 Resources** (`crm://customers`, `crm://customer/{slug}`, `crm://pipeline/{slug}`, `crm://timeline/{slug}`), **4 Prompts** (Playbooks), stdio **+** stateless Streamable HTTP | kein `instructions`-Feld, kein Tool-Search (offen: N1-3/N1-5) |
 | Auth (HTTP `/mcp`) | 🔴 **komplett unauthentifiziert** (neue Transport-Instanz pro Request) | **OAuth 2.1** (RFC 9728/8707, PKCE-S256) fehlt — **aber** Webhook-HMAC-Verifikation existiert (Gmail/MS/Slack) als Baustein |
 | RBAC | ✅ tool-level via `DXCRM_ACTOR` + `.agentic/rbac.json` (admin/manager/rep) | nicht request-/token-gebunden; Sharing-Rules nur grob (owned_customers) |
 | Datenmodell | 🔴 **11 feste Zod-Schemas** (main_facts/interaction/pipeline/ticket/quote/sequence/survey/kb/agent-config/sources/email-template) | **null Custom Objects/Fields, keine Composite-Typen, keine Runtime-Metadaten** (`src/schemas/`) |
@@ -167,8 +167,8 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | SF-6 | Products/LineItems → Deal-Value/Quotes | Migration | M | ✅ |
 | SF-7 | Notes → interactions | Migration | S | ✅ |
 | SF-8 | Campaigns (✅) / Custom Fields (file-mode) / Owner / Hierarchie (deferred) | Migration | L | ✅ |
-| N1-1 | MCP **Resources** (read-only Entities) | Core/MCP | M | 🔲 |
-| N1-2 | MCP **Prompts** (Playbooks) | Core/MCP | S | 🔲 |
+| N1-1 | MCP **Resources** (read-only Entities) | Core/MCP | M | ✅ |
+| N1-2 | MCP **Prompts** (Playbooks) | Core/MCP | S | ✅ |
 | N1-3 | **Elicitation** bei Pflichtfeldern | Core/MCP | S | 🔲 |
 | N1-4 | **OAuth 2.1 Resource Server** (HTTP) | Security | L | 🔲 |
 | N1-5 | **Tool-Search / Lazy-Loading** | Core/MCP | M | 🔲 |
