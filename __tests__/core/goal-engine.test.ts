@@ -309,6 +309,13 @@ describe("parseLlmDecomposition", () => {
     expect(result.subGoals).toHaveLength(0);
   });
 
+  it("returns fallback when JSON.parse throws (unquoted keys)", async () => {
+    const { parseLlmDecomposition } = await import("../../src/core/goal-engine.js");
+    // regex matches the {..} block, but JSON.parse throws on unquoted keys
+    const result = parseLlmDecomposition("{analysis: 'bad json', subGoals: []}", fallback);
+    expect(result.analysis).toBe("fallback");
+  });
+
   it("returns fallback when subGoals array missing", async () => {
     const { parseLlmDecomposition } = await import("../../src/core/goal-engine.js");
     const response = JSON.stringify({ analysis: "ok", probabilisticOutcome: "x" });
@@ -400,6 +407,17 @@ describe("pursueGoal", () => {
       { buildInputFn: mockBuildFn }
     );
     expect(readGoals(DATA_DIR)).toHaveLength(2);
+  });
+
+  it("uses default buildSimulationInput when buildInputFn not provided", async () => {
+    vol.fromJSON({});
+    const { pursueGoal } = await import("../../src/core/goal-engine.js");
+    // No buildInputFn — exercises the default lambda at lines 329-332
+    const goal = await pursueGoal(DATA_DIR, {
+      description: "Close €100k this quarter",
+      deadline: "2026-09-30",
+    });
+    expect(goal.status).toBe("active");
   });
 
   it("throws on invalid deadline format", async () => {

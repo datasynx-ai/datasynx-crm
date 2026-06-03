@@ -275,3 +275,177 @@ describe("owner map import", () => {
     expect(result.ownersResolved).toBe(0);
   });
 });
+
+describe("engagement type mapping — LINKEDIN / WHATSAPP / POSTAL", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("maps LINKEDIN_MESSAGE to Email interaction type", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+      [`${DATA_DIR}/exports/engagements.csv`]: `engagement_type,hs_timestamp,hs_body_preview,associated_contact_email,id\nLINKEDIN_MESSAGE,2026-05-01T10:00:00Z,LinkedIn outreach,alice@acme.com,eng-li\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.engagementsImported).toBe(1);
+    const interactions = vol.toJSON()[`${DATA_DIR}/customers/acme-corp/interactions.md`] as string;
+    expect(interactions).toContain("Email");
+  });
+
+  it("maps WHATSAPP_MESSAGE to Email interaction type", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+      [`${DATA_DIR}/exports/engagements.csv`]: `engagement_type,hs_timestamp,hs_body_preview,associated_contact_email,id\nWHATSAPP_MESSAGE,2026-05-02T10:00:00Z,WhatsApp message,alice@acme.com,eng-wa\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.engagementsImported).toBe(1);
+    const interactions = vol.toJSON()[`${DATA_DIR}/customers/acme-corp/interactions.md`] as string;
+    expect(interactions).toContain("Email");
+  });
+
+  it("maps POSTAL_MAIL to Note interaction type", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+      [`${DATA_DIR}/exports/engagements.csv`]: `engagement_type,hs_timestamp,hs_body_preview,associated_contact_email,id\nPOSTAL_MAIL,2026-05-03T10:00:00Z,Sent contract,alice@acme.com,eng-pm\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.engagementsImported).toBe(1);
+    const interactions = vol.toJSON()[`${DATA_DIR}/customers/acme-corp/interactions.md`] as string;
+    expect(interactions).toContain("Note");
+  });
+
+  it("maps unknown engagement type to Note", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+      [`${DATA_DIR}/exports/engagements.csv`]: `engagement_type,hs_timestamp,hs_body_preview,associated_contact_email,id\nFAX_TRANSMISSION,2026-05-04T10:00:00Z,Sent fax,alice@acme.com,eng-fax\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.engagementsImported).toBe(1);
+    const interactions = vol.toJSON()[`${DATA_DIR}/customers/acme-corp/interactions.md`] as string;
+    expect(interactions).toContain("Note");
+  });
+});
+
+describe("contact_owner column — contacts phase owner mapping", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("resolves contact_owner email to rep name and increments ownersResolved", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company,contact_owner\nAlice,Smith,alice@acme.com,Acme Corp,rep@team.com\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {
+      ownerMap: { "rep@team.com": "sales-rep" },
+    });
+    expect(result.ownersResolved).toBe(1);
+    const facts = vol.toJSON()[`${DATA_DIR}/customers/acme-corp/main_facts.md`] as string;
+    expect(facts).toContain("sales-rep");
+  });
+});
+
+describe("resume path — opts.resume = true", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("resumes from existing progress file and skips done phases", async () => {
+    const progressData = {
+      importId: "hs-import-2026-05-01T00-00-00",
+      source: `${DATA_DIR}/exports`,
+      startedAt: "2026-05-01T00:00:00Z",
+      phases: {
+        companies: { status: "done", processed: 1 },
+        contacts: { status: "pending", processed: 0 },
+        deals: { status: "pending", processed: 0 },
+        engagements: { status: "pending", processed: 0 },
+      },
+    };
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/import-progress.json`]: JSON.stringify(progressData),
+      [`${DATA_DIR}/customers/acme-corp/main_facts.md`]: `---\nname: Acme Corp\n---\n`,
+      [`${DATA_DIR}/customers/acme-corp/interactions.md`]: `# Interactions — Acme Corp\n\n`,
+      [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: `# Pipeline — Acme Corp\n\n`,
+      [`${DATA_DIR}/customers/acme-corp/sources.json`]: `{}`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, { resume: true });
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Resuming"));
+    expect(result.contactsImported).toBe(1);
+    consoleSpy.mockRestore();
+  });
+
+  it("starts fresh when no progress file exists and resume=true", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, { resume: true });
+    expect(result.companiesProcessed).toBe(1);
+  });
+});
+
+describe("engagement edge cases", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("derives engagement ID from hash when id field is missing", async () => {
+    // No 'id' column → falls back to hashStr(timestamp + body) at line 703
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+      [`${DATA_DIR}/exports/engagements.csv`]: `engagement_type,hs_timestamp,hs_body_preview,associated_contact_email\nNOTE,2026-05-01T10:00:00Z,A note without id,alice@acme.com\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.engagementsImported).toBe(1);
+  });
+
+  it("matches engagement to slug via associated_company fallback (line 715)", async () => {
+    // No contact email match → companySlugMap lookup
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/contacts.csv`]: `firstname,lastname,email,company\nAlice,Smith,alice@acme.com,Acme Corp\n`,
+      [`${DATA_DIR}/exports/engagements.csv`]: `engagement_type,hs_timestamp,hs_body_preview,associated_contact_email,id,associated_company\nNOTE,2026-05-01T10:00:00Z,Company note,,eng-co1,Acme Corp\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.engagementsImported).toBe(1);
+  });
+});
+
+describe("unknown deal stage mapping", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("defaults to 'qualified' stage for unknown HubSpot stage", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/exports/companies.csv`]: `name,domain\nAcme Corp,acme.com\n`,
+      [`${DATA_DIR}/exports/deals.csv`]: `dealname,amount,dealstage,closedate,associated_company\nTest Deal,1000,totally_new_pipeline_stage,2026-09-30,Acme Corp\n`,
+    });
+    const { runHubSpotCsvImport } = await import("../../src/commands/import-hubspot.js");
+    const result = await runHubSpotCsvImport(`${DATA_DIR}/exports`, DATA_DIR, {});
+    expect(result.dealsImported).toBe(1);
+    const pipeline = vol.toJSON()[`${DATA_DIR}/customers/acme-corp/pipeline.md`] as string;
+    expect(pipeline).toContain("qualified");
+  });
+});

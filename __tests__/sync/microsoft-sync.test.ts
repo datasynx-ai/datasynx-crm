@@ -153,4 +153,86 @@ describe("syncMicrosoft", () => {
     expect(result.synced).toBeGreaterThan(0);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("uses today's date when message has no receivedDateTime", async () => {
+    const noDateResponse = {
+      value: [{ id: "msg-nd", subject: "No date", bodyPreview: "content" }],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(noDateResponse) })
+    );
+    const { readInteractions, appendInteraction } =
+      await import("../../src/fs/interactions-writer.js");
+    vi.mocked(readInteractions).mockResolvedValue("");
+    vi.mocked(appendInteraction).mockResolvedValue(undefined);
+    const { syncMicrosoft } = await import("../../src/sync/microsoft-sync.js");
+    const result = await syncMicrosoft({ slug: "acme-corp", dataDir: "/crm", accessToken: "tok" });
+    expect(result.synced).toBe(1);
+  });
+
+  it("records error in result when appendInteraction fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(GRAPH_RESPONSE) })
+    );
+    const { readInteractions, appendInteraction } =
+      await import("../../src/fs/interactions-writer.js");
+    vi.mocked(readInteractions).mockResolvedValue("");
+    vi.mocked(appendInteraction).mockRejectedValue(new Error("disk full"));
+    const { syncMicrosoft } = await import("../../src/sync/microsoft-sync.js");
+    const result = await syncMicrosoft({ slug: "acme-corp", dataDir: "/crm", accessToken: "tok" });
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("disk full");
+  });
+
+  it("builds date filter when since option is provided", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ value: [] }),
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    const { syncMicrosoft } = await import("../../src/sync/microsoft-sync.js");
+    const since = new Date("2026-05-01T00:00:00Z");
+    await syncMicrosoft({ slug: "acme-corp", dataDir: "/crm", accessToken: "tok", since });
+    const url = String(fetchFn.mock.calls[0]![0]);
+    expect(url).toContain("receivedDateTime");
+  });
+
+  it("builds query filter when query option is provided", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ value: [] }),
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    const { syncMicrosoft } = await import("../../src/sync/microsoft-sync.js");
+    await syncMicrosoft({
+      slug: "acme-corp",
+      dataDir: "/crm",
+      accessToken: "tok",
+      query: "from:alice@example.com",
+    });
+    const url = String(fetchFn.mock.calls[0]![0]);
+    expect(url).toContain("from:alice@example.com");
+  });
+
+  it("combines since and query filters with 'and'", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ value: [] }),
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    const { syncMicrosoft } = await import("../../src/sync/microsoft-sync.js");
+    const since = new Date("2026-05-01T00:00:00Z");
+    await syncMicrosoft({
+      slug: "acme-corp",
+      dataDir: "/crm",
+      accessToken: "tok",
+      since,
+      query: "from:alice@example.com",
+    });
+    const url = String(fetchFn.mock.calls[0]![0]);
+    expect(url).toContain("receivedDateTime");
+    expect(url).toContain("from:alice@example.com");
+  });
 });

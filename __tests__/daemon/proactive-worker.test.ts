@@ -12,6 +12,8 @@ const mockComputeCustomerHealth = vi.hoisted(() =>
 const mockReadPipeline = vi.hoisted(() => vi.fn<[string, string], Promise<unknown[]>>());
 const mockBuildDailyBriefing = vi.hoisted(() => vi.fn<[string, string], Promise<unknown>>());
 const mockEnqueueTask = vi.hoisted(() => vi.fn<[string, unknown], Promise<AgentTask>>());
+const mockRunScheduledBackupIfDue = vi.hoisted(() => vi.fn<[string], Promise<void>>());
+const mockFetchSignalsForCustomer = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/core/relationship-health.js", () => ({
   readHealth: mockReadHealth,
@@ -25,6 +27,14 @@ vi.mock("../../src/fs/pipeline-writer.js", () => ({
 vi.mock("../../src/core/proactive-agent.js", () => ({
   buildDailyBriefing: mockBuildDailyBriefing,
   enqueueTask: mockEnqueueTask,
+}));
+
+vi.mock("../../src/commands/backup.js", () => ({
+  runScheduledBackupIfDue: mockRunScheduledBackupIfDue,
+}));
+
+vi.mock("../../src/sync/external-signals.js", () => ({
+  fetchSignalsForCustomer: mockFetchSignalsForCustomer,
 }));
 
 // memfs for fs operations
@@ -107,6 +117,8 @@ describe("runDailyProactiveChecks", () => {
     });
     mockEnqueueTask.mockResolvedValue({ id: "task_1", status: "pending" } as AgentTask);
     mockReadPipeline.mockResolvedValue([]);
+    mockRunScheduledBackupIfDue.mockResolvedValue(undefined);
+    mockFetchSignalsForCustomer.mockResolvedValue([]);
 
     const mod = await import("../../src/daemon/proactive-worker.js");
     runDailyProactiveChecks = mod.runDailyProactiveChecks;
@@ -374,5 +386,86 @@ describe("runDailyProactiveChecks", () => {
 
     if (savedTelegram) process.env["TELEGRAM_BOT_TOKEN"] = savedTelegram;
     if (savedSlack) process.env["SLACK_WEBHOOK_URL"] = savedSlack;
+  });
+
+  it("triggers scheduled backup after checks complete", async () => {
+    vol.fromJSON({});
+    await runDailyProactiveChecks(DATA_DIR, TODAY);
+    // Give fire-and-forget promise a tick to resolve
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockRunScheduledBackupIfDue).toHaveBeenCalledWith(DATA_DIR);
+  });
+
+  it("does not propagate backup errors", async () => {
+    vol.fromJSON({});
+    mockRunScheduledBackupIfDue.mockRejectedValue(new Error("zip failed"));
+    await expect(runDailyProactiveChecks(DATA_DIR, TODAY)).resolves.toBeDefined();
+  });
+
+  it("enqueues external_signal_alert for non-neutral signals", async () => {
+    mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
+    mockFetchSignalsForCustomer.mockResolvedValue([
+      {
+        id: "sig1",
+        slug: "acme",
+        source: "hacker_news",
+        type: "funding_round",
+        summary: "Acme Corp raised $50M",
+        impact: "positive",
+        detectedAt: TODAY,
+      },
+    ]);
+
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: "---\nname: Acme Corp\ndomain: acme.com\n---\n",
+    });
+
+    const result = await runDailyProactiveChecks(DATA_DIR, TODAY);
+
+    const signalTask = mockEnqueueTask.mock.calls.find(
+      (c) => (c[1] as { type: string }).type === "external_signal_alert"
+    );
+    expect(signalTask).toBeDefined();
+    expect(result.tasksEnqueued).toBeGreaterThan(0);
+    expect(result.customersChecked).toBe(1);
+  });
+
+  it("skips neutral signals without enqueuing a task", async () => {
+    mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
+    mockFetchSignalsForCustomer.mockResolvedValue([
+      {
+        id: "sig2",
+        slug: "acme",
+        source: "hacker_news",
+        type: "news_mention",
+        summary: "Acme Corp mentioned in article",
+        impact: "neutral",
+        detectedAt: TODAY,
+      },
+    ]);
+
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: "---\nname: Acme Corp\ndomain: acme.com\n---\n",
+    });
+
+    const result = await runDailyProactiveChecks(DATA_DIR, TODAY);
+
+    const signalTask = mockEnqueueTask.mock.calls.find(
+      (c) => (c[1] as { type: string }).type === "external_signal_alert"
+    );
+    expect(signalTask).toBeUndefined();
+    expect(result.customersChecked).toBe(1);
+  });
+
+  it("does not fetch signals when no domain in main_facts", async () => {
+    mockReadHealth.mockReturnValue(makeHealthSnapshot("acme"));
+
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: "---\nname: Acme Corp\n---\n",
+    });
+
+    await runDailyProactiveChecks(DATA_DIR, TODAY);
+
+    expect(mockFetchSignalsForCustomer).not.toHaveBeenCalled();
   });
 });

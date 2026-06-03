@@ -115,4 +115,55 @@ describe("syncTeamsTranscript", () => {
     const entry = call[2] as { sourceRef: string };
     expect(entry.sourceRef).toBe("microsoft://teams/transcript/my-transcript-id");
   });
+
+  it("handles entries API non-ok response gracefully", async () => {
+    const transcriptsResp = {
+      value: [{ id: "transcript-001", createdDateTime: "2026-05-10T10:00:00Z" }],
+    };
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(transcriptsResp) })
+      .mockResolvedValueOnce({ ok: false, status: 403, statusText: "Forbidden" });
+
+    const { syncTeamsTranscript } = await import("../../src/sync/microsoft-teams-transcripts.js");
+    const result = await syncTeamsTranscript(OPTS);
+    expect(result.synced).toBe(false);
+    expect(result.error).toMatch(/403/);
+  });
+
+  it("falls back to today when transcript has no createdDateTime", async () => {
+    const transcriptsResp = {
+      value: [{ id: "transcript-nodate" }],
+    };
+    const entriesResp = { value: [] };
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(transcriptsResp) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(entriesResp) });
+
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncTeamsTranscript } = await import("../../src/sync/microsoft-teams-transcripts.js");
+    const result = await syncTeamsTranscript(OPTS);
+    expect(result.synced).toBe(true);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { date: string };
+    expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("records error when appendInteraction fails", async () => {
+    const transcriptsResp = {
+      value: [{ id: "transcript-error", createdDateTime: "2026-05-10T10:00:00Z" }],
+    };
+    const entriesResp = { value: [] };
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(transcriptsResp) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(entriesResp) });
+
+    const { appendInteraction, readInteractions } =
+      await import("../../src/fs/interactions-writer.js");
+    vi.mocked(readInteractions).mockResolvedValue("");
+    vi.mocked(appendInteraction).mockRejectedValue(new Error("write error"));
+
+    const { syncTeamsTranscript } = await import("../../src/sync/microsoft-teams-transcripts.js");
+    const result = await syncTeamsTranscript(OPTS);
+    expect(result.synced).toBe(false);
+    expect(result.error).toContain("write error");
+  });
 });

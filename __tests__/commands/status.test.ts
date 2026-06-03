@@ -1,10 +1,20 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { vol } from "memfs";
 
+const mockGetSession = vi.hoisted(() => vi.fn().mockReturnValue(null));
+
+vi.mock("../../src/core/session-store.js", () => ({
+  getSession: mockGetSession,
+  setSession: vi.fn(),
+  clearSession: vi.fn(),
+  readSession: vi.fn().mockReturnValue(null),
+}));
+
 beforeEach(() => {
   vol.reset();
   vi.resetModules();
   vi.clearAllMocks();
+  mockGetSession.mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -202,6 +212,59 @@ describe("runStatus — team overview", () => {
     await runStatus({ team: "http://localhost:9999" }, "/data");
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(output).toMatch(/nicht erreichbar|unreachable/i);
+    logSpy.mockRestore();
+  });
+
+  it("shows team sessions from DXCRM_SERVER_URL env when --team not passed", async () => {
+    process.env["DXCRM_SERVER_URL"] = "http://localhost:3847";
+    vol.fromJSON({});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ sessions: [] }),
+      })
+    );
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runStatus } = await import("../../src/commands/status.js");
+    await runStatus({}, "/data");
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toMatch(/keine.*session|no.*session/i);
+    logSpy.mockRestore();
+    delete process.env["DXCRM_SERVER_URL"];
+  });
+});
+
+describe("runStatus — session display", () => {
+  it("shows session info with owner when a session is active", async () => {
+    mockGetSession.mockReturnValue({
+      customerSlug: "acme-corp",
+      customerName: "Acme Corp",
+      owner: "alice",
+      startedAt: "2026-05-01T00:00:00Z",
+    });
+    vol.fromJSON({});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runStatus } = await import("../../src/commands/status.js");
+    await runStatus({}, "/data");
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("Acme Corp");
+    expect(output).toContain("alice");
+    logSpy.mockRestore();
+  });
+
+  it("shows session info without owner bracket when session has no owner", async () => {
+    mockGetSession.mockReturnValue({
+      customerSlug: "beta",
+      customerName: "Beta Corp",
+      startedAt: "2026-05-01T00:00:00Z",
+    });
+    vol.fromJSON({});
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runStatus } = await import("../../src/commands/status.js");
+    await runStatus({}, "/data");
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("Beta Corp");
     logSpy.mockRestore();
   });
 });

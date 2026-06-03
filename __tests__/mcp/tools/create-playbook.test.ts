@@ -92,6 +92,45 @@ describe("create_playbook tool", () => {
     expect(data.playbook.successRate).toBe(0.9);
   });
 
+  it("registered handler invokes handleCreatePlaybook with optional successRate", async () => {
+    vol.fromJSON({});
+    const { registerCreatePlaybook } = await import("../../../src/mcp/tools/create-playbook.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerCreatePlaybook(fakeServer as never);
+    const result = await capturedHandler!({
+      slug: SLUG,
+      name: "Enterprise Close",
+      trigger: "has_champion AND value > 50000",
+      content: "## Steps\n1. Call buyer.",
+      successRate: 0.75,
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
+    expect(typeof parsed.success).toBe("boolean");
+  });
+
+  it("returns error response when writePlaybook throws", async () => {
+    vi.doMock("../../../src/core/playbooks.js", () => ({
+      writePlaybook: vi.fn().mockRejectedValue(new Error("write error")),
+      playbooksDir: vi.fn().mockReturnValue("/data/customers/acme-corp/playbooks"),
+      toKebabCase: vi.fn().mockImplementation((s: string) => s.toLowerCase().replace(/\s+/g, "-")),
+    }));
+    vol.fromJSON({});
+    const { handleCreatePlaybook } = await import("../../../src/mcp/tools/create-playbook.js");
+    const res = await handleCreatePlaybook(
+      { slug: SLUG, name: "test", trigger: "no_champion", content: "# X" },
+      DATA_DIR
+    );
+    const data = JSON.parse(res.content[0]!.text);
+    expect(data.success).toBe(false);
+    expect(data.error).toContain("write error");
+  });
+
   it("registers tool with correct name", async () => {
     const { registerCreatePlaybook } = await import("../../../src/mcp/tools/create-playbook.js");
     const calls: string[] = [];

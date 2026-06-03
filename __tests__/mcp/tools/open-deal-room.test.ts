@@ -69,4 +69,16 @@ describe("handleOpenDealRoom", () => {
     const parsed = parseResult(result);
     expect(Array.isArray(parsed["relationshipHealth"])).toBe(true);
   });
+
+  it("returns error response when buildDealRoom throws", async () => {
+    vi.doMock("../../../src/agents/deal-room.js", () => ({
+      buildDealRoom: vi.fn().mockRejectedValue(new Error("deal room crash")),
+    }));
+    vol.fromJSON({});
+    const { handleOpenDealRoom } = await import("../../../src/mcp/tools/open-deal-room.js");
+    const result = await handleOpenDealRoom({ slug: SLUG, dealName: "Failing Deal" }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["success"]).toBe(false);
+    expect(parsed["error"]).toContain("deal room crash");
+  });
 });

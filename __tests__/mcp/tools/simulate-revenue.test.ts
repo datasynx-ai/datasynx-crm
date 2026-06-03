@@ -102,6 +102,20 @@ describe("handleSimulateRevenue", () => {
     const parsed = parseResult(result);
     expect(parsed["horizon"]).toBe("year");
   });
+
+  it("returns error response when buildSimulationInput throws", async () => {
+    vi.doMock("../../../src/core/revenue-simulation.js", () => ({
+      buildSimulationInput: vi.fn().mockRejectedValue(new Error("simulation error")),
+      runSimulation: vi.fn(),
+      buildConfidenceMessage: vi.fn(),
+    }));
+    vol.fromJSON({});
+    const { handleSimulateRevenue } = await import("../../../src/mcp/tools/simulate-revenue.js");
+    const result = await handleSimulateRevenue({ iterations: 100 }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["success"]).toBe(false);
+    expect(parsed["error"]).toContain("simulation error");
+  });
 });
 
 describe("registerSimulateRevenue — MCP registration", () => {

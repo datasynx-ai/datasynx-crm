@@ -1,8 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { vol } from "memfs";
 import { createCustomer } from "../../src/commands/create.js";
 
-beforeEach(() => vol.reset());
+beforeEach(() => {
+  vol.reset();
+  vi.resetModules();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("createCustomer", () => {
   it("creates customer directory with correct slug", async () => {
@@ -72,5 +79,34 @@ describe("createCustomer", () => {
     const { fs: memFs } = await import("memfs");
     const content = memFs.readFileSync("/crm/customers/acme-corp/main_facts.md", "utf-8") as string;
     expect(content).toContain("prospect");
+  });
+});
+
+describe("createCommand", () => {
+  it("logs success after creating a customer", async () => {
+    vol.fromJSON({});
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { createCommand } = await import("../../src/commands/create.js");
+    await createCommand.parseAsync(["node", "create", "Stripe"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("stripe");
+    consoleSpy.mockRestore();
+  });
+
+  it("logs error and exits when createCustomer throws", async () => {
+    vol.fromJSON({});
+    vi.doMock("../../src/commands/create.js", async (importOriginal) => {
+      const mod = await importOriginal<typeof import("../../src/commands/create.js")>();
+      return {
+        ...mod,
+        createCustomer: vi.fn().mockRejectedValue(new Error("disk full")),
+      };
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {}) as () => never);
+    const { createCommand } = await import("../../src/commands/create.js");
+    await createCommand.parseAsync(["node", "create", "Fail Corp"]);
+    consoleSpy.mockRestore();
+    exitSpy.mockRestore();
   });
 });

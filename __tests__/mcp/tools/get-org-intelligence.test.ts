@@ -112,4 +112,19 @@ describe("handleGetOrgIntelligence", () => {
     const parsed = parseResult(result);
     expect(parsed["dealName"]).toBe("Enterprise 2026");
   });
+
+  it("returns error response when buildStakeholderMap throws", async () => {
+    vi.doMock("../../../src/core/org-intelligence.js", () => ({
+      buildStakeholderMap: vi.fn().mockImplementation(() => {
+        throw new Error("org intel error");
+      }),
+    }));
+    vol.fromJSON({});
+    const { handleGetOrgIntelligence } =
+      await import("../../../src/mcp/tools/get-org-intelligence.js");
+    const result = await handleGetOrgIntelligence({ slug: SLUG }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["success"]).toBe(false);
+    expect(parsed["error"]).toContain("org intel error");
+  });
 });

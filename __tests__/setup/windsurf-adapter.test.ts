@@ -146,4 +146,53 @@ describe("WindsurfAdapter", () => {
   it("name is 'Windsurf'", () => {
     expect(new WindsurfAdapter().name).toBe("Windsurf");
   });
+
+  it("isInstalled() returns false when config contains invalid JSON", () => {
+    vol.fromJSON({ [WINDSURF_CONFIG]: "NOT VALID JSON{{" });
+    const adapter = new WindsurfAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
+
+  it("install() handles existing config with no mcpServers key", async () => {
+    vol.fromJSON({ [WINDSURF_CONFIG]: JSON.stringify({ someOtherKey: true }) });
+    const adapter = new WindsurfAdapter();
+    await adapter.install(TEST_CONFIG);
+
+    const { fs } = await import("memfs");
+    const content = JSON.parse(fs.readFileSync(WINDSURF_CONFIG, "utf-8") as string) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(content.mcpServers["datasynx-opencrm"]).toBeDefined();
+  });
+
+  it("install() survives existing config with invalid JSON", async () => {
+    vol.fromJSON({ [WINDSURF_CONFIG]: "INVALID JSON{{" });
+    const adapter = new WindsurfAdapter();
+    const result = await adapter.install(TEST_CONFIG);
+    expect(result.success).toBe(true);
+  });
+
+  it("uninstall() does nothing when config file does not exist", async () => {
+    const adapter = new WindsurfAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
+
+  it("uninstall() handles config with no mcpServers key", async () => {
+    vol.fromJSON({ [WINDSURF_CONFIG]: JSON.stringify({ someKey: "value" }) });
+    const adapter = new WindsurfAdapter();
+    await adapter.uninstall();
+
+    const { fs } = await import("memfs");
+    const content = JSON.parse(fs.readFileSync(WINDSURF_CONFIG, "utf-8") as string) as Record<
+      string,
+      unknown
+    >;
+    expect(content["someKey"]).toBe("value");
+  });
+
+  it("uninstall() silently ignores invalid JSON in config", async () => {
+    vol.fromJSON({ [WINDSURF_CONFIG]: "INVALID JSON{{" });
+    const adapter = new WindsurfAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
 });

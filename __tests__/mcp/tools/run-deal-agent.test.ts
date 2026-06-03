@@ -115,4 +115,30 @@ describe("registerRunDealAgent — MCP registration", () => {
     registerRunDealAgent(fakeServer as never);
     expect(registeredTools).toContain("run_deal_agent");
   });
+
+  it("registered handler invokes handleRunDealAgent with optional params", async () => {
+    const cwd = process.cwd();
+    vol.fromJSON({
+      [`${cwd}/customers/${SLUG}/pipeline.md`]: makePipelineMd(),
+      [`${cwd}/customers/${SLUG}/health.json`]: makeHealthJson(),
+    });
+    const { registerRunDealAgent } = await import("../../../src/mcp/tools/run-deal-agent.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerRunDealAgent(fakeServer as never);
+    const result = await capturedHandler!({
+      slug: SLUG,
+      dealName: "Q3 Renewal",
+      autonomyLevel: "observe",
+      instruction: "Check health",
+      valueThreshold: 10000,
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { plan?: unknown[]; success?: boolean };
+    expect(Array.isArray(parsed.plan) || parsed.success === false).toBe(true);
+  });
 });

@@ -129,3 +129,30 @@ describe("log_interaction tool", () => {
     expect(parsed.error).toBeDefined();
   });
 });
+
+describe("registerLogInteraction — handler invocation", () => {
+  it("registered handler passes optional params to handleLogInteraction", async () => {
+    vi.mocked(appendInteraction).mockResolvedValue(undefined);
+    const { registerLogInteraction } = await import("../../../src/mcp/tools/log-interaction.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerLogInteraction(fakeServer as never);
+    const result = await capturedHandler!({
+      slug: "acme-corp",
+      type: "Call",
+      summary: "Discussed renewal",
+      with: "Alice",
+      nextSteps: ["Follow up"],
+      direction: "outbound",
+      source: "phone",
+      date: "2026-06-01",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
+    expect(parsed.success).toBe(true);
+  });
+});

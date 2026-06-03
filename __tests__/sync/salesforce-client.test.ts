@@ -112,3 +112,112 @@ describe("fetchSalesforceTasks", () => {
     await expect(fetchSalesforceTasks("https://myco.salesforce.com", "bad")).rejects.toThrow(/403/);
   });
 });
+
+describe("createBulkJob", () => {
+  it("posts to bulk query endpoint and returns job id", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: "job_001", state: "Open" }),
+    });
+    const { createBulkJob } = await import("../../src/sync/salesforce-client.js");
+
+    const jobId = await createBulkJob(
+      "https://myco.salesforce.com",
+      "tok",
+      "SELECT Id FROM Contact"
+    );
+
+    expect(jobId).toBe("job_001");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("jobs/query"),
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 400 });
+    const { createBulkJob } = await import("../../src/sync/salesforce-client.js");
+
+    await expect(
+      createBulkJob("https://myco.salesforce.com", "tok", "SELECT Id FROM Contact")
+    ).rejects.toThrow("Salesforce Bulk API error");
+  });
+});
+
+describe("pollBulkJob", () => {
+  it("returns job status", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: "job_001", state: "JobComplete" }),
+    });
+    const { pollBulkJob } = await import("../../src/sync/salesforce-client.js");
+
+    const status = await pollBulkJob("https://myco.salesforce.com", "tok", "job_001");
+
+    expect(status.id).toBe("job_001");
+    expect(status.state).toBe("JobComplete");
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404 });
+    const { pollBulkJob } = await import("../../src/sync/salesforce-client.js");
+
+    await expect(pollBulkJob("https://myco.salesforce.com", "tok", "bad_job")).rejects.toThrow(
+      "Salesforce Bulk poll error"
+    );
+  });
+});
+
+describe("fetchBulkResults", () => {
+  it("yields CSV chunks from results endpoint", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve("Id,Name\nc001,Alice"),
+      headers: { get: () => null },
+    });
+    const { fetchBulkResults } = await import("../../src/sync/salesforce-client.js");
+
+    const chunks = [];
+    for await (const chunk of fetchBulkResults("https://myco.salesforce.com", "tok", "job_001")) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]).toContain("Alice");
+  });
+
+  it("follows locator pagination", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve("Id,Name\nc001,Alice"),
+        headers: { get: (h: string) => (h === "Sforce-Locator" ? "locator_abc" : null) },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve("Id,Name\nc002,Bob"),
+        headers: { get: () => null },
+      });
+
+    const { fetchBulkResults } = await import("../../src/sync/salesforce-client.js");
+    const chunks = [];
+    for await (const chunk of fetchBulkResults("https://myco.salesforce.com", "tok", "job_001")) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toHaveLength(2);
+    const secondCallUrl = fetchMock.mock.calls[1]![0] as string;
+    expect(secondCallUrl).toContain("locator=locator_abc");
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
+    const { fetchBulkResults } = await import("../../src/sync/salesforce-client.js");
+
+    await expect(async () => {
+      for await (const _ of fetchBulkResults("https://myco.salesforce.com", "tok", "job_001")) {
+        /* noop */
+      }
+    }).rejects.toThrow("Salesforce Bulk results error");
+  });
+});

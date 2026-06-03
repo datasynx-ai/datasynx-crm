@@ -174,4 +174,28 @@ describe("ClaudeDesktopAdapter", () => {
   it("name is 'Claude Desktop'", () => {
     expect(new ClaudeDesktopAdapter().name).toBe("Claude Desktop");
   });
+
+  it("isInstalled() returns false when config file has invalid JSON", () => {
+    vol.fromJSON({ [DESKTOP_CONFIG]: "{ not valid json" });
+    const adapter = new ClaudeDesktopAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
+
+  it("install() handles corrupt existing config by treating it as empty", async () => {
+    vol.fromJSON({ [DESKTOP_CONFIG]: "{ not valid json" });
+    const adapter = new ClaudeDesktopAdapter();
+    const result = await adapter.install(TEST_CONFIG);
+    expect(result.success).toBe(true);
+    const { fs } = await import("memfs");
+    const json = JSON.parse(fs.readFileSync(DESKTOP_CONFIG, "utf-8") as string) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(json.mcpServers["datasynx-opencrm"]).toBeDefined();
+  });
+
+  it("uninstall() does not throw on corrupt config", async () => {
+    vol.fromJSON({ [DESKTOP_CONFIG]: "bad json" });
+    const adapter = new ClaudeDesktopAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
 });

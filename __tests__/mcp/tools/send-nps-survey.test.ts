@@ -98,4 +98,27 @@ describe("handleSendNpsSurvey", () => {
     const t2 = (JSON.parse(r2.content[0].text) as { token: string }).token;
     expect(t1).toBe(t2);
   });
+
+  it("registered handler invokes handleSendNpsSurvey with optional serverUrl", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/surveys/${SURVEY_ID}.yaml`]: makeSurveyYaml(),
+    });
+    const { registerSendNpsSurvey } = await import("../../../src/mcp/tools/send-nps-survey.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerSendNpsSurvey(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({
+      slug: "acme",
+      contactEmail: "alice@acme.com",
+      surveyId: SURVEY_ID,
+      serverUrl: "https://crm.example.com",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { token: string };
+    expect(typeof parsed.token).toBe("string");
+  });
 });

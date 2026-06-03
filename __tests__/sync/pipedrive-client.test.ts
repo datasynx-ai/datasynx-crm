@@ -114,3 +114,87 @@ describe("fetchPipedriveActivities", () => {
     );
   });
 });
+
+describe("fetchPipedrivePersonsAll", () => {
+  it("returns all persons from v2 API", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: [
+            { id: 1, name: "Alice", primary_email: "alice@acme.com" },
+            { id: 2, name: "Bob", primary_email: "bob@beta.de" },
+          ],
+          additional_data: { next_cursor: undefined },
+        }),
+    });
+    const { fetchPipedrivePersonsAll } = await import("../../src/sync/pipedrive-client.js");
+
+    const persons = await fetchPipedrivePersonsAll("https://myco.pipedrive.com", "tok");
+
+    expect(persons).toHaveLength(2);
+    expect(persons[0]!.name).toBe("Alice");
+    const callUrl = fetchMock.mock.calls[0]![0] as string;
+    expect(callUrl).toContain("/api/v2/persons");
+  });
+
+  it("follows cursor pagination", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 1, name: "Alice" }],
+            additional_data: { next_cursor: "cur_xyz" },
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [{ id: 2, name: "Bob" }],
+            additional_data: { next_cursor: undefined },
+          }),
+      });
+
+    const { fetchPipedrivePersonsAll } = await import("../../src/sync/pipedrive-client.js");
+    const persons = await fetchPipedrivePersonsAll("https://myco.pipedrive.com", "tok");
+
+    expect(persons).toHaveLength(2);
+    const secondCallUrl = fetchMock.mock.calls[1]![0] as string;
+    expect(secondCallUrl).toContain("cursor=cur_xyz");
+  });
+
+  it("throws on API error", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 401 });
+    const { fetchPipedrivePersonsAll } = await import("../../src/sync/pipedrive-client.js");
+
+    await expect(fetchPipedrivePersonsAll("https://myco.pipedrive.com", "bad")).rejects.toThrow(
+      "Pipedrive API error"
+    );
+  });
+});
+
+describe("fetchPipedriveActivitiesAll", () => {
+  it("returns all activities from v2 API", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: [
+            { id: 101, type: "call", subject: "Intro" },
+            { id: 102, type: "email", subject: "Follow-up" },
+          ],
+          additional_data: {},
+        }),
+    });
+    const { fetchPipedriveActivitiesAll } = await import("../../src/sync/pipedrive-client.js");
+
+    const activities = await fetchPipedriveActivitiesAll("https://myco.pipedrive.com", "tok");
+
+    expect(activities).toHaveLength(2);
+    expect(activities[0]!.type).toBe("call");
+    const callUrl = fetchMock.mock.calls[0]![0] as string;
+    expect(callUrl).toContain("/api/v2/activities");
+  });
+});

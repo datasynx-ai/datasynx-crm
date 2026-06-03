@@ -40,6 +40,19 @@ describe("handleGetMarketIntelligence", () => {
     expect(parsed.totalCustomersSearched).toBe(2);
   });
 
+  it("returns totalCustomersSearched=0 when customers dir does not exist", async () => {
+    vol.fromJSON({});
+    const { searchKnowledge } = await import("../../../src/core/lancedb.js");
+    vi.mocked(searchKnowledge).mockResolvedValue([]);
+    const { handleGetMarketIntelligence } =
+      await import("../../../src/mcp/tools/get-market-intelligence.js");
+    const result = await handleGetMarketIntelligence({ query: "pricing" }, DATA_DIR);
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      totalCustomersSearched: number;
+    };
+    expect(parsed.totalCustomersSearched).toBe(0);
+  });
+
   it("passes excludeSlug when excludeCurrentCustomer=true and slug is provided", async () => {
     vol.fromJSON({
       [`${DATA_DIR}/customers/acme/main_facts.md`]: "# Acme",

@@ -106,6 +106,29 @@ describe("handleGenerateQuote", () => {
       })
     );
   });
+
+  it("registered handler invokes handleGenerateQuote with optional params", async () => {
+    mockGenerateQuote.mockResolvedValue(makeQuote());
+    const { registerGenerateQuote } = await import("../../../src/mcp/tools/generate-quote.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGenerateQuote(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({
+      slug: "acme",
+      dealName: "Acme Deal",
+      lineItems: [{ description: "License", quantity: 1, unitPrice: 5000 }],
+      vatPercent: 19,
+      validUntilDays: 30,
+      currency: "EUR",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { quoteNumber: string };
+    expect(parsed.quoteNumber).toBe("Q-2026-001");
+  });
 });
 
 // ─── get_quote_status ──────────────────────────────────────────────────────────
@@ -141,5 +164,21 @@ describe("handleGetQuoteStatus", () => {
     const { handleGetQuoteStatus } = await import("../../../src/mcp/tools/get-quote-status.js");
     await handleGetQuoteStatus({}, DATA_DIR);
     expect(mockListQuotes).toHaveBeenCalledWith(DATA_DIR, undefined);
+  });
+
+  it("registered handler invokes handleGetQuoteStatus with optional params", async () => {
+    mockReadQuote.mockReturnValue(makeQuote("Q-2026-001"));
+    const { registerGetQuoteStatus } = await import("../../../src/mcp/tools/get-quote-status.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGetQuoteStatus(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({ quoteNumber: "Q-2026-001", slug: "acme-corp" });
+    const parsed = JSON.parse(result.content[0]!.text) as { quoteNumber: string };
+    expect(parsed.quoteNumber).toBe("Q-2026-001");
   });
 });

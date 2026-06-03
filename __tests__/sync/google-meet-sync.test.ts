@@ -132,4 +132,60 @@ describe("syncGoogleMeetTranscript", () => {
     const entry = call[2] as { sourceRef: string };
     expect(entry.sourceRef).toBe(`google://meet/transcript/${transcriptName}`);
   });
+
+  it("handles entries API non-ok response and falls back gracefully", async () => {
+    const transcriptsResp = {
+      transcripts: [{ name: "conferenceRecords/abc123/transcripts/entries-fail" }],
+    };
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(transcriptsResp) })
+      .mockResolvedValueOnce({ ok: false, status: 403, statusText: "Forbidden" });
+
+    const { appendInteraction, readInteractions } =
+      await import("../../src/fs/interactions-writer.js");
+    vi.mocked(readInteractions).mockResolvedValue("");
+    const { syncGoogleMeetTranscript } = await import("../../src/sync/google-meet-sync.js");
+    const result = await syncGoogleMeetTranscript(OPTS);
+    // Non-ok entries response breaks the loop but still appends with empty text
+    expect(vi.mocked(appendInteraction)).toHaveBeenCalledOnce();
+    expect(result.synced).toBe(true);
+  });
+
+  it("handles entries network error and appends with empty content", async () => {
+    const transcriptsResp = {
+      transcripts: [{ name: "conferenceRecords/abc123/transcripts/net-err" }],
+    };
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(transcriptsResp) })
+      .mockRejectedValueOnce(new Error("ECONNRESET"));
+
+    const { appendInteraction, readInteractions } =
+      await import("../../src/fs/interactions-writer.js");
+    vi.mocked(readInteractions).mockResolvedValue("");
+    const { syncGoogleMeetTranscript } = await import("../../src/sync/google-meet-sync.js");
+    const result = await syncGoogleMeetTranscript(OPTS);
+    // Network error breaks the loop; we still try to append with empty entries
+    expect(vi.mocked(appendInteraction)).toHaveBeenCalledOnce();
+    expect(result.synced).toBe(true);
+  });
+
+  it("records error when appendInteraction fails", async () => {
+    const transcriptsResp = {
+      transcripts: [{ name: "conferenceRecords/abc123/transcripts/t-err" }],
+    };
+    const entriesResp = { transcriptEntries: [] };
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(transcriptsResp) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(entriesResp) });
+
+    const { appendInteraction, readInteractions } =
+      await import("../../src/fs/interactions-writer.js");
+    vi.mocked(readInteractions).mockResolvedValue("");
+    vi.mocked(appendInteraction).mockRejectedValue(new Error("disk full"));
+
+    const { syncGoogleMeetTranscript } = await import("../../src/sync/google-meet-sync.js");
+    const result = await syncGoogleMeetTranscript(OPTS);
+    expect(result.synced).toBe(false);
+    expect(result.error).toContain("disk full");
+  });
 });

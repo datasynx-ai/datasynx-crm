@@ -141,4 +141,131 @@ describe("persistSession + readAllSessions", () => {
     const sessions = readAllSessions("/nonexistent");
     expect(sessions).toHaveLength(0);
   });
+
+  it("clearPersistedSession without owner removes all session files", async () => {
+    vol.fromJSON({});
+    const { persistSession, clearPersistedSession, readAllSessions } =
+      await import("../../src/commands/session.js");
+    persistSession("/data", {
+      customerSlug: "acme",
+      customerName: "Acme",
+      startedAt: "2026-05-28T10:00:00Z",
+      owner: "alice",
+    });
+    persistSession("/data", {
+      customerSlug: "beta",
+      customerName: "Beta",
+      startedAt: "2026-05-28T11:00:00Z",
+      owner: "bob",
+    });
+    clearPersistedSession("/data");
+    const sessions = readAllSessions("/data");
+    expect(sessions).toHaveLength(0);
+  });
+
+  it("clearPersistedSession with non-existent dir is a no-op", async () => {
+    vol.fromJSON({});
+    const { clearPersistedSession } = await import("../../src/commands/session.js");
+    expect(() => clearPersistedSession("/nonexistent")).not.toThrow();
+  });
+
+  it("persistSession uses pid-based key when no owner provided", async () => {
+    vol.fromJSON({});
+    const { persistSession, readAllSessions } = await import("../../src/commands/session.js");
+    persistSession("/data", {
+      customerSlug: "acme",
+      customerName: "Acme",
+      startedAt: "2026-05-28T10:00:00Z",
+    });
+    const sessions = readAllSessions("/data");
+    expect(sessions.length).toBe(1);
+    expect(sessions[0]!.customerSlug).toBe("acme");
+  });
+});
+
+// ─── sessionCommand CLI ───────────────────────────────────────────────────────
+
+describe("sessionCommand — CLI", () => {
+  beforeEach(() => {
+    vol.reset();
+    clearSession();
+    delete process.env["DXCRM_DATA_DIR"];
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  afterEach(() => {
+    clearSession();
+    vi.restoreAllMocks();
+    delete process.env["DXCRM_DATA_DIR"];
+    delete process.env["DXCRM_ACTOR"];
+  });
+
+  it("open subcommand creates a session for a valid customer", async () => {
+    vol.fromJSON({
+      "/crm/customers/acme-corp/main_facts.md":
+        "---\nname: Acme Corp\nrelationship_stage: active\ncreated: 2026-01-01\nupdated: 2026-01-01\ntags: []\ncurrency: EUR\n---\n",
+    });
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { sessionCommand } = await import("../../src/commands/session.js");
+    await sessionCommand.parseAsync(["node", "session", "open", "acme-corp"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Acme Corp");
+    expect(getSession()?.customerSlug).toBe("acme-corp");
+    consoleSpy.mockRestore();
+  });
+
+  it("open subcommand exits when customer not found", async () => {
+    vol.fromJSON({});
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+    const { sessionCommand } = await import("../../src/commands/session.js");
+    await expect(
+      sessionCommand.parseAsync(["node", "session", "open", "nonexistent"])
+    ).rejects.toThrow("process.exit called");
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it("close subcommand clears the session", async () => {
+    vol.fromJSON({});
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    setSession({ customerSlug: "acme-corp", customerName: "Acme Corp", startedAt: "2026-01-01" });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { sessionCommand } = await import("../../src/commands/session.js");
+    await sessionCommand.parseAsync(["node", "session", "close"]);
+    expect(getSession()).toBeNull();
+    consoleSpy.mockRestore();
+  });
+
+  it("status subcommand shows active session info", async () => {
+    vol.fromJSON({});
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    setSession({
+      customerSlug: "acme-corp",
+      customerName: "Acme Corp",
+      startedAt: "2026-01-01T00:00:00Z",
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { sessionCommand } = await import("../../src/commands/session.js");
+    await sessionCommand.parseAsync(["node", "session", "status"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("acme-corp");
+    consoleSpy.mockRestore();
+  });
+
+  it("status subcommand shows no-session message when inactive", async () => {
+    vol.fromJSON({});
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    clearSession();
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { sessionCommand } = await import("../../src/commands/session.js");
+    await sessionCommand.parseAsync(["node", "session", "status"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("No active session");
+    consoleSpy.mockRestore();
+  });
 });

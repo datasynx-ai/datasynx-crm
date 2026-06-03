@@ -155,3 +155,58 @@ describe("handleUnenrollFromSequence", () => {
     expect(mockUpdateEnrollment).toHaveBeenCalledWith(DATA_DIR, "e1", { status: "paused" });
   });
 });
+
+describe("registerListSequenceEnrollments — handler invocation", () => {
+  it("registered handler passes optional slug and status filters", async () => {
+    mockReadEnrollments.mockReturnValue([makeEnrollment("e1", "acme", "onboarding", "active")]);
+    const { registerListSequenceEnrollments } =
+      await import("../../../src/mcp/tools/list-sequence-enrollments.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerListSequenceEnrollments(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({ slug: "acme", status: "active" });
+    const parsed = JSON.parse(result.content[0]!.text) as { enrollments: unknown[] };
+    expect(Array.isArray(parsed.enrollments)).toBe(true);
+  });
+});
+
+describe("registerCloseTicket — handler invocation", () => {
+  it("registered handler passes optional resolution to handleCloseTicket", async () => {
+    const mockReadTickets = vi.fn().mockResolvedValue([
+      {
+        id: "T-001",
+        title: "Bug",
+        status: "open",
+        priority: "normal",
+        created: "2026-05-01",
+      },
+    ]);
+    const mockUpsertTicket = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("../../../src/fs/ticket-writer.js", () => ({
+      readTickets: mockReadTickets,
+      upsertTicket: mockUpsertTicket,
+      listAllTickets: vi.fn(),
+    }));
+    const mockAppendInteractionLocal = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("../../../src/fs/interactions-writer.js", () => ({
+      appendInteraction: mockAppendInteractionLocal,
+    }));
+    const { registerCloseTicket } = await import("../../../src/mcp/tools/close-ticket.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerCloseTicket(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({ slug: "acme", ticketId: "T-001", resolution: "Fixed" });
+    const parsed = JSON.parse(result.content[0]!.text) as { ticket: { status: string } };
+    expect(parsed.ticket.status).toBe("closed");
+  });
+});

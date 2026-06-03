@@ -174,4 +174,53 @@ describe("CursorAdapter", () => {
   it("name is 'Cursor'", () => {
     expect(new CursorAdapter().name).toBe("Cursor");
   });
+
+  it("isInstalled() returns false when config contains invalid JSON", () => {
+    vol.fromJSON({ [CURSOR_GLOBAL_MCP]: "NOT VALID JSON{{" });
+    const adapter = new CursorAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
+
+  it("install() handles existing mcp.json with no mcpServers key", async () => {
+    vol.fromJSON({ [CURSOR_GLOBAL_MCP]: JSON.stringify({ someOtherKey: true }) });
+    const adapter = new CursorAdapter();
+    await adapter.install(TEST_CONFIG);
+
+    const { fs } = await import("memfs");
+    const content = JSON.parse(fs.readFileSync(CURSOR_GLOBAL_MCP, "utf-8") as string) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(content.mcpServers["datasynx-opencrm"]).toBeDefined();
+  });
+
+  it("install() survives existing mcp.json with invalid JSON", async () => {
+    vol.fromJSON({ [CURSOR_GLOBAL_MCP]: "INVALID JSON{{" });
+    const adapter = new CursorAdapter();
+    const result = await adapter.install(TEST_CONFIG);
+    expect(result.success).toBe(true);
+  });
+
+  it("uninstall() does nothing when mcp.json does not exist", async () => {
+    const adapter = new CursorAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
+
+  it("uninstall() handles config with no mcpServers key", async () => {
+    vol.fromJSON({ [CURSOR_GLOBAL_MCP]: JSON.stringify({ someKey: "value" }) });
+    const adapter = new CursorAdapter();
+    await adapter.uninstall();
+
+    const { fs } = await import("memfs");
+    const content = JSON.parse(fs.readFileSync(CURSOR_GLOBAL_MCP, "utf-8") as string) as Record<
+      string,
+      unknown
+    >;
+    expect(content["someKey"]).toBe("value");
+  });
+
+  it("uninstall() silently ignores invalid JSON in config", async () => {
+    vol.fromJSON({ [CURSOR_GLOBAL_MCP]: "INVALID JSON{{" });
+    const adapter = new CursorAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
 });

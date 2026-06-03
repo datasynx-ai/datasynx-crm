@@ -138,3 +138,24 @@ describe("registerApproveAgentAction — MCP registration", () => {
     expect(registeredTools).toContain("approve_agent_action");
   });
 });
+
+describe("handleApproveAgentAction — catch block", () => {
+  it("returns success:false when readAgentQueue throws", async () => {
+    vi.doMock("../../../src/agents/deal-agent.js", () => ({
+      readAgentQueue: vi.fn().mockImplementation(() => {
+        throw new Error("queue read error");
+      }),
+      writeAgentQueue: vi.fn(),
+      executeAction: vi.fn(),
+    }));
+    const { handleApproveAgentAction } =
+      await import("../../../src/mcp/tools/approve-agent-action.js");
+    const result = await handleApproveAgentAction(
+      { slug: SLUG, actionId: "da_test", approved: true },
+      DATA_DIR
+    );
+    const parsed = JSON.parse(result.content[0].text) as { success: boolean; error: string };
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toContain("queue read error");
+  });
+});

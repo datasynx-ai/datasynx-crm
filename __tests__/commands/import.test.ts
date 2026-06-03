@@ -300,3 +300,503 @@ describe("runImport — Pipedrive directory", () => {
     expect(result.errors[0]).toContain("organizations.csv");
   });
 });
+
+// ─── Salesforce API import ────────────────────────────────────────────────────
+
+const mockFetchSalesforceContacts = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceTasks = vi.hoisted(() => vi.fn());
+
+vi.mock("../../src/sync/salesforce-client.js", () => ({
+  fetchSalesforceContacts: mockFetchSalesforceContacts,
+  fetchSalesforceTasks: mockFetchSalesforceTasks,
+}));
+
+describe("runImport — Salesforce API mode", () => {
+  beforeEach(async () => {
+    vol.reset();
+    vi.clearAllMocks();
+
+    const writerMod = await import("../../src/fs/interactions-writer.js");
+    appendInteraction = vi.mocked(writerMod.appendInteraction);
+    readInteractions = vi.mocked(writerMod.readInteractions);
+    appendInteraction.mockResolvedValue(undefined);
+    readInteractions.mockResolvedValue("");
+
+    const importMod = await import("../../src/commands/import.js");
+    runImport = importMod.runImport;
+  });
+
+  it("imports contacts and tasks from Salesforce API", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([
+      {
+        Id: "c1",
+        Name: "Alice Smith",
+        Email: "alice@acme.com",
+        Account: { Website: "https://acme.com" },
+      },
+    ]);
+    mockFetchSalesforceTasks.mockResolvedValue([
+      {
+        Id: "t1",
+        WhoId: "c1",
+        ActivityDate: "2026-01-15",
+        Type: "Call",
+        Subject: "Intro",
+        Description: "Discovery call",
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://acme.salesforce.com" },
+      "/crm"
+    );
+
+    expect(result.customersCreated).toBe(1);
+    expect(result.interactionsImported).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    expect(appendInteraction).toHaveBeenCalledTimes(1);
+    const entry = appendInteraction.mock.calls[0]![2] as { sourceRef: string; type: string };
+    expect(entry.sourceRef).toBe("salesforce://task/t1");
+    expect(entry.type).toBe("Call");
+  });
+
+  it("returns error when Salesforce API throws", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockRejectedValue(new Error("SFDC unreachable"));
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://acme.salesforce.com" },
+      "/crm"
+    );
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("SFDC unreachable");
+  });
+
+  it("dry-run shows counts without writing", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([
+      { Id: "c1", Name: "Acme", Email: "a@acme.com" },
+    ]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com", dryRun: true },
+      "/crm"
+    );
+
+    expect(appendInteraction).not.toHaveBeenCalled();
+    expect(result.customersCreated).toBe(0);
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("Dry run");
+    logSpy.mockRestore();
+  });
+
+  it("skips task when WhoId not in slugMap", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([
+      {
+        Id: "t1",
+        WhoId: "unknown-id",
+        ActivityDate: "2026-01-15",
+        Type: "Call",
+        Subject: "Orphan",
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(appendInteraction).not.toHaveBeenCalled();
+    expect(result.interactionsImported).toBe(0);
+  });
+
+  it("skips duplicate task when sourceRef already in interactions", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([
+      { Id: "c1", Name: "Acme", Email: "a@acme.com" },
+    ]);
+    mockFetchSalesforceTasks.mockResolvedValue([
+      { Id: "t1", WhoId: "c1", ActivityDate: "2026-01-15", Type: "Call", Subject: "Dup" },
+    ]);
+    readInteractions.mockResolvedValue("salesforce://task/t1");
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.skipped).toBe(1);
+    expect(appendInteraction).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Pipedrive API import ─────────────────────────────────────────────────────
+
+const mockFetchPipedrivePersons = vi.hoisted(() => vi.fn());
+const mockFetchPipedriveActivities = vi.hoisted(() => vi.fn());
+
+vi.mock("../../src/sync/pipedrive-client.js", () => ({
+  fetchPipedrivePersons: mockFetchPipedrivePersons,
+  fetchPipedriveActivities: mockFetchPipedriveActivities,
+}));
+
+describe("runPipedriveApiImport", () => {
+  beforeEach(async () => {
+    vol.reset();
+    vi.clearAllMocks();
+
+    const writerMod = await import("../../src/fs/interactions-writer.js");
+    appendInteraction = vi.mocked(writerMod.appendInteraction);
+    readInteractions = vi.mocked(writerMod.readInteractions);
+    appendInteraction.mockResolvedValue(undefined);
+    readInteractions.mockResolvedValue("");
+
+    const importMod = await import("../../src/commands/import.js");
+    runImport = importMod.runImport;
+  });
+
+  it("imports persons and activities from Pipedrive API", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      {
+        id: 1,
+        name: "Alice",
+        org_name: "Acme Corp",
+        primary_email: "a@acme.com",
+        org_id: { value: 10 },
+      },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      {
+        id: 100,
+        person_id: 1,
+        due_date: "2026-03-01",
+        type: "call",
+        subject: "Intro",
+        note: "Great call",
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://company.pipedrive.com" },
+      "/crm"
+    );
+
+    expect(result.customersCreated).toBe(1);
+    expect(result.interactionsImported).toBe(1);
+    expect(result.errors).toHaveLength(0);
+    const entry = appendInteraction.mock.calls[0]![2] as { sourceRef: string; type: string };
+    expect(entry.sourceRef).toBe("pipedrive://activity/100");
+    expect(entry.type).toBe("Call");
+  });
+
+  it("returns error when token/url missing", async () => {
+    const savedToken = process.env["PIPEDRIVE_TOKEN"];
+    const savedUrl = process.env["PIPEDRIVE_URL"];
+    delete process.env["PIPEDRIVE_TOKEN"];
+    delete process.env["PIPEDRIVE_URL"];
+
+    vol.fromJSON({});
+    const result = await runImport("", { from: "pipedrive", mode: "api" }, "/crm");
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("token");
+
+    if (savedToken) process.env["PIPEDRIVE_TOKEN"] = savedToken;
+    if (savedUrl) process.env["PIPEDRIVE_URL"] = savedUrl;
+  });
+
+  it("returns error when Pipedrive API throws", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockRejectedValue(new Error("PD timeout"));
+    mockFetchPipedriveActivities.mockResolvedValue([]);
+
+    const result = await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("PD timeout");
+  });
+
+  it("dry-run shows counts without writing", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([{ id: 1, name: "Bob", org_name: "Beta" }]);
+    mockFetchPipedriveActivities.mockResolvedValue([]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const result = await runImport(
+      "",
+      {
+        from: "pipedrive",
+        mode: "api",
+        token: "tok",
+        url: "https://x.pipedrive.com",
+        dryRun: true,
+      },
+      "/crm"
+    );
+
+    expect(appendInteraction).not.toHaveBeenCalled();
+    expect(result.customersCreated).toBe(0);
+    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(output).toContain("Dry run");
+    logSpy.mockRestore();
+  });
+
+  it("skips duplicate activity when sourceRef already exists", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme", org_name: "Acme Corp", primary_email: "a@acme.com" },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      { id: 200, person_id: 1, due_date: "2026-03-01", type: "email", subject: "Dup" },
+    ]);
+    readInteractions.mockResolvedValue("pipedrive://activity/200");
+
+    const result = await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    expect(result.skipped).toBe(1);
+    expect(appendInteraction).not.toHaveBeenCalled();
+  });
+
+  it("records error in result when appendInteraction throws for activity", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme Corp", org_name: "Acme Corp", primary_email: "a@acme.com" },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      { id: 300, person_id: 1, due_date: "2026-04-01", type: "call", subject: "Intro call" },
+    ]);
+    appendInteraction.mockRejectedValueOnce(new Error("disk full"));
+
+    const result = await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("disk full");
+  });
+
+  it("maps meeting activity type to Meeting", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme Corp", org_name: "Acme Corp" },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      { id: 400, person_id: 1, due_date: "2026-04-01", type: "meeting", subject: "Strategy" },
+    ]);
+
+    await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    const entry = appendInteraction.mock.calls[0]![2] as { type: string };
+    expect(entry.type).toBe("Meeting");
+  });
+
+  it("maps email activity type to Email", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme Corp", org_name: "Acme Corp" },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      { id: 401, person_id: 1, due_date: "2026-04-01", type: "email", subject: "Follow-up" },
+    ]);
+
+    await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    const entry = appendInteraction.mock.calls[0]![2] as { type: string };
+    expect(entry.type).toBe("Email");
+  });
+
+  it("maps unknown activity type to Note (line 724)", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme Corp", org_name: "Acme Corp" },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      { id: 402, person_id: 1, due_date: "2026-04-01", type: "lunch", subject: "Client lunch" },
+    ]);
+
+    await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    const entry = appendInteraction.mock.calls[0]![2] as { type: string };
+    expect(entry.type).toBe("Note");
+  });
+
+  it("matches activity to slug via org_id fallback when no person_id (lines 702-703)", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme Corp", org_name: "Acme Corp", org_id: { value: 10 } },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      // No person_id, but org_id matches
+      { id: 403, org_id: 10, due_date: "2026-04-01", type: "call", subject: "Org-level call" },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    expect(result.interactionsImported).toBe(1);
+    const entry = appendInteraction.mock.calls[0]![2] as { type: string };
+    expect(entry.type).toBe("Call");
+  });
+
+  it("skips activity when neither person_id nor org_id resolves to slug (line 703 undefined)", async () => {
+    vol.fromJSON({});
+    mockFetchPipedrivePersons.mockResolvedValue([
+      { id: 1, name: "Acme Corp", org_name: "Acme Corp" },
+    ]);
+    mockFetchPipedriveActivities.mockResolvedValue([
+      // No person_id, no org_id → slug = undefined → skipped
+      { id: 404, due_date: "2026-04-01", type: "call", subject: "Orphan activity" },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "pipedrive", mode: "api", token: "tok", url: "https://x.pipedrive.com" },
+      "/crm"
+    );
+
+    expect(result.interactionsImported).toBe(0);
+    expect(appendInteraction).not.toHaveBeenCalled();
+  });
+});
+
+// ─── importCommand CLI action ─────────────────────────────────────────────────
+
+describe("importCommand — CLI action", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("runs CSV import and prints import summary", async () => {
+    vol.fromJSON({ "/tmp/leads.csv": "name\nAcme Corp\n" });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { importCommand } = await import("../../src/commands/import.js");
+    await importCommand.parseAsync(["node", "import", "/tmp/leads.csv"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Import complete");
+    consoleSpy.mockRestore();
+  });
+
+  it("parses --owner-map flag without crashing", async () => {
+    vol.fromJSON({ "/tmp/leads.csv": "name\nBeta Corp\n" });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { importCommand } = await import("../../src/commands/import.js");
+    await importCommand.parseAsync([
+      "node",
+      "import",
+      "/tmp/leads.csv",
+      "--owner-map",
+      "alice@hs.com=alice,bob@hs.com=bob",
+    ]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Import complete");
+    consoleSpy.mockRestore();
+  });
+
+  it("prints error list when import returns errors", async () => {
+    vol.fromJSON({
+      "/tmp/leads.csv": "name,notes,activityType\nAcme Corp,Discussed pricing,Call\n",
+    });
+
+    const writerMod = await import("../../src/fs/interactions-writer.js");
+    vi.mocked(writerMod.appendInteraction).mockRejectedValue(new Error("write error"));
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { importCommand } = await import("../../src/commands/import.js");
+    await importCommand.parseAsync(["node", "import", "/tmp/leads.csv"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Errors");
+    consoleSpy.mockRestore();
+  });
+
+  it("runs HubSpot --analyze mode and prints analysis summary", async () => {
+    vol.fromJSON({
+      "/tmp/hs-export/companies.csv": "name,domain\nAcme Corp,acme.com\n",
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { importCommand } = await import("../../src/commands/import.js");
+    await importCommand.parseAsync([
+      "node",
+      "import",
+      "/tmp/hs-export",
+      "--from",
+      "hubspot",
+      "--analyze",
+    ]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("HubSpot Import Analysis");
+    consoleSpy.mockRestore();
+  });
+
+  it("--analyze prints custom properties, owners, and unknown stages when present", async () => {
+    // Provide CSV data that triggers all three conditional branches (lines 798-816)
+    vol.fromJSON({
+      "/tmp/hs-full/companies.csv": [
+        "name,domain,hubspot_owner_email,custom_col1,custom_col2",
+        "Acme Corp,acme.com,rep@acme.com,val1,val2",
+      ].join("\n"),
+      "/tmp/hs-full/deals.csv": [
+        "dealname,dealstage,associated_company",
+        "Deal A,totally_unknown_stage_xyz,Acme Corp",
+      ].join("\n"),
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { importCommand } = await import("../../src/commands/import.js");
+    await importCommand.parseAsync([
+      "node",
+      "import",
+      "/tmp/hs-full",
+      "--from",
+      "hubspot",
+      "--analyze",
+    ]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Custom Properties");
+    expect(output).toContain("Owners detected");
+    expect(output).toContain("Unknown stages");
+    consoleSpy.mockRestore();
+  });
+});

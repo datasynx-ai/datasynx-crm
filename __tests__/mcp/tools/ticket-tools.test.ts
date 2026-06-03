@@ -176,3 +176,26 @@ describe("handleListTickets", () => {
     );
   });
 });
+
+describe("registerUpdateTicket — handler invocation", () => {
+  it("registered handler passes optional fields to handleUpdateTicket", async () => {
+    mockReadTickets.mockResolvedValue([makeTicket("T-001")]);
+    const { registerUpdateTicket } = await import("../../../src/mcp/tools/update-ticket.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerUpdateTicket(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({
+      slug: "acme",
+      ticketId: "T-001",
+      status: "resolved",
+      assignee: "bob",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { ticket: { status: string } };
+    expect(parsed.ticket.status).toBe("resolved");
+  });
+});

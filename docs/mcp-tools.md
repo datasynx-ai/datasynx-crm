@@ -1361,3 +1361,63 @@ List available CRM backups with metadata. Reads from `.agentic/backup-log.json` 
   ]
 }
 ```
+
+---
+
+### trigger_sync
+
+Force an immediate Gmail sync for one or all customers, bypassing the 30-minute daemon cycle.
+
+**Input:**
+```json
+{ "slug": "acme-corp" }
+```
+- `slug` (optional): Customer slug to sync. Omit to sync all customers.
+- `since` (optional): ISO date string — only fetch emails since this date. Default: last 24 hours.
+
+**Example:**
+```json
+trigger_sync({ "slug": "acme-corp", "since": "2026-06-01" })
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "synced": 3,
+  "skipped": 12,
+  "customers": [{ "slug": "acme-corp", "synced": 3, "skipped": 12 }],
+  "errors": []
+}
+```
+
+---
+
+### get_audit_log
+
+Read the append-only CRM audit log of all write operations (interactions, deal updates, fact changes).
+
+**Input:**
+```json
+{ "slug": "acme-corp", "limit": 20 }
+```
+- `slug` (optional): Filter by customer slug.
+- `actor` (optional): Filter by actor name (user or "system").
+- `limit` (optional): Max entries to return (default: 50, max: 500).
+
+**Response:**
+```json
+{
+  "total": 142,
+  "returned": 20,
+  "entries": [
+    {
+      "timestamp": "2026-06-03T09:14:00Z",
+      "actor": "alice",
+      "tool": "log_interaction",
+      "slug": "acme-corp",
+      "summary": "Call to discuss Q3 roadmap"
+    }
+  ]
+}
+```

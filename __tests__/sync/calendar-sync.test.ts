@@ -122,4 +122,104 @@ describe("syncCalendar", () => {
     const result = await syncCalendar(OPTS);
     expect(result.synced).toBe(0);
   });
+
+  it("uses start.date when start.dateTime is absent", async () => {
+    mockEventsList.mockResolvedValue({
+      data: {
+        items: [{ id: "gcal-002", summary: "All-day event", start: { date: "2026-05-15" } }],
+      },
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncCalendar } = await import("../../src/sync/calendar-sync.js");
+    const result = await syncCalendar(OPTS);
+    expect(result.synced).toBe(1);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { date: string };
+    expect(entry.date).toBe("2026-05-15");
+  });
+
+  it("uses '(no title)' when event has no summary", async () => {
+    mockEventsList.mockResolvedValue({
+      data: {
+        items: [{ id: "gcal-003", start: { dateTime: "2026-05-16T10:00:00Z" }, attendees: [] }],
+      },
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncCalendar } = await import("../../src/sync/calendar-sync.js");
+    await syncCalendar(OPTS);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { subject: string };
+    expect(entry.subject).toBe("(no title)");
+  });
+
+  it("uses 'unknown' in with field when event has no attendees", async () => {
+    mockEventsList.mockResolvedValue({
+      data: {
+        items: [
+          { id: "gcal-004", summary: "Solo event", start: { dateTime: "2026-05-17T10:00:00Z" } },
+        ],
+      },
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncCalendar } = await import("../../src/sync/calendar-sync.js");
+    await syncCalendar(OPTS);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { with: string };
+    expect(entry.with).toBe("unknown");
+  });
+
+  it("uses 'Calendar event: {summary}' when description is empty", async () => {
+    mockEventsList.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "gcal-005",
+            summary: "Kickoff",
+            description: "",
+            start: { dateTime: "2026-05-18T10:00:00Z" },
+          },
+        ],
+      },
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncCalendar } = await import("../../src/sync/calendar-sync.js");
+    await syncCalendar(OPTS);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { summary: string };
+    expect(entry.summary).toBe("Calendar event: Kickoff");
+  });
+
+  it("falls back to today when event has neither start.dateTime nor start.date", async () => {
+    mockEventsList.mockResolvedValue({
+      data: {
+        items: [{ id: "gcal-006", summary: "Timeless Event" }],
+      },
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncCalendar } = await import("../../src/sync/calendar-sync.js");
+    const result = await syncCalendar(OPTS);
+    expect(result.synced).toBe(1);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { date: string };
+    expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("filters attendees with no email and uses 'unknown' fallback", async () => {
+    mockEventsList.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "gcal-007",
+            summary: "Meeting",
+            start: { dateTime: "2026-05-19T10:00:00Z" },
+            attendees: [
+              { email: "alice@example.com" },
+              { displayName: "No Email Person" }, // no email field
+            ],
+          },
+        ],
+      },
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncCalendar } = await import("../../src/sync/calendar-sync.js");
+    await syncCalendar(OPTS);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { with: string };
+    // Only alice should appear since no-email attendee is filtered out
+    expect(entry.with).toContain("alice@example.com");
+  });
 });

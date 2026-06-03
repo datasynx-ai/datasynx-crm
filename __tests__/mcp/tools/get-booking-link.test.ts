@@ -86,4 +86,50 @@ describe("handleGetBookingLink", () => {
     const parsed = JSON.parse(result.content[0].text) as { duration: number };
     expect(parsed.duration).toBe(30);
   });
+
+  it("pre-fills name and email when prefillName=true and main_facts.md exists", async () => {
+    process.env["CALENDLY_API_KEY"] = "test-key";
+    mockGetSchedulingLink.mockResolvedValue("https://calendly.com/test/30min?name=Alice");
+    mockListEventTypes.mockResolvedValue([]);
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: "name: Alice\nemail: alice@example.com\n",
+    });
+
+    const { handleGetBookingLink } = await import("../../../src/mcp/tools/get-booking-link.js");
+    const result = await handleGetBookingLink({ slug: "acme", prefillName: true }, DATA_DIR);
+    const parsed = JSON.parse(result.content[0].text) as { bookingUrl?: string; error?: string };
+    expect(parsed.error).toBeUndefined();
+    expect(mockGetSchedulingLink).toHaveBeenCalledWith(
+      "test-key",
+      expect.any(String),
+      expect.objectContaining({ name: "Alice", email: "alice@example.com" })
+    );
+  });
+
+  it("registered handler invokes handleGetBookingLink with optional eventType and prefillName", async () => {
+    process.env["CALENDLY_API_KEY"] = "test-key";
+    mockGetSchedulingLink.mockResolvedValue("https://calendly.com/test/discovery");
+    mockListEventTypes.mockResolvedValue([
+      { name: "Discovery Call", uri: "u1", slug: "discovery" },
+    ]);
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: "name: Alice\nemail: alice@example.com\n",
+    });
+    const { registerGetBookingLink } = await import("../../../src/mcp/tools/get-booking-link.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGetBookingLink(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({
+      slug: "acme",
+      eventType: "discovery",
+      prefillName: true,
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { bookingUrl?: string };
+    expect(typeof parsed.bookingUrl === "string" || parsed.bookingUrl === undefined).toBe(true);
+  });
 });

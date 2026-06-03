@@ -75,4 +75,21 @@ describe("search_customer_knowledge tool", () => {
     const parsed = JSON.parse(text) as { results: unknown[] };
     expect(parsed.results).toHaveLength(0);
   });
+
+  it("registered handler invokes handleSearchCustomerKnowledge with optional limit", async () => {
+    mockSearch.mockResolvedValue([]);
+    const { registerSearchCustomerKnowledge } =
+      await import("../../../src/mcp/tools/search-customer-knowledge.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerSearchCustomerKnowledge(fakeServer as never);
+    const result = await capturedHandler!({ slug: "acme-corp", query: "pricing", limit: 3 });
+    const parsed = JSON.parse(result.content[0]!.text) as { results: unknown[] };
+    expect(Array.isArray(parsed.results)).toBe(true);
+  });
 });

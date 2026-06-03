@@ -70,6 +70,8 @@ import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
 import { registerCreateKbArticle } from "./tools/create-kb-article.js";
 import { registerBackupNow } from "./tools/backup-now.js";
 import { registerListBackups } from "./tools/list-backups.js";
+import { registerTriggerSync } from "./tools/trigger-sync.js";
+import { registerGetAuditLog } from "./tools/get-audit-log.js";
 
 export function surveyThankYouPage(score: number, comment?: string): string {
   const emoji = score >= 9 ? "🎉" : score >= 7 ? "🙂" : "🙏";
@@ -140,6 +142,8 @@ export function createMcpServer(): McpServer {
   registerCreateKbArticle(server);
   registerBackupNow(server);
   registerListBackups(server);
+  registerTriggerSync(server);
+  registerGetAuditLog(server);
 
   return server;
 }

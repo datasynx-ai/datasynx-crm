@@ -123,6 +123,28 @@ describe("listAllTickets", () => {
     expect(all[1]!.ticket.priority).toBe("low");
   });
 
+  it("sorts by created date when priorities are equal", async () => {
+    vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
+    const { upsertTicket, listAllTickets } = await import("../../src/fs/ticket-writer.js");
+    await upsertTicket(DATA_DIR, "acme", {
+      id: "T-001",
+      title: "Earlier",
+      status: "open",
+      priority: "normal",
+      created: "2026-05-01",
+    });
+    await upsertTicket(DATA_DIR, "acme", {
+      id: "T-002",
+      title: "Later",
+      status: "open",
+      priority: "normal",
+      created: "2026-05-15",
+    });
+    const all = await listAllTickets(DATA_DIR);
+    expect(all[0]!.ticket.id).toBe("T-001");
+    expect(all[1]!.ticket.id).toBe("T-002");
+  });
+
   it("filters by status", async () => {
     vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
     const { upsertTicket, listAllTickets } = await import("../../src/fs/ticket-writer.js");

@@ -67,4 +67,31 @@ describe("handleCreateTicket", () => {
     const parsed = JSON.parse(res.content[0]!.text) as { ticket: { assignee: string } };
     expect(parsed.ticket.assignee).toBe("alice");
   });
+
+  it("registered handler invokes handleCreateTicket with optional params", async () => {
+    vol.fromJSON({ [`${DATA_DIR}/customers/acme/.keep`]: "" });
+    const { registerCreateTicket } = await import("../../../src/mcp/tools/create-ticket.js");
+    let capturedHandler: ((args: Record<string, unknown>) => unknown) | undefined;
+    const fakeServer = {
+      registerTool: (
+        _name: string,
+        _schema: unknown,
+        handler: (args: Record<string, unknown>) => unknown
+      ) => {
+        capturedHandler = handler;
+      },
+    };
+    registerCreateTicket(fakeServer as never, DATA_DIR);
+    const res = await (capturedHandler as (
+      args: Record<string, unknown>
+    ) => Promise<{ content: Array<{ text: string }> }>)!({
+      slug: "acme",
+      title: "Via handler",
+      priority: "urgent",
+      description: "desc",
+      assignee: "bob",
+    });
+    const parsed = JSON.parse(res.content[0]!.text) as { ticket: { title: string } };
+    expect(parsed.ticket.title).toBe("Via handler");
+  });
 });

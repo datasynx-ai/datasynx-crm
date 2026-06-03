@@ -275,6 +275,44 @@ describe("handleGmailPushEvent", () => {
     expect(subs[0]!.eventsProcessed).toBe(1);
     expect(subs[0]!.lastEventAt).not.toBeNull();
   });
+
+  it("skips message and continues when fetchMessageFn throws", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+      "/data/.agentic/push-subscriptions.json": JSON.stringify({
+        subscriptions: [makeSubscription()],
+        updatedAt: new Date().toISOString(),
+      }),
+      "/data/.agentic/sync-state.json": JSON.stringify({}),
+    });
+
+    const { handleGmailPushEvent } = await import("../../src/sync/gmail-webhook-handler.js");
+    const fetchHistoryFn = vi.fn().mockResolvedValue([
+      { id: "bad-msg", threadId: "t-bad" },
+      { id: "good-msg", threadId: "t-good" },
+    ]);
+    const fetchMessageFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("fetch failed"))
+      .mockResolvedValue({
+        id: "good-msg",
+        threadId: "t-good",
+        subject: "Hi",
+        from: "x@x.com",
+        date: "Mon, 28 May 2026 10:00:00 +0000",
+        body: "hello",
+      });
+    const appendInteractionFn = vi.fn().mockResolvedValue(undefined);
+
+    const result = await handleGmailPushEvent(
+      "/data",
+      { emailAddress: "alice@acme.com", historyId: "20000" },
+      "psub_1_aaa",
+      { fetchHistoryFn, fetchMessageFn, appendInteractionFn }
+    );
+    // bad-msg skipped, good-msg processed
+    expect(result.processed).toBe(1);
+  });
 });
 
 describe("buildGmailRenewFn", () => {
@@ -332,5 +370,33 @@ describe("buildGmailRenewFn", () => {
 
     const result = await renewFn(sub);
     expect(result.providerData?.gmailHistoryId).toBe("77777");
+  });
+
+  it("uses default registerGmailWatch when no registerFn provided", async () => {
+    vi.doMock("../../src/sync/gmail-push-watch.js", () => ({
+      registerGmailWatch: vi.fn().mockResolvedValue({
+        historyId: "88888",
+        expiration: String(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      }),
+    }));
+
+    const { buildGmailRenewFn } = await import("../../src/sync/gmail-webhook-handler.js");
+    // No registerFn — exercises the default lambda (lines 166-169)
+    const renewFn = buildGmailRenewFn("my-token", "projects/p/topics/q");
+    const sub = {
+      id: "psub_3",
+      provider: "gmail" as const,
+      slug: "co",
+      webhookUrl: "https://x.com/webhooks/gmail",
+      expiresAt: new Date().toISOString(),
+      renewedAt: null,
+      createdAt: new Date().toISOString(),
+      providerData: { gmailTopicName: "projects/p/topics/q" },
+      status: "active" as const,
+      lastEventAt: null,
+      eventsProcessed: 0,
+    };
+    const result = await renewFn(sub);
+    expect(result.providerData?.gmailHistoryId).toBe("88888");
   });
 });

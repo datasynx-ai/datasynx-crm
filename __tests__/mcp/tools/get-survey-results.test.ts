@@ -121,4 +121,21 @@ describe("handleGetSurveyResults", () => {
     expect(parsed.responses[0].slug).toBe("acme");
     expect(parsed.responses[0].score).toBe(9);
   });
+
+  it("registered handler invokes handleGetSurveyResults with optional slug", async () => {
+    vol.fromJSON({});
+    const { registerGetSurveyResults } =
+      await import("../../../src/mcp/tools/get-survey-results.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGetSurveyResults(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({ surveyId: SURVEY_ID, slug: "acme" });
+    const parsed = JSON.parse(result.content[0]!.text) as { npsScore: number };
+    expect(typeof parsed.npsScore).toBe("number");
+  });
 });

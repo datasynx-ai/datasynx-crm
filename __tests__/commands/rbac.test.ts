@@ -65,6 +65,85 @@ describe("runRbacShow", () => {
   });
 });
 
+describe("runRbacShow — with default role", () => {
+  it("shows default role when config has default set", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" }, default: "rep" }),
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runRbacShow } = await import("../../src/commands/rbac.js");
+
+    await runRbacShow("/crm");
+
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join(" ");
+    expect(output).toContain("Default");
+    expect(output).toContain("rep");
+    consoleSpy.mockRestore();
+  });
+});
+
+describe("runRbacCheck", () => {
+  it("shows CAN message when actor is allowed", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" } }),
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runRbacCheck } = await import("../../src/commands/rbac.js");
+
+    await runRbacCheck("alice", "export_customer", "/crm");
+
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join(" ");
+    expect(output).toContain("CAN");
+    consoleSpy.mockRestore();
+  });
+
+  it("shows CANNOT message when actor lacks permission", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { bob: "rep" } }),
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { runRbacCheck } = await import("../../src/commands/rbac.js");
+
+    await runRbacCheck("bob", "export_customer", "/crm");
+
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join(" ");
+    expect(output).toContain("CANNOT");
+    consoleSpy.mockRestore();
+  });
+});
+
+describe("rbacCommand — process.cwd() fallbacks via parseAsync", () => {
+  it("runRbacSet falls back to process.cwd() when env not set", async () => {
+    vol.fromJSON({});
+    delete process.env["DXCRM_DATA_DIR"];
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { rbacCommand } = await import("../../src/commands/rbac.js");
+    await rbacCommand.parseAsync(["node", "rbac", "set", "alice", "admin"]);
+    consoleSpy.mockRestore();
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+  });
+
+  it("runRbacShow falls back to process.cwd() when env not set", async () => {
+    vol.fromJSON({});
+    delete process.env["DXCRM_DATA_DIR"];
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { rbacCommand } = await import("../../src/commands/rbac.js");
+    await rbacCommand.parseAsync(["node", "rbac", "show"]);
+    consoleSpy.mockRestore();
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+  });
+
+  it("runRbacCheck falls back to process.cwd() when env not set", async () => {
+    vol.fromJSON({});
+    delete process.env["DXCRM_DATA_DIR"];
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { rbacCommand } = await import("../../src/commands/rbac.js");
+    await rbacCommand.parseAsync(["node", "rbac", "check", "alice", "export_customer"]);
+    consoleSpy.mockRestore();
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+  });
+});
+
 describe("rbacCommand", () => {
   it("exports rbacCommand with name 'rbac'", async () => {
     const { rbacCommand } = await import("../../src/commands/rbac.js");
@@ -77,5 +156,20 @@ describe("rbacCommand", () => {
     expect(names).toContain("set");
     expect(names).toContain("show");
     expect(names).toContain("check");
+  });
+
+  it("check subcommand invokes runRbacCheck via parseAsync", async () => {
+    vol.fromJSON({
+      "/crm/.agentic/rbac.json": JSON.stringify({ actors: { alice: "admin" } }),
+    });
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { rbacCommand } = await import("../../src/commands/rbac.js");
+
+    await rbacCommand.parseAsync(["node", "rbac", "check", "alice", "export_customer"]);
+
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join(" ");
+    expect(output).toContain("alice");
+    consoleSpy.mockRestore();
   });
 });

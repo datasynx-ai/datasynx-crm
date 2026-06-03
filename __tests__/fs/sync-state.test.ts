@@ -5,6 +5,7 @@ import {
   writeSyncState,
   updateSlugSyncState,
   getLastGmailSync,
+  getLastCalendarSync,
 } from "../../src/fs/sync-state.js";
 
 const DATA_DIR = "/data";
@@ -125,5 +126,23 @@ describe("getLastGmailSync", () => {
   it("returns undefined if file does not exist", () => {
     const result = getLastGmailSync(DATA_DIR, "acme-corp");
     expect(result).toBeUndefined();
+  });
+});
+
+describe("getLastCalendarSync", () => {
+  it("returns undefined if no entry for slug", () => {
+    vol.fromJSON({});
+    const result = getLastCalendarSync(DATA_DIR, "unknown-slug");
+    expect(result).toBeUndefined();
+  });
+
+  it("returns correct Date when lastCalendarSync exists", () => {
+    const ts = "2026-05-26T10:00:00.000Z";
+    vol.fromJSON({
+      [SYNC_STATE_PATH]: JSON.stringify({ "acme-corp": { lastCalendarSync: ts } }),
+    });
+    const result = getLastCalendarSync(DATA_DIR, "acme-corp");
+    expect(result).toBeInstanceOf(Date);
+    expect(result?.toISOString()).toBe(ts);
   });
 });

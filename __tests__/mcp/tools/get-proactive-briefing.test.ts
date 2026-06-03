@@ -66,4 +66,17 @@ describe("handleGetProactiveBriefing", () => {
     const hasUrgent = (parsed["urgent"] as string[]).some((u) => u.includes("closes in"));
     expect(hasUrgent).toBe(true);
   });
+
+  it("returns error response when buildDailyBriefing throws", async () => {
+    vi.doMock("../../../src/core/proactive-agent.js", () => ({
+      buildDailyBriefing: vi.fn().mockRejectedValue(new Error("agent crash")),
+    }));
+    vol.fromJSON({});
+    const { handleGetProactiveBriefing } =
+      await import("../../../src/mcp/tools/get-proactive-briefing.js");
+    const result = await handleGetProactiveBriefing({ date: "2026-05-28" }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["success"]).toBe(false);
+    expect(parsed["error"]).toContain("agent crash");
+  });
 });

@@ -109,4 +109,34 @@ describe("handleGetLinearIssues", () => {
     };
     expect(parsed.success).toBe(true);
   });
+
+  it("falls back to slug when readMainFacts throws", async () => {
+    vi.mock("../../src/fs/customer-dir.js", () => ({
+      readMainFacts: vi.fn().mockRejectedValue(new Error("not found")),
+    }));
+
+    fetchMock.mockResolvedValue(jsonRes(ISSUES_EMPTY));
+    const { handleGetLinearIssues } = await import("../../src/plugins/linear.js");
+    // No customerName → tries readMainFacts → throws → uses slug as fallback
+    const result = await handleGetLinearIssues({ slug: "acme-corp" }, "/data", LINEAR_TOKEN);
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      slug: string;
+    };
+    expect(parsed.slug).toBe("acme-corp");
+    // Verify the fallback slug was used as filter
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string) as {
+      variables: { filter: string };
+    };
+    expect(body.variables.filter).toBe("acme-corp");
+  });
+});
+
+describe("createLinearPlugin", () => {
+  it("returns a plugin with name 'linear' and correct shape", async () => {
+    const { createLinearPlugin } = await import("../../src/plugins/linear.js");
+    const plugin = createLinearPlugin("tok_test");
+    expect(plugin.name).toBe("linear");
+    expect(plugin.version).toBe("1.0.0");
+    expect(plugin.mcpTools).toContain("get_linear_issues");
+  });
 });

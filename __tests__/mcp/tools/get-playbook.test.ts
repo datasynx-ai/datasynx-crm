@@ -84,4 +84,42 @@ describe("get_playbook tool", () => {
     registerGetPlaybook(fakeServer as never);
     expect(calls).toContain("get_playbook");
   });
+
+  it("registered handler invokes handleGetPlaybook with optional params", async () => {
+    vol.fromJSON({});
+    const { registerGetPlaybook } = await import("../../../src/mcp/tools/get-playbook.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGetPlaybook(fakeServer as never);
+    const result = await capturedHandler!({
+      slug: SLUG,
+      stage: "negotiation",
+      value: 50000,
+      healthScore: 75,
+      daysSinceContact: 7,
+      championPresent: true,
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { matches: unknown[] };
+    expect(Array.isArray(parsed.matches)).toBe(true);
+  });
+
+  it("returns error response when listPlaybooks throws", async () => {
+    vi.doMock("../../../src/core/playbooks.js", () => ({
+      listPlaybooks: vi.fn().mockImplementation(() => {
+        throw new Error("playbook fs error");
+      }),
+      matchPlaybooks: vi.fn(),
+    }));
+    vol.fromJSON({});
+    const { handleGetPlaybook } = await import("../../../src/mcp/tools/get-playbook.js");
+    const res = await handleGetPlaybook({ slug: SLUG, stage: "negotiation" }, DATA_DIR);
+    const data = JSON.parse(res.content[0]!.text);
+    expect(data.success).toBe(false);
+    expect(data.error).toContain("playbook fs error");
+  });
 });

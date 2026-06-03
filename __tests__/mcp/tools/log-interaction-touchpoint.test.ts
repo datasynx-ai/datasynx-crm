@@ -89,6 +89,29 @@ describe("log_interaction — last_touchpoint update", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("adds last_touchpoint when key is absent from frontmatter", async () => {
+    const mainFactsNoTouchpoint = `---
+company: Acme Corp
+domain: acme.com
+---
+
+## Quick Reference
+Key details here.
+`;
+    vol.fromJSON({ [MAIN_FACTS_PATH]: mainFactsNoTouchpoint });
+
+    await handleLogInteraction(
+      { slug: SLUG, type: "Call", summary: "Intro call", with: "Bob" },
+      DATA_DIR
+    );
+
+    const { fs } = vol;
+    const written = fs.readFileSync(MAIN_FACTS_PATH, "utf-8") as string;
+    const today = new Date().toISOString().split("T")[0];
+    expect(written).toContain(`last_touchpoint: ${today}`);
+    expect(written).toContain("company: Acme Corp");
+  });
+
   it("preserves existing frontmatter fields when updating last_touchpoint", async () => {
     vol.fromJSON({ [MAIN_FACTS_PATH]: mainFactsWithFrontmatter });
 

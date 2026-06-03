@@ -137,4 +137,44 @@ describe("handleGetPushStatus", () => {
     expect(parsed.summary.expired).toBe(1);
     expect(parsed.summary.active).toBe(1);
   });
+
+  it("registered handler invokes handleGetPushStatus with optional slug and provider", async () => {
+    vol.fromJSON({
+      "/data/.agentic/push-subscriptions.json": JSON.stringify({
+        subscriptions: [makeSub()],
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+    const cwd = process.cwd();
+    vol.fromJSON({
+      [`${cwd}/.agentic/push-subscriptions.json`]: JSON.stringify({
+        subscriptions: [makeSub()],
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+    const { registerGetPushStatus } = await import("../../../src/mcp/tools/get-push-status.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGetPushStatus(fakeServer as never);
+    const result = await capturedHandler!({ slug: "acme-corp", provider: "gmail" });
+    const parsed = JSON.parse(result.content[0]!.text) as { subscriptions: unknown[] };
+    expect(Array.isArray(parsed.subscriptions)).toBe(true);
+  });
+
+  it("returns error response when readSubscriptions throws", async () => {
+    vi.doMock("../../../src/sync/push-manager.js", () => ({
+      readSubscriptions: vi.fn().mockRejectedValue(new Error("push store error")),
+    }));
+    vol.fromJSON({});
+    const { handleGetPushStatus } = await import("../../../src/mcp/tools/get-push-status.js");
+    const result = await handleGetPushStatus({}, "/data");
+    const parsed = JSON.parse(result.content[0]!.text) as { success?: boolean; error?: string };
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toContain("push store error");
+  });
 });

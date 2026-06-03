@@ -59,6 +59,40 @@ describe("writeSurvey / getSurvey", () => {
     const { getSurvey } = await import("../../src/core/survey-engine.js");
     expect(getSurvey(DATA_DIR, "nonexistent")).toBeNull();
   });
+
+  it("returns null when survey file has invalid YAML", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/surveys/bad.yaml`]: "key: [unclosed",
+    });
+    const { getSurvey } = await import("../../src/core/survey-engine.js");
+    expect(getSurvey(DATA_DIR, "bad")).toBeNull();
+  });
+});
+
+// ─── listSurveys ─────────────────────────────────────────────────────────────
+
+describe("listSurveys", () => {
+  it("returns empty array when surveys dir does not exist", async () => {
+    vol.fromJSON({});
+    const { listSurveys } = await import("../../src/core/survey-engine.js");
+    expect(listSurveys(DATA_DIR)).toHaveLength(0);
+  });
+
+  it("returns all written surveys", async () => {
+    vol.fromJSON({});
+    const { writeSurvey, listSurveys } = await import("../../src/core/survey-engine.js");
+    writeSurvey(DATA_DIR, {
+      id: "nps-q1",
+      type: "nps",
+      question: "Rate us",
+      scale: { min: 0, max: 10 },
+      includeComment: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    const all = listSurveys(DATA_DIR);
+    expect(all).toHaveLength(1);
+    expect(all[0]?.id).toBe("nps-q1");
+  });
 });
 
 // ─── buildSurveyEmail ─────────────────────────────────────────────────────────
@@ -186,5 +220,33 @@ describe("savePendingSurvey / recordSurveyResponse", () => {
     const acmeOnly = loadSurveyResponses(DATA_DIR, "nps-q1", "acme");
     expect(acmeOnly).toHaveLength(1);
     expect(acmeOnly[0]?.slug).toBe("acme");
+  });
+
+  it("recordSurveyResponse skips corrupt pending files and returns null", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/survey-pending/bad.json`]: "INVALID JSON{{",
+    });
+    const { recordSurveyResponse } = await import("../../src/core/survey-engine.js");
+    const result = await recordSurveyResponse(DATA_DIR, "any-token", 8);
+    expect(result).toBeNull();
+  });
+
+  it("loadSurveyResponses skips corrupt response files", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/survey-responses/nps-q1/corrupt.json`]: "NOT JSON{{",
+      [`${DATA_DIR}/.agentic/survey-responses/nps-q1/valid.json`]: JSON.stringify({
+        surveyId: "nps-q1",
+        slug: "acme",
+        contactEmail: "alice@acme.com",
+        score: 9,
+        respondedAt: "2026-06-01T00:00:00Z",
+        token: "tok1",
+        sentAt: "2026-05-31T00:00:00Z",
+      }),
+    });
+    const { loadSurveyResponses } = await import("../../src/core/survey-engine.js");
+    const responses = loadSurveyResponses(DATA_DIR, "nps-q1");
+    expect(responses).toHaveLength(1);
+    expect(responses[0]?.slug).toBe("acme");
   });
 });

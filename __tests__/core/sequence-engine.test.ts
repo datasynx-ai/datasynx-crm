@@ -174,4 +174,66 @@ describe("runSequenceCycle", () => {
     const result = await runSequenceCycle(DATA_DIR, "2026-05-29");
     expect(result.completed).toBe(1);
   });
+
+  it("records error when processSequenceStep throws", async () => {
+    // An enrollment with a non-ISO enrolledAt causes addDays() to throw RangeError
+    // which propagates to the runSequenceCycle catch block
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/sequences/outreach.yaml`]: SEQ_YAML,
+      [`${DATA_DIR}/.agentic/sequence-enrollments.json`]: JSON.stringify([
+        { ...baseEnrollment(), status: "active", enrolledAt: "not-a-date" },
+      ]),
+    });
+
+    const { runSequenceCycle } = await import("../../src/core/sequence-engine.js");
+    const result = await runSequenceCycle(DATA_DIR, "2026-05-29");
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("processSequenceStep — gmail send path", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("sends email via Gmail when credentials exist", async () => {
+    const mockGetGmailAuth = vi.fn().mockResolvedValue({});
+    const mockSendEmail = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("../../src/sync/gmail-auth.js", () => ({ getGmailAuth: mockGetGmailAuth }));
+    vi.doMock("../../src/sync/gmail-sender.js", () => ({ sendEmail: mockSendEmail }));
+
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/sequences/outreach.yaml`]: SEQ_YAML,
+      [`${DATA_DIR}/.agentic/templates/outreach/intro.md`]: TEMPLATE_INTRO,
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: MAIN_FACTS,
+      [`${DATA_DIR}/.agentic/gmail-token.json`]: "{}",
+      [`${DATA_DIR}/.agentic/gmail-credentials.json`]: "{}",
+    });
+
+    const { processSequenceStep } = await import("../../src/core/sequence-engine.js");
+    const result = await processSequenceStep(DATA_DIR, baseEnrollment(), "2026-05-29");
+    expect(result).toBe("sent");
+    expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+
+  it("advances step even when Gmail send fails", async () => {
+    const mockGetGmailAuth = vi.fn().mockResolvedValue({});
+    const mockSendEmail = vi.fn().mockRejectedValue(new Error("smtp error"));
+    vi.doMock("../../src/sync/gmail-auth.js", () => ({ getGmailAuth: mockGetGmailAuth }));
+    vi.doMock("../../src/sync/gmail-sender.js", () => ({ sendEmail: mockSendEmail }));
+
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/sequences/outreach.yaml`]: SEQ_YAML,
+      [`${DATA_DIR}/.agentic/templates/outreach/intro.md`]: TEMPLATE_INTRO,
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: MAIN_FACTS,
+      [`${DATA_DIR}/.agentic/gmail-token.json`]: "{}",
+      [`${DATA_DIR}/.agentic/gmail-credentials.json`]: "{}",
+    });
+
+    const { processSequenceStep } = await import("../../src/core/sequence-engine.js");
+    const result = await processSequenceStep(DATA_DIR, baseEnrollment(), "2026-05-29");
+    // Step still advances despite email failure (catch block)
+    expect(result).toBe("sent");
+  });
 });

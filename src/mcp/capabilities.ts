@@ -95,6 +95,8 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | create_kb_article | Create a new knowledge base article stored as Markdown in .agentic/knowledge-base/ | rep+ |
 | backup_now | Trigger immediate backup of customers/ + .agentic/ with SHA-256 integrity check | admin |
 | list_backups | List available backups with date, size, verification status, and customer count | any |
+| trigger_sync | Force immediate Gmail sync for one or all customers | rep+ |
+| get_audit_log | Read audit log — all write operations with actor, tool, customer | admin |
 
 ## Tool Reference
 
@@ -683,4 +685,228 @@ Renew expiring push subscriptions (also runs automatically daily at 06:00).
 \`\`\`
 dxcrm push renew --all
 \`\`\`
+
+### register_push_subscription (MCP)
+Register a real-time push subscription. Admin only.
+\`\`\`
+register_push_subscription({ provider: "gmail", slug: "acme-corp", webhookUrl: "https://myserver.com/webhooks/gmail", gmailTopicName: "projects/x/topics/y" })
+\`\`\`
+Returns: { subscriptionId, provider, slug, status, expiresAt, warning? }
+
+### get_push_status (MCP)
+Show all push subscriptions with expiry and event counts.
+\`\`\`
+get_push_status()                           // all subscriptions
+get_push_status({ slug: "acme-corp" })     // filter by customer
+get_push_status({ provider: "gmail" })     // filter by provider
+\`\`\`
+Returns: { subscriptions: [...], summary: { total, active, expiringSoon, expired } }
+
+### get_org_intelligence (MCP)
+Build a stakeholder map for a customer: champions, economic buyers, blockers, health scores, risk flags, and a prioritised recommendation.
+\`\`\`
+get_org_intelligence({ slug: "acme-corp" })
+get_org_intelligence({ slug: "acme-corp", dealName: "Enterprise License" })
+\`\`\`
+Returns: { slug, updatedAt, people: [{ name, email, role, healthScore, daysSinceContact, contactStrength, riskFlags }], missingRoles, riskAssessment, recommendation }
+
+### open_deal_room (MCP)
+Multi-agent deal brief: orchestrates stakeholder map, relationship health, deal health, Monte Carlo simulation, and playbook matching into a single structured brief.
+\`\`\`
+open_deal_room({ slug: "acme-corp", dealName: "Enterprise License 2026" })
+\`\`\`
+Returns: { slug, dealName, generatedAt, stakeholders, relationshipHealth, dealHealth, revenueSimulation, recommendedPlaybook, executiveSummary, topPriorities, riskScore }
+
+### get_proactive_briefing (MCP)
+Generate a proactive daily briefing: urgent alerts (relationship decay, imminent close dates), opportunities (high-health customers with active pipeline), P50/P90 forecast, and a single top-action recommendation.
+\`\`\`
+get_proactive_briefing()                         // today
+get_proactive_briefing({ date: "2026-05-28" })   // specific date
+\`\`\`
+Returns: { date, generatedAt, urgent: string[], opportunities: string[], forecast: string, topAction: string }
+
+## H2 — Email Templates
+
+### list_email_templates (MCP)
+List all saved email templates. Returns id, name, category, subject, and body preview.
+\`\`\`
+list_email_templates()
+list_email_templates({ category: "follow-up" })
+\`\`\`
+Returns: { templates: [{ id, name, category, subject, bodyPreview }] }
+
+### get_email_template (MCP)
+Retrieve a single email template with full body and all variables.
+\`\`\`
+get_email_template({ id: "proposal-follow-up" })
+\`\`\`
+Returns: { id, name, category, subject, body, variables: string[] }
+
+### draft_email (MCP)
+Draft a personalized email from a template, substituting variables from customer context.
+\`\`\`
+draft_email({ slug: "acme-corp", templateId: "proposal-follow-up", overrides: { subject: "Following up on your proposal" } })
+\`\`\`
+Returns: { subject, body, suggestedTo, suggestedCc?, variables }
+
+## H1 — Email Sequences
+
+### enroll_in_sequence (MCP)
+Enroll a customer contact in a multi-step email sequence. Steps are sent automatically.
+\`\`\`
+enroll_in_sequence({ slug: "acme-corp", sequenceId: "onboarding-7day", contactEmail: "alice@acme.com" })
+\`\`\`
+Returns: { enrollmentId, slug, sequenceId, contactEmail, enrolledAt, nextStepDue, totalSteps }
+
+### list_sequence_enrollments (MCP)
+List active (and optionally completed) sequence enrollments.
+\`\`\`
+list_sequence_enrollments()
+list_sequence_enrollments({ slug: "acme-corp", status: "active" })
+\`\`\`
+Returns: { enrollments: [{ enrollmentId, slug, sequenceId, contactEmail, currentStep, nextStepDue, status }] }
+
+### unenroll_from_sequence (MCP)
+Remove a contact from an active sequence (marks as cancelled).
+\`\`\`
+unenroll_from_sequence({ enrollmentId: "enr_abc123" })
+\`\`\`
+Returns: { success: boolean, enrollmentId }
+
+### list_sequences (MCP)
+List all defined email sequences with step count and description.
+\`\`\`
+list_sequences()
+\`\`\`
+Returns: { sequences: [{ id, name, description, steps: number, triggerOn? }] }
+
+## H4 — Quotes
+
+### generate_quote (MCP)
+Generate a structured quote document for a customer deal.
+\`\`\`
+generate_quote({ slug: "acme-corp", dealName: "Enterprise License", lineItems: [{ description: "Platform (12 mo)", quantity: 1, unitPrice: 24000 }], validDays: 30 })
+\`\`\`
+Returns: { quoteId, slug, dealName, total, currency, validUntil, markdownTable, fullText }
+
+### get_quote_status (MCP)
+Retrieve a generated quote with full line items and total.
+\`\`\`
+get_quote_status({ quoteId: "Q-2026-001" })
+\`\`\`
+Returns: { quoteId, slug, dealName, lineItems, subtotal, total, validUntil, status }
+
+## H3 — Meeting Scheduler
+
+### get_booking_link (MCP)
+Get a scheduling link for a meeting with a customer. Configure via DXCRM_CALENDLY_URL or per-customer sources.json.
+\`\`\`
+get_booking_link({ slug: "acme-corp", meetingType: "demo" })
+\`\`\`
+Returns: { url, meetingType, calendarProvider, prefillEmail?, note? }
+
+## H6 — Ticket Management
+
+### create_ticket (MCP)
+Create a support ticket. Auto-sets SLA due date: critical=4h, high=24h, medium=72h, low=168h.
+\`\`\`
+create_ticket({ slug: "acme-corp", title: "Login broken", priority: "high", description: "Cannot login since yesterday", assignee: "alice" })
+\`\`\`
+Returns: { ticketId, slug, title, priority, status, slaDue, assignee?, createdAt }
+
+### update_ticket (MCP)
+Update ticket status or assignee.
+\`\`\`
+update_ticket({ slug: "acme-corp", ticketId: "T-001", status: "in-progress", assignee: "bob" })
+\`\`\`
+Returns: { ticketId, status, updatedAt }
+
+### list_tickets (MCP)
+List tickets sorted by priority. Filter by customer, status, priority, or assignee.
+\`\`\`
+list_tickets()
+list_tickets({ slug: "acme-corp", status: "open" })
+list_tickets({ priority: "high", assignee: "alice" })
+\`\`\`
+Returns: { tickets: [{ ticketId, slug, title, priority, status, slaDue, assignee?, createdAt }] }
+
+### close_ticket (MCP)
+Close a ticket and optionally log a resolution note to interactions.md.
+\`\`\`
+close_ticket({ slug: "acme-corp", ticketId: "T-001", resolution: "Fixed by updating oauth token" })
+\`\`\`
+Returns: { ticketId, status: "closed", closedAt, resolution? }
+
+## H7 — NPS/CSAT Survey Engine
+
+### send_nps_survey (MCP)
+Generate a survey token and HTML email body. Customers click a score button (0–10) which
+posts to your server's /survey/respond endpoint. Set DXCRM_SERVER_URL or pass serverUrl.
+\`\`\`
+send_nps_survey({ slug: "acme-corp", contactEmail: "alice@acme.com", surveyId: "q1-nps" })
+send_nps_survey({ slug: "acme-corp", contactEmail: "alice@acme.com", surveyId: "q1-nps", serverUrl: "https://crm.myco.com" })
+\`\`\`
+Returns: { token, emailSubject, emailBody (HTML), surveyId, expiresAt }
+
+### get_survey_results (MCP)
+Calculate NPS score and breakdown by promoter/passive/detractor.
+\`\`\`
+get_survey_results({ surveyId: "q1-nps" })
+get_survey_results({ surveyId: "q1-nps", slug: "acme-corp" })
+\`\`\`
+Returns: { surveyId, npsScore (-100 to 100), responseCount, promoters, passives, detractors, responses: [{ slug, contactEmail, score, comment?, respondedAt }] }
+
+## H8 — Knowledge Base
+
+### search_knowledge_base (MCP)
+Full-text search across all KB articles (title, body, tags).
+\`\`\`
+search_knowledge_base({ query: "password reset" })
+search_knowledge_base({ query: "billing", publicOnly: true })
+\`\`\`
+Returns: { results: [{ id, title, category, excerpt, public, tags }] }
+
+### create_kb_article (MCP)
+Create or update a knowledge base article (upserts by ID).
+\`\`\`
+create_kb_article({ id: "password-reset", title: "How to reset your password", body: "## Steps\\n1. Go to login...", category: "account", tags: ["password", "auth"], public: true })
+\`\`\`
+Returns: { id, title, createdAt, updatedAt, public }
+
+## Enterprise Backup
+
+### backup_now (MCP)
+Trigger an immediate backup of customers/ + .agentic/. Creates a timestamped ZIP with
+SHA-256 manifest. Optionally encrypts (AES-256-GCM) and uploads to S3/rsync/local.
+\`\`\`
+backup_now({})
+backup_now({ remote: "s3://my-bucket/crm-backups/", note: "Pre-migration backup" })
+\`\`\`
+Returns: { path, createdAt, customerCount, fileCount, sizeMb, directories, verified, uploadedTo? }
+
+### list_backups (MCP)
+List available CRM backups with metadata from .agentic/backup-log.json.
+Falls back to directory scan if log unavailable.
+\`\`\`
+list_backups({ limit: 10 })
+\`\`\`
+Returns: { count, totalAvailable, backups: [{ filename, createdAt, sizeMb, verified, encrypted, customerCount, fileCount }] }
+
+### trigger_sync (MCP)
+Force an immediate Gmail sync without waiting for the 30-minute daemon cycle.
+\`\`\`
+trigger_sync({ slug: "acme-corp" })        // sync one customer
+trigger_sync({})                           // sync all customers
+trigger_sync({ since: "2026-06-01" })      // sync from specific date
+\`\`\`
+Returns: { success, synced, skipped, customers: [...], errors: [...] }
+
+### get_audit_log (MCP)
+Read the append-only CRM audit log of all write operations.
+\`\`\`
+get_audit_log({})                              // last 50 entries
+get_audit_log({ slug: "acme-corp" })           // filtered by customer
+get_audit_log({ actor: "alice", limit: 20 })   // filtered by actor
+\`\`\`
+Returns: { total, returned, entries: [{ timestamp, actor, tool, slug, summary }] }
 `.trim();

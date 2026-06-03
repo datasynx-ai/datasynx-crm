@@ -45,7 +45,8 @@ describe("listSequences", () => {
   });
 
   it("skips invalid YAML files gracefully", async () => {
-    vol.fromJSON({ [`${DATA_DIR}/.agentic/sequences/broken.yaml`]: "<<invalid yaml::" });
+    // "key: [unclosed" triggers a YAMLException in js-yaml (unclosed flow sequence)
+    vol.fromJSON({ [`${DATA_DIR}/.agentic/sequences/broken.yaml`]: "key: [unclosed" });
     const { listSequences } = await import("../../src/fs/sequence-store.js");
     expect(listSequences(DATA_DIR)).toEqual([]);
   });
@@ -132,5 +133,13 @@ describe("writeSequence / readEnrollments / writeEnrollment / updateEnrollment",
     const { updateEnrollment } = await import("../../src/fs/sequence-store.js");
     const result = await updateEnrollment(DATA_DIR, "ghost", { status: "paused" });
     expect(result).toBeNull();
+  });
+
+  it("readEnrollments returns [] when file has invalid JSON", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/sequence-enrollments.json`]: "NOT VALID JSON{{",
+    });
+    const { readEnrollments } = await import("../../src/fs/sequence-store.js");
+    expect(readEnrollments(DATA_DIR)).toEqual([]);
   });
 });

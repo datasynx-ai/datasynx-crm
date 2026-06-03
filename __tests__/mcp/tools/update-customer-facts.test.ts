@@ -23,11 +23,18 @@ vi.mock("../../../src/fs/audit-log.js", () => ({
 }));
 
 import { handleUpdateCustomerFacts } from "../../../src/mcp/tools/update-customer-facts.js";
-import { readMainFacts, writeMainFacts } from "../../../src/fs/customer-dir.js";
+import {
+  readMainFacts,
+  writeMainFacts,
+  customerExists,
+  ensureCustomerDir,
+} from "../../../src/fs/customer-dir.js";
 import { writeAuditEntry } from "../../../src/fs/audit-log.js";
 
 const mockRead = vi.mocked(readMainFacts);
 const mockWrite = vi.mocked(writeMainFacts);
+const mockExists = vi.mocked(customerExists);
+const mockEnsureDir = vi.mocked(ensureCustomerDir);
 
 describe("update_customer_facts tool", () => {
   beforeEach(() => {
@@ -164,5 +171,61 @@ describe("update_customer_facts tool", () => {
     };
     expect(parsed.facts).toBeDefined();
     expect(parsed.facts.name).toBe("Acme Corp");
+  });
+
+  it("returns created: false when updating existing customer", async () => {
+    const result = await handleUpdateCustomerFacts({ slug: "acme-corp", domain: "x.com" }, "/data");
+
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      created: boolean;
+    };
+    expect(parsed.created).toBe(false);
+  });
+});
+
+describe("update_customer_facts tool — create path", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.clearAllMocks();
+    mockExists.mockReturnValue(false);
+    mockWrite.mockResolvedValue(undefined);
+    mockEnsureDir.mockResolvedValue(undefined);
+  });
+
+  it("creates customer and returns created: true when slug does not exist", async () => {
+    const result = await handleUpdateCustomerFacts({ slug: "new-co", name: "New Co Ltd" }, "/data");
+
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      success: boolean;
+      created: boolean;
+      facts: { name: string };
+    };
+    expect(parsed.success).toBe(true);
+    expect(parsed.created).toBe(true);
+    expect(parsed.facts.name).toBe("New Co Ltd");
+  });
+
+  it("uses slug as name when no name given for new customer", async () => {
+    const result = await handleUpdateCustomerFacts({ slug: "beta-corp" }, "/data");
+
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      success: boolean;
+      facts: { name: string };
+    };
+    expect(parsed.facts.name).toBe("beta-corp");
+  });
+
+  it("calls ensureCustomerDir for new customers", async () => {
+    await handleUpdateCustomerFacts({ slug: "gamma-inc" }, "/data");
+    expect(mockEnsureDir).toHaveBeenCalledWith("/data", "gamma-inc");
+  });
+
+  it("sets default relationship_stage to prospect for new customers", async () => {
+    const result = await handleUpdateCustomerFacts({ slug: "delta-llc" }, "/data");
+
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      facts: { relationship_stage: string };
+    };
+    expect(parsed.facts.relationship_stage).toBe("prospect");
   });
 });

@@ -104,6 +104,30 @@ describe("handleCreateKbArticle", () => {
     expect(content).toContain("T-042");
   });
 
+  it("registered handler invokes handleCreateKbArticle with optional params", async () => {
+    vol.fromJSON({});
+    const { registerCreateKbArticle } = await import("../../../src/mcp/tools/create-kb-article.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerCreateKbArticle(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({
+      id: "reg-article",
+      title: "Registration Test",
+      body: "Body content.",
+      category: "howto",
+      tags: ["test"],
+      public: true,
+      sourceTicketId: "T-001",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { id: string };
+    expect(parsed.id).toBe("reg-article");
+  });
+
   it("marks article as public when requested", async () => {
     vol.fromJSON({});
     const { handleCreateKbArticle } = await import("../../../src/mcp/tools/create-kb-article.js");

@@ -183,4 +183,126 @@ describe("syncMicrosoftCalendar", () => {
     const entry = call[2] as { type: string };
     expect(entry.type).toBe("Meeting");
   });
+
+  it("falls back to today when event has no start.dateTime", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          value: [
+            {
+              id: "evt-nodate",
+              subject: "Timeless Event",
+              bodyPreview: "No start time",
+              attendees: [],
+              organizer: { emailAddress: { name: "Carol" } },
+            },
+          ],
+        }),
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncMicrosoftCalendar } = await import("../../src/sync/microsoft-calendar.js");
+    const result = await syncMicrosoftCalendar({
+      slug: "acme-corp",
+      dataDir: "/crm",
+      accessToken: "tok",
+    });
+    expect(result.synced).toBe(1);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2] as { date: string };
+    expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("records error in result when appendInteraction fails", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve(ONE_EVENT_RESPONSE) });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    vi.mocked(appendInteraction).mockRejectedValueOnce(new Error("disk full"));
+    const { syncMicrosoftCalendar } = await import("../../src/sync/microsoft-calendar.js");
+    const result = await syncMicrosoftCalendar({
+      slug: "acme-corp",
+      dataDir: "/crm",
+      accessToken: "tok",
+    });
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("disk full");
+  });
+
+  it("uses empty events array when API response has no value field", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    const { syncMicrosoftCalendar } = await import("../../src/sync/microsoft-calendar.js");
+    const result = await syncMicrosoftCalendar({
+      slug: "acme-corp",
+      dataDir: "/crm",
+      accessToken: "tok",
+    });
+    expect(result.synced).toBe(0);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("falls back to attendee address when name is absent", async () => {
+    const responseWithAddressOnly = {
+      value: [
+        {
+          id: "evt-addr",
+          subject: "Addr-only Meeting",
+          bodyPreview: "content",
+          start: { dateTime: "2026-05-10T10:00:00Z" },
+          attendees: [{ emailAddress: { address: "alice@acme.com" } }],
+          organizer: { emailAddress: { name: "Bob Jones", address: "bob@us.com" } },
+        },
+      ],
+    };
+    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve(responseWithAddressOnly) });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncMicrosoftCalendar } = await import("../../src/sync/microsoft-calendar.js");
+    await syncMicrosoftCalendar({ slug: "acme-corp", dataDir: "/crm", accessToken: "tok" });
+    const call = vi.mocked(appendInteraction).mock.calls[0]!;
+    const entry = call[2] as { with: string };
+    expect(entry.with).toContain("alice@acme.com");
+  });
+
+  it("falls back to 'unknown' when attendee has neither name nor address", async () => {
+    const responseWithEmptyAttendee = {
+      value: [
+        {
+          id: "evt-noinfo",
+          subject: "Empty Attendee Meeting",
+          bodyPreview: "content",
+          start: { dateTime: "2026-05-10T10:00:00Z" },
+          attendees: [{ emailAddress: {} }],
+          organizer: { emailAddress: { name: "Organizer" } },
+        },
+      ],
+    };
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(responseWithEmptyAttendee),
+    });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncMicrosoftCalendar } = await import("../../src/sync/microsoft-calendar.js");
+    await syncMicrosoftCalendar({ slug: "acme-corp", dataDir: "/crm", accessToken: "tok" });
+    const call = vi.mocked(appendInteraction).mock.calls[0]!;
+    const entry = call[2] as { with: string };
+    expect(entry.with).toContain("unknown");
+  });
+
+  it("uses '(no subject)' when event has no subject field", async () => {
+    const responseNoSubject = {
+      value: [
+        {
+          id: "evt-nosub",
+          bodyPreview: "content",
+          start: { dateTime: "2026-05-10T10:00:00Z" },
+          attendees: [],
+          organizer: { emailAddress: { name: "Bob" } },
+        },
+      ],
+    };
+    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve(responseNoSubject) });
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    const { syncMicrosoftCalendar } = await import("../../src/sync/microsoft-calendar.js");
+    await syncMicrosoftCalendar({ slug: "acme-corp", dataDir: "/crm", accessToken: "tok" });
+    const call = vi.mocked(appendInteraction).mock.calls[0]!;
+    const entry = call[2] as { summary: string };
+    expect(entry.summary).toContain("(no subject)");
+  });
 });

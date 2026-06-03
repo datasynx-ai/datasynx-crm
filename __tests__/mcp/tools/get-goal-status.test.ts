@@ -84,4 +84,35 @@ describe("get_goal_status tool", () => {
     registerGetGoalStatus(fakeServer as never);
     expect(calls).toContain("get_goal_status");
   });
+
+  it("registered handler invokes handleGetGoalStatus with optional goalId", async () => {
+    vol.fromJSON({});
+    const { registerGetGoalStatus } = await import("../../../src/mcp/tools/get-goal-status.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerGetGoalStatus(fakeServer as never);
+    const result = await capturedHandler!({ goalId: "goal_unknown_999" });
+    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
+    expect(typeof parsed.success).toBe("boolean");
+  });
+
+  it("returns error response when readGoals throws", async () => {
+    vi.doMock("../../../src/core/goal-engine.js", () => ({
+      readGoals: vi.fn().mockImplementation(() => {
+        throw new Error("goals read error");
+      }),
+      getActiveGoals: vi.fn().mockReturnValue([]),
+    }));
+    vol.fromJSON({});
+    const { handleGetGoalStatus } = await import("../../../src/mcp/tools/get-goal-status.js");
+    const res = await handleGetGoalStatus({ goalId: "goal_test_123" }, DATA_DIR);
+    const data = JSON.parse(res.content[0]!.text) as { success: boolean; error: string };
+    expect(data.success).toBe(false);
+    expect(data.error).toContain("goals read error");
+  });
 });

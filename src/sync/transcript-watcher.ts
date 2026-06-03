@@ -81,6 +81,38 @@ function readCustomerName(customersDir: string, slug: string): string {
   }
 }
 
+function fuzzyMatchCustomer(
+  filePath: string,
+  content: string,
+  candidates: Array<{ slug: string; name: string }>
+): { slug: string } | null {
+  const filename = path.basename(filePath).toLowerCase();
+  const contentPreview = content.toLowerCase().slice(0, 5_000);
+
+  let best: { slug: string; score: number } | null = null;
+
+  for (const { slug, name } of candidates) {
+    let score = 0;
+    const nameLower = name.toLowerCase();
+    const slugLower = slug.toLowerCase();
+
+    // Filename match is the strongest signal
+    if (filename.includes(slugLower) || filename.includes(nameLower.replace(/\s+/g, "-"))) {
+      score += 10;
+    }
+
+    // Count name occurrences in content
+    const escaped = nameLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    score += contentPreview.match(new RegExp(escaped, "g"))?.length ?? 0;
+
+    if (score > 0 && (!best || score > best.score)) {
+      best = { slug, score };
+    }
+  }
+
+  return best ? { slug: best.slug } : null;
+}
+
 export async function processTranscriptFileAutoMatch(
   filePath: string,
   dataDir: string
@@ -110,10 +142,9 @@ export async function processTranscriptFileAutoMatch(
     name: readCustomerName(customersDir, slug),
   }));
 
-  const { recognizeCustomer } = await import("../core/llm.js");
-  const match = await recognizeCustomer(content, candidates);
+  const match = fuzzyMatchCustomer(filePath, content, candidates);
 
-  if (match.slug && match.confidence !== "low") {
+  if (match) {
     await processTranscriptFile(filePath, match.slug, dataDir);
   } else {
     await recordUnmatched(dataDir, filePath, "no_customer_match");

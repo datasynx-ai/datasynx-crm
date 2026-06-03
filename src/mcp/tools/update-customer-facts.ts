@@ -1,8 +1,14 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { readMainFacts, writeMainFacts } from "../../fs/customer-dir.js";
+import {
+  readMainFacts,
+  writeMainFacts,
+  ensureCustomerDir,
+  customerExists,
+} from "../../fs/customer-dir.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 import { enforceRbac } from "../../core/rbac.js";
+import type { MainFacts } from "../../schemas/main-facts.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -28,7 +34,22 @@ export async function handleUpdateCustomerFacts(
   try {
     enforceRbac(dataDir, "update_customer_facts");
 
-    const existing = await readMainFacts(dataDir, input.slug);
+    let existing: MainFacts;
+    let created = false;
+    if (!customerExists(dataDir, input.slug)) {
+      await ensureCustomerDir(dataDir, input.slug);
+      existing = {
+        name: input.name ?? input.slug,
+        relationship_stage: "prospect",
+        currency: "EUR",
+        tags: [],
+        created: today,
+        updated: today,
+      };
+      created = true;
+    } else {
+      existing = await readMainFacts(dataDir, input.slug);
+    }
 
     const updated = {
       ...existing,
@@ -63,7 +84,7 @@ export async function handleUpdateCustomerFacts(
       content: [
         {
           type: "text",
-          text: JSON.stringify({ success: true, facts: updated }, null, 2),
+          text: JSON.stringify({ success: true, created, facts: updated }, null, 2),
         },
       ],
     };
@@ -84,12 +105,15 @@ export function registerUpdateCustomerFacts(server: McpServer): void {
     "update_customer_facts",
     {
       title: "Update Customer Facts",
-      description: `Update fields in a customer's main_facts.md profile. Merges patch into existing data.
-Use after learning new information about a customer (new contact, domain change, etc).
+      description: `Create or update a customer's main_facts.md profile.
+If the customer slug does not exist yet, creates the customer directory and initial profile.
+If it exists, merges the provided fields into existing data.
+
+Use to add a new customer ("create acme-corp") or update existing info.
 
 Args:
-  slug: Customer ID (required)
-  name: Company name
+  slug: Customer ID / slug — e.g. "acme-corp" (kebab-case, no spaces)
+  name: Company name (used as display name)
   domain: Primary domain (e.g. "acme.com")
   email: Primary contact email
   phone: Phone number
@@ -100,7 +124,7 @@ Args:
   timezone: Timezone (e.g. "Europe/Berlin")
   tags: Array of tags (replaces existing tags)
 
-Returns: { success: boolean, facts: object }`,
+Returns: { success: boolean, created: boolean, facts: object }`,
       inputSchema: z.object({
         slug: z.string().describe("Customer slug (e.g. 'acme-corp')"),
         name: z.string().optional().describe("Company name"),

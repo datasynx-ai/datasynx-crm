@@ -198,6 +198,86 @@ describe("handleGetRelationshipGraph", () => {
     expect(contact.name).toBe("Alice Smith");
     expect(contact.email).toBe("alice@b.com");
   });
+
+  it("populates warmIntroPaths when owner contact and economic buyer are connected", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/graph.json`]: graphJson({
+        nodes: [
+          {
+            id: "person:owner@acme.com",
+            type: "person",
+            label: "Owner",
+            properties: { email: "owner@acme.com", isOwnerContact: true },
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: "person:eb@acme.com",
+            type: "person",
+            label: "Economic Buyer",
+            properties: { email: "eb@acme.com" },
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+          {
+            id: "deal:d1",
+            type: "deal",
+            label: "Deal 1",
+            properties: {},
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+        edges: [
+          {
+            id: "IS_ECONOMIC_BUYER:person:eb@acme.com__deal:d1",
+            from: "person:eb@acme.com",
+            to: "deal:d1",
+            type: "IS_ECONOMIC_BUYER",
+            weight: 0.9,
+            sentiment: 0,
+            lastContact: "2026-05-27",
+            contactCount: 1,
+            properties: {},
+          },
+          {
+            id: "KNOWS:person:owner@acme.com__person:eb@acme.com",
+            from: "person:owner@acme.com",
+            to: "person:eb@acme.com",
+            type: "KNOWS",
+            weight: 0.5,
+            sentiment: 0,
+            lastContact: "2026-05-27",
+            contactCount: 1,
+            properties: {},
+          },
+        ],
+      }),
+    });
+    const { handleGetRelationshipGraph } =
+      await import("../../../src/mcp/tools/get-relationship-graph.js");
+    const result = await handleGetRelationshipGraph({ slug: SLUG }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(Array.isArray(parsed["warmIntroPaths"])).toBe(true);
+    expect((parsed["warmIntroPaths"] as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it("returns error response when readGraph throws", async () => {
+    vi.doMock("../../../src/core/graph.js", () => ({
+      readGraph: vi.fn().mockImplementation(() => {
+        throw new Error("graph read error");
+      }),
+      getStakeholders: vi.fn(),
+      findPath: vi.fn(),
+    }));
+    vol.fromJSON({});
+    const { handleGetRelationshipGraph } =
+      await import("../../../src/mcp/tools/get-relationship-graph.js");
+    const result = await handleGetRelationshipGraph({ slug: SLUG }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["success"]).toBe(false);
+    expect(parsed["error"]).toContain("graph read error");
+  });
 });
 
 describe("registerGetRelationshipGraph — MCP registration", () => {

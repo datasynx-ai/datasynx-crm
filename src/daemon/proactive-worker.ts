@@ -12,6 +12,7 @@ import {
   type NotificationChannel,
 } from "../core/proactive-agent.js";
 import { fetchSignalsForCustomer } from "../sync/external-signals.js";
+import { runScheduledBackupIfDue } from "../commands/backup.js";
 
 const MAX_CUSTOMERS_PER_CYCLE = 50;
 
@@ -166,6 +167,11 @@ export async function runDailyProactiveChecks(
   } catch (err) {
     result.errors.push(`daily_briefing: ${(err as Error).message}`);
   }
+
+  // Scheduled backup — fire-and-forget, non-blocking
+  runScheduledBackupIfDue(dataDir).catch(() => {
+    // non-critical — proactive cycle must not fail due to backup errors
+  });
 
   return result;
 }

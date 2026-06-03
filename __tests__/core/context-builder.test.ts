@@ -90,4 +90,27 @@ describe("buildContext", () => {
     // Should be trimmed — not include all 20 entries
     expect(ctx.length).toBeLessThan(12000);
   });
+
+  it("trims to last 5 interactions when context exceeds 3000 tokens (12000 chars)", async () => {
+    // Each entry is 2000+ chars so 10 entries = ~20000 chars interactions, well over 12000 total
+    const longEntry = "word ".repeat(400); // ~2000 chars per entry
+    const manyInteractions = Array.from(
+      { length: 15 },
+      (_, i) =>
+        `## 2026-05-${String((i % 28) + 1).padStart(2, "0")}\n**Call** with Person ${i}\n${longEntry}\n`
+    ).join("\n");
+
+    vol.fromJSON({
+      "/data/customers/acme-corp/main_facts.md":
+        "---\nname: Acme Corp\nrelationship_stage: active\ncreated: '2026-01-01'\nupdated: '2026-05-26'\n---\n",
+      "/data/customers/acme-corp/interactions.md": `# Interactions\n\n${manyInteractions}`,
+      "/data/customers/acme-corp/pipeline.md": "# Pipeline\n",
+    });
+
+    const { buildContext } = await import("../../src/core/context-builder.js");
+    const ctx = await buildContext("/data", "acme-corp");
+
+    // Trim path is used: message mentions "trimmed for token budget"
+    expect(ctx).toContain("trimmed for token budget");
+  });
 });

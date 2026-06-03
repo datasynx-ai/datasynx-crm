@@ -101,6 +101,49 @@ describe("isSlaBreach", () => {
   });
 });
 
+describe("loadSlaRules", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.resetModules();
+  });
+
+  it("returns DEFAULT_RULES when file does not exist", async () => {
+    vol.fromJSON({});
+    const { loadSlaRules } = await import("../../src/core/sla-engine.js");
+    const rules = loadSlaRules("/data");
+    expect(rules).toHaveLength(4);
+    expect(rules[0]?.priority).toBe("urgent");
+  });
+
+  it("returns custom rules from sla-rules.yaml", async () => {
+    vol.fromJSON({
+      "/data/.agentic/sla-rules.yaml":
+        "rules:\n  - priority: urgent\n    resolveDays: 2\n  - priority: high\n    resolveDays: 4\n",
+    });
+    const { loadSlaRules } = await import("../../src/core/sla-engine.js");
+    const rules = loadSlaRules("/data");
+    expect(rules[0]?.resolveDays).toBe(2);
+  });
+
+  it("falls back to DEFAULT_RULES when yaml has no rules key", async () => {
+    vol.fromJSON({
+      "/data/.agentic/sla-rules.yaml": "other: value\n",
+    });
+    const { loadSlaRules } = await import("../../src/core/sla-engine.js");
+    const rules = loadSlaRules("/data");
+    expect(rules).toHaveLength(4);
+  });
+
+  it("falls back to DEFAULT_RULES when yaml is invalid", async () => {
+    vol.fromJSON({
+      "/data/.agentic/sla-rules.yaml": ": invalid: yaml: [[[",
+    });
+    const { loadSlaRules } = await import("../../src/core/sla-engine.js");
+    const rules = loadSlaRules("/data");
+    expect(rules).toHaveLength(4);
+  });
+});
+
 describe("checkSlaBreaches", () => {
   beforeEach(() => {
     vol.reset();

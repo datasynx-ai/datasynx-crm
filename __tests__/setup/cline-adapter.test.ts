@@ -147,4 +147,28 @@ describe("ClineAdapter", () => {
   it("name is 'Cline'", () => {
     expect(new ClineAdapter().name).toBe("Cline");
   });
+
+  it("isInstalled() returns false when config file contains invalid JSON", () => {
+    vol.fromJSON({ [CLINE_CONFIG]: "NOT VALID JSON{{" });
+    const adapter = new ClineAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
+
+  it("install() handles invalid JSON in existing config file gracefully", async () => {
+    vol.fromJSON({ [CLINE_CONFIG]: "NOT VALID JSON{{" });
+    const adapter = new ClineAdapter();
+    const result = await adapter.install(TEST_CONFIG);
+    expect(result.success).toBe(true);
+    const { fs } = await import("memfs");
+    const content = JSON.parse(fs.readFileSync(CLINE_CONFIG, "utf-8") as string) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(content.mcpServers["datasynx-opencrm"]).toBeDefined();
+  });
+
+  it("uninstall() handles invalid JSON gracefully", async () => {
+    vol.fromJSON({ [CLINE_CONFIG]: "BROKEN{{" });
+    const adapter = new ClineAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
 });

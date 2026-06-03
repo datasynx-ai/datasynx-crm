@@ -87,4 +87,32 @@ describe("get_pipeline_forecast tool", () => {
     // broken pipeline just returns no deals (parseDealsFromMarkdown returns [])
     expect(parsed.totalWeightedValue).toBe(0);
   });
+
+  it("returns error response when fs.readdirSync throws", async () => {
+    vi.doMock("fs", async () => {
+      const { fs } = await import("memfs");
+      return {
+        default: {
+          ...fs,
+          readdirSync: vi.fn().mockImplementation(() => {
+            throw new Error("readdir error");
+          }),
+        },
+        ...fs,
+        readdirSync: vi.fn().mockImplementation(() => {
+          throw new Error("readdir error");
+        }),
+      };
+    });
+    vol.fromJSON({ "/data/customers/.keep": "" });
+    const { handleGetPipelineForecast } =
+      await import("../../../src/mcp/tools/get-pipeline-forecast.js");
+    const result = await handleGetPipelineForecast({}, "/data");
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      success: boolean;
+      error: string;
+    };
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toContain("readdir error");
+  });
 });

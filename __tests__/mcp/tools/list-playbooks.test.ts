@@ -64,4 +64,18 @@ describe("list_playbooks tool", () => {
     registerListPlaybooks(fakeServer as never);
     expect(calls).toContain("list_playbooks");
   });
+
+  it("returns error response when listPlaybooks throws", async () => {
+    vi.doMock("../../../src/core/playbooks.js", () => ({
+      listPlaybooks: vi.fn().mockImplementation(() => {
+        throw new Error("list error");
+      }),
+    }));
+    vol.fromJSON({});
+    const { handleListPlaybooks } = await import("../../../src/mcp/tools/list-playbooks.js");
+    const res = await handleListPlaybooks({ slug: SLUG }, DATA_DIR);
+    const data = JSON.parse(res.content[0]!.text);
+    expect(data.success).toBe(false);
+    expect(data.error).toContain("list error");
+  });
 });

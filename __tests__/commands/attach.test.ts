@@ -105,7 +105,7 @@ describe("runListAttachments", () => {
 
     expect(files).toHaveLength(0);
   });
-});
+}); // end describe("runListAttachments")
 
 describe("attachCommand — Commander structure", () => {
   it("exports attachCommand with name 'attach'", async () => {
@@ -118,6 +118,19 @@ describe("attachCommand — Commander structure", () => {
     const argNames = attachCommand.registeredArguments.map((a) => a.name());
     expect(argNames).toContain("slug");
     expect(argNames).toContain("file");
+  });
+
+  it("invokes runAttach when parseAsync is called", async () => {
+    vol.fromJSON({
+      "/crm/customers/acme-corp/main_facts.md": "---\nname: Acme\n---\n",
+      "/tmp/file.pdf": "pdf data",
+    });
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { attachCommand } = await import("../../src/commands/attach.js");
+    await attachCommand.parseAsync(["node", "attach", "acme-corp", "/tmp/file.pdf"]);
+    consoleSpy.mockRestore();
+    delete process.env["DXCRM_DATA_DIR"];
   });
 });
 

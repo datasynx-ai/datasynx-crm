@@ -88,4 +88,40 @@ describe("distill_playbook tool", () => {
     registerDistillPlaybook(fakeServer as never);
     expect(calls).toContain("distill_playbook");
   });
+
+  it("registered handler invokes handleDistillPlaybook with all params", async () => {
+    vol.fromJSON({ [`${DATA_DIR}/customers/acme/interactions.md`]: "## Note\nSome content." });
+    const { registerDistillPlaybook } = await import("../../../src/mcp/tools/distill-playbook.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerDistillPlaybook(fakeServer as never);
+    const result = await capturedHandler!({ slug: "acme", dealName: "Acme Deal", outcome: "won" });
+    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
+    expect(typeof parsed.success).toBe("boolean");
+  });
+
+  it("returns error response when distillPlaybook throws unexpectedly", async () => {
+    vi.doMock("../../../src/core/playbooks.js", () => ({
+      distillPlaybook: vi.fn().mockRejectedValue(new Error("unexpected distill error")),
+      listPlaybooks: vi.fn(),
+      matchPlaybooks: vi.fn(),
+      writePlaybook: vi.fn(),
+      playbooksDir: vi.fn(),
+      toKebabCase: vi.fn(),
+    }));
+    vol.fromJSON({});
+    const { handleDistillPlaybook } = await import("../../../src/mcp/tools/distill-playbook.js");
+    const res = await handleDistillPlaybook(
+      { slug: SLUG, dealName: "Deal", outcome: "won" },
+      DATA_DIR
+    );
+    const data = JSON.parse(res.content[0]!.text) as { success: boolean; error: string };
+    expect(data.success).toBe(false);
+    expect(data.error).toContain("unexpected distill error");
+  });
 });

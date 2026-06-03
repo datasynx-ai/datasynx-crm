@@ -172,4 +172,28 @@ describe("handleSearchKnowledgeBase", () => {
     const parsed = JSON.parse(result.content[0].text) as { articles: Array<{ excerpt: string }> };
     expect(parsed.articles[0].excerpt).toContain("body content");
   });
+
+  it("registered handler invokes handleSearchKnowledgeBase with optional params", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/.agentic/knowledge-base/general/art.md`]: makeArticle("a1", "Test", "Body"),
+    });
+    const { registerSearchKnowledgeBase } =
+      await import("../../../src/mcp/tools/search-knowledge-base.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerSearchKnowledgeBase(fakeServer as never, DATA_DIR);
+    const result = await capturedHandler!({
+      query: "Test",
+      category: "general",
+      publicOnly: false,
+      limit: 5,
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { articles: unknown[] };
+    expect(Array.isArray(parsed.articles)).toBe(true);
+  });
 });

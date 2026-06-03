@@ -71,4 +71,36 @@ describe("mcpCommand docs", () => {
     expect(typeof CAPABILITIES_TEXT).toBe("string");
     expect(CAPABILITIES_TEXT.length).toBeGreaterThan(100);
   });
+
+  it("docs subcommand prints CAPABILITIES_TEXT when invoked via parseAsync", async () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { mcpCommand } = await import("../../src/commands/guide.js");
+    await mcpCommand.parseAsync(["node", "mcp", "docs"]);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("start subcommand with --http launches HTTP server", async () => {
+    const startHttpMock = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("../../src/mcp/server.js", () => ({
+      startHttp: startHttpMock,
+      startStdio: vi.fn().mockResolvedValue(undefined),
+    }));
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { mcpCommand } = await import("../../src/commands/guide.js");
+    await mcpCommand.parseAsync(["node", "mcp", "start", "--http", "--port", "3847"]);
+    expect(startHttpMock).toHaveBeenCalledWith(3847);
+    stderrSpy.mockRestore();
+  });
+
+  it("start subcommand without --http launches stdio server", async () => {
+    const startStdioMock = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("../../src/mcp/server.js", () => ({
+      startHttp: vi.fn().mockResolvedValue(undefined),
+      startStdio: startStdioMock,
+    }));
+    const { mcpCommand } = await import("../../src/commands/guide.js");
+    await mcpCommand.parseAsync(["node", "mcp", "start"]);
+    expect(startStdioMock).toHaveBeenCalled();
+  });
 });

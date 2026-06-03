@@ -149,3 +149,26 @@ describe("summarize_meeting tool", () => {
     expect(parsed.summary.length).toBeLessThanOrEqual(400);
   });
 });
+
+describe("registerSummarizeMeeting — handler invocation", () => {
+  it("registered handler passes optional with and date params", async () => {
+    const { registerSummarizeMeeting } =
+      await import("../../../src/mcp/tools/summarize-meeting.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerSummarizeMeeting(fakeServer as never);
+    const result = await capturedHandler!({
+      slug: "acme",
+      transcript: "Meeting notes",
+      with: "Alice",
+      date: "2026-06-01",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
+    expect(parsed.success).toBe(true);
+  });
+});

@@ -100,4 +100,44 @@ describe("handleBackupNow", () => {
     const parsed = JSON.parse(result.content[0].text) as { sizeMb: string };
     expect(parsed.sizeMb).toBe("? MB");
   });
+
+  it("shows actual size when zip file exists on disk", async () => {
+    vi.useFakeTimers({ now: new Date("2026-05-30T10:00:00.000Z") });
+    const zipPath = `${DATA_DIR}/dxcrm-backup-2026-05-30T10-00-00.zip`;
+    vol.fromJSON({ [zipPath]: "a".repeat(1024 * 1024) });
+    mockRunBackup.mockResolvedValue({
+      createdAt: "2026-05-30T10:00:00Z",
+      customerCount: 1,
+      fileCount: 5,
+      directories: ["customers/"],
+    });
+
+    const { handleBackupNow } = await import("../../../src/mcp/tools/backup-now.js");
+    const result = await handleBackupNow({}, DATA_DIR);
+    vi.useRealTimers();
+    const parsed = JSON.parse(result.content[0].text) as { sizeMb: string };
+    expect(parsed.sizeMb).not.toBe("? MB");
+  });
+
+  it("registered handler invokes handleBackupNow with optional remote and note", async () => {
+    vol.fromJSON({});
+    mockRunBackup.mockResolvedValue({
+      createdAt: "2026-05-30T10:00:00Z",
+      customerCount: 1,
+      fileCount: 3,
+      directories: ["customers/"],
+    });
+    const { registerBackupNow } = await import("../../../src/mcp/tools/backup-now.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerBackupNow(fakeServer as never);
+    const result = await capturedHandler!({ remote: true, note: "pre-release" });
+    const parsed = JSON.parse(result.content[0]!.text) as { note?: string };
+    expect(parsed.note).toBe("pre-release");
+  });
 });

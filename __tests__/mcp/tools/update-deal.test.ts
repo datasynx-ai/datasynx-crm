@@ -110,4 +110,27 @@ describe("update_deal tool", () => {
     const [, , calledDeal] = mockUpsert.mock.calls[0] as [string, string, { updated: string }];
     expect(calledDeal.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it("registered handler invokes handleUpdateDeal with optional fields", async () => {
+    const { registerUpdateDeal } = await import("../../../src/mcp/tools/update-deal.js");
+    type Handler = (args: Record<string, unknown>) => Promise<{ content: Array<{ text: string }> }>;
+    let capturedHandler: Handler | undefined;
+    const fakeServer = {
+      registerTool: (_name: string, _schema: unknown, handler: Handler) => {
+        capturedHandler = handler;
+      },
+    };
+    registerUpdateDeal(fakeServer as never);
+    const result = await capturedHandler!({
+      slug: "acme-corp",
+      dealName: "Test Deal",
+      stage: "negotiation",
+      value: 50000,
+      probability: 80,
+      closeDate: "2026-09-30",
+      notes: "Budget confirmed",
+    });
+    const parsed = JSON.parse(result.content[0]!.text) as { success: boolean };
+    expect(parsed.success).toBe(true);
+  });
 });

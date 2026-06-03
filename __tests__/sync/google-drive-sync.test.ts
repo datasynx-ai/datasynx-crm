@@ -239,4 +239,129 @@ describe("syncGoogleDriveFiles", () => {
       "google://drive/myFileId"
     );
   });
+
+  it("records error when Google Doc export fails (non-ok response)", async () => {
+    const docFile = {
+      id: "doc-fail",
+      name: "Failing Doc",
+      mimeType: "application/vnd.google-apps.document",
+      modifiedTime: "2026-05-01T10:00:00Z",
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ files: [docFile] }),
+          text: async () => "",
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          text: async () => "Forbidden",
+          json: async () => ({}),
+        })
+    );
+
+    const { syncGoogleDriveFiles } = await import("../../src/sync/google-drive-sync.js");
+    const result = await syncGoogleDriveFiles(BASE_OPTS);
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("Failed to export doc");
+    expect(result.synced).toBe(0);
+  });
+
+  it("falls back to today when Google Doc has no modifiedTime", async () => {
+    const docFile = {
+      id: "doc-nodate",
+      name: "No Date Doc",
+      mimeType: "application/vnd.google-apps.document",
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ files: [docFile] }),
+          text: async () => "",
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          text: async () => "Content without date",
+          json: async () => ({}),
+        })
+    );
+
+    vol.fromJSON({ "/data/customers/acme-corp/interactions.md": "" });
+    const { syncGoogleDriveFiles } = await import("../../src/sync/google-drive-sync.js");
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+
+    const result = await syncGoogleDriveFiles(BASE_OPTS);
+    expect(result.synced).toBe(1);
+    const entry = vi.mocked(appendInteraction).mock.calls[0]![2];
+    expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("records error in result when appendInteraction throws", async () => {
+    const file = {
+      id: "error-file",
+      name: "Error File",
+      mimeType: "application/pdf",
+      modifiedTime: "2026-05-01T10:00:00Z",
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ files: [file] }),
+        text: async () => "",
+      })
+    );
+
+    const { appendInteraction } = await import("../../src/fs/interactions-writer.js");
+    vi.mocked(appendInteraction).mockRejectedValueOnce(new Error("disk full"));
+
+    const { syncGoogleDriveFiles } = await import("../../src/sync/google-drive-sync.js");
+    const result = await syncGoogleDriveFiles(BASE_OPTS);
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toContain("disk full");
+    expect(result.synced).toBe(0);
+  });
+
+  it("handles fetch network error gracefully", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new Error("ECONNRESET")));
+
+    const { syncGoogleDriveFiles } = await import("../../src/sync/google-drive-sync.js");
+    const result = await syncGoogleDriveFiles(BASE_OPTS);
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("ECONNRESET");
+    expect(result.synced).toBe(0);
+  });
+
+  it("handles JSON parse error in API response gracefully", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => {
+          throw new Error("invalid JSON");
+        },
+        text: async () => "",
+      })
+    );
+
+    const { syncGoogleDriveFiles } = await import("../../src/sync/google-drive-sync.js");
+    const result = await syncGoogleDriveFiles(BASE_OPTS);
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain("invalid JSON");
+    expect(result.synced).toBe(0);
+  });
 });

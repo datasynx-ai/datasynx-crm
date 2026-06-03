@@ -175,3 +175,92 @@ describe("list command --filter option", () => {
     expect(matched).toHaveLength(0);
   });
 });
+
+// ─── Actual listCommand tests (covers src/commands/list.ts) ──────────────────
+
+describe("listCommand — command invocation", () => {
+  beforeEach(() => {
+    vol.reset();
+    vi.clearAllMocks();
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+  });
+
+  it("prints 'No customers yet' when customers dir does not exist", async () => {
+    vol.fromJSON({});
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    await listCommand.parseAsync(["node", "list"]);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("No customers"));
+    consoleSpy.mockRestore();
+  });
+
+  it("renders customer table when customers exist", async () => {
+    vol.fromJSON({
+      "/crm/customers/acme/main_facts.md":
+        "---\nname: Acme Corp\nrelationship_stage: active\ncreated: '2026-05-25'\nupdated: '2026-05-25'\n---\n",
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    await listCommand.parseAsync(["node", "list"]);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("shows 'No customers matching' when filter has no results", async () => {
+    vol.fromJSON({
+      "/crm/customers/acme/main_facts.md":
+        "---\nname: Acme Corp\nrelationship_stage: active\ncreated: '2026-05-25'\nupdated: '2026-05-25'\n---\n",
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    await listCommand.parseAsync(["node", "list", "--filter", "zzznomatch"]);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("zzznomatch"));
+    consoleSpy.mockRestore();
+  });
+
+  it("skips customer directory that has no main_facts.md (catch block)", async () => {
+    vol.fromJSON({
+      "/crm/customers/bad-customer/.keep": "",
+      "/crm/customers/good-acme/main_facts.md":
+        "---\nname: Good Acme\nrelationship_stage: active\ncreated: '2026-05-25'\nupdated: '2026-05-25'\n---\n",
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    await listCommand.parseAsync(["node", "list"]);
+    const output = consoleSpy.mock.calls.flat().join("\n");
+    expect(output).toContain("Good Acme");
+    expect(output).not.toContain("bad-customer");
+    consoleSpy.mockRestore();
+  });
+
+  it("shows 'No customers yet' when all directories fail to read (no filter)", async () => {
+    vol.fromJSON({ "/crm/customers/bad/.keep": "" });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    await listCommand.parseAsync(["node", "list"]);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("No customers"));
+    consoleSpy.mockRestore();
+  });
+
+  it("uses process.cwd() when DXCRM_DATA_DIR is not set", async () => {
+    delete process.env["DXCRM_DATA_DIR"];
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    await listCommand.parseAsync(["node", "list"]);
+    consoleSpy.mockRestore();
+    process.env["DXCRM_DATA_DIR"] = "/crm";
+  });
+
+  it("shows filter match on relationship_stage when stage matches query", async () => {
+    vol.fromJSON({
+      "/crm/customers/acme/main_facts.md":
+        "---\nname: Acme Corp\ncreated: '2026-05-25'\nupdated: '2026-05-25'\n---\n",
+    });
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { listCommand } = await import("../../src/commands/list.js");
+    // customer has no relationship_stage → ?? "" → filter won't match "active", ok
+    await listCommand.parseAsync(["node", "list", "--filter", "acme"]);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});

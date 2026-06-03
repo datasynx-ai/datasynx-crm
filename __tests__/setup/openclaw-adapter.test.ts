@@ -204,4 +204,81 @@ describe("OpenClawAdapter", () => {
   it("name is 'OpenClaw'", () => {
     expect(new OpenClawAdapter().name).toBe("OpenClaw");
   });
+
+  it("install() appends to AGENTS.md when it exists without DatasynxOpenCRM", async () => {
+    vol.fromJSON({
+      [path.join(OPENCLAW_WORKSPACE, "AGENTS.md")]: "# Existing agents\nNo CRM here.",
+    });
+    const adapter = new OpenClawAdapter();
+    await adapter.install(TEST_CONFIG);
+
+    const { fs } = await import("memfs");
+    const content = fs.readFileSync(path.join(OPENCLAW_WORKSPACE, "AGENTS.md"), "utf-8") as string;
+    expect(content).toContain("DatasynxOpenCRM");
+  });
+
+  it("install() appends to TOOLS.md when it exists without datasynx-opencrm", async () => {
+    vol.fromJSON({
+      [path.join(OPENCLAW_WORKSPACE, "TOOLS.md")]: "# Other tools\nNothing CRM here.",
+    });
+    const adapter = new OpenClawAdapter();
+    await adapter.install(TEST_CONFIG);
+
+    const { fs } = await import("memfs");
+    const content = fs.readFileSync(path.join(OPENCLAW_WORKSPACE, "TOOLS.md"), "utf-8") as string;
+    expect(content).toContain("datasynx-opencrm");
+  });
+
+  it("uninstall() does nothing when config file does not exist", async () => {
+    const adapter = new OpenClawAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
+
+  it("uninstall() handles config with no mcpServers key", async () => {
+    vol.fromJSON({ [OPENCLAW_JSON]: JSON.stringify({ someKey: "value" }) });
+    const adapter = new OpenClawAdapter();
+    await adapter.uninstall();
+
+    const { fs } = await import("memfs");
+    const content = JSON.parse(fs.readFileSync(OPENCLAW_JSON, "utf-8") as string) as Record<
+      string,
+      unknown
+    >;
+    expect(content["someKey"]).toBe("value");
+  });
+
+  it("uninstall() silently ignores invalid JSON in config", async () => {
+    vol.fromJSON({ [OPENCLAW_JSON]: "INVALID JSON{{" });
+    const adapter = new OpenClawAdapter();
+    await expect(adapter.uninstall()).resolves.toBeUndefined();
+  });
+
+  it("isInstalled() returns false when config file does not exist", () => {
+    const adapter = new OpenClawAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
+
+  it("isInstalled() returns true when datasynx-opencrm is in mcpServers", () => {
+    vol.fromJSON({
+      [OPENCLAW_JSON]: JSON.stringify({
+        mcpServers: { "datasynx-opencrm": { command: process.execPath } },
+      }),
+    });
+    const adapter = new OpenClawAdapter();
+    expect(adapter.isInstalled()).toBe(true);
+  });
+
+  it("isInstalled() returns false when datasynx-opencrm is not in mcpServers", () => {
+    vol.fromJSON({
+      [OPENCLAW_JSON]: JSON.stringify({ mcpServers: { "other-server": {} } }),
+    });
+    const adapter = new OpenClawAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
+
+  it("isInstalled() returns false when config has invalid JSON", () => {
+    vol.fromJSON({ [OPENCLAW_JSON]: "INVALID JSON{{" });
+    const adapter = new OpenClawAdapter();
+    expect(adapter.isInstalled()).toBe(false);
+  });
 });

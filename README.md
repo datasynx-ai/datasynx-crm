@@ -232,7 +232,7 @@ dxcrm attach acme-corp ./proposals/acme-q2-2026.pdf
 
 ---
 
-## MCP Tools (50 tools for AI Agents)
+## MCP Tools (52 tools for AI Agents)
 
 These tools are available to any AI agent connected via MCP (Claude Code, Codex, Cursor, etc.):
 
@@ -245,7 +245,7 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `list_customers` | All customers with stage + deal value | any |
 | `log_interaction` | Record call/email/meeting | rep+ |
 | `update_deal` | Update pipeline deal stage/value | rep+ |
-| `update_customer_facts` | Update customer profile (name, domain, contact, stage, tags) | admin |
+| `update_customer_facts` | Create or update customer profile (creates new customer if slug doesn't exist) | admin |
 | `export_customer` | Export customer data as JSON/Markdown | any |
 | `get_deal_health` | Score deal health (A–F, 0–100) per deal | any |
 | `get_pipeline_forecast` | Aggregate weighted pipeline revenue | any |
@@ -288,6 +288,8 @@ These tools are available to any AI agent connected via MCP (Claude Code, Codex,
 | `create_kb_article` | Create or update knowledge base article | rep+ |
 | `backup_now` | Trigger immediate backup with manifest + integrity check | admin |
 | `list_backups` | List backups with date, size, verification status | any |
+| `trigger_sync` | Force immediate Gmail sync for one or all customers (bypasses 30-min daemon cycle) | rep+ |
+| `get_audit_log` | Read append-only audit log — filter by customer, actor, or limit | admin |
 
 ### Tool Examples
 
@@ -697,9 +699,11 @@ npm test -- --reporter verbose     # Verbose output
 
 ## Docs
 
+- [Quickstart — Real Gmail (5 min)](./docs/quickstart-real.md)
 - [CLI Reference](./docs/cli-reference.md)
 - [MCP Tools](./docs/mcp-tools.md)
 - [Schemas](./docs/schemas.md)
 - [Framework Integrations](./docs/integrations.md)
 - [Deployment](./docs/deployment.md)
+- [Team Setup](./docs/team-setup.md)
 - [HTML Docs](./docs/index.html) — open locally in browser
