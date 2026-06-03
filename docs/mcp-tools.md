@@ -1112,9 +1112,12 @@ Get full template with auto-detected variable placeholders.
 
 ### draft_email
 
-Draft a personalized email from a template + customer facts.
+Draft a personalized email from a template + customer facts. Pass an optional
+`tone` to LLM-polish the body (graceful fallback to plain template-fill when no
+`ANTHROPIC_API_KEY` is set).
 
-**Input:** `{ slug: string, templateId: string, overrides?: Record<string, string> }`
+**Input:** `{ slug: string, templateId: string, overrides?: Record<string, string>, tone?: string }`
+**Returns:** `{ subject, body, to, tone, polished, resolvedVariables }`
 
 ---
 

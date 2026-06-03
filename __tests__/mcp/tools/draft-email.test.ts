@@ -8,6 +8,9 @@ vi.mock("fs", async () => {
 vi.mock("@lancedb/lancedb", () => ({
   connect: vi.fn().mockResolvedValue({ tableNames: vi.fn().mockResolvedValue([]) }),
 }));
+vi.mock("../../../src/core/llm.js", () => ({
+  callLlm: vi.fn(),
+}));
 
 const DATA_DIR = "/data";
 const MAIN_FACTS = [
@@ -42,6 +45,7 @@ describe("handleDraftEmail", () => {
   beforeEach(() => {
     vol.reset();
     vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("interpolates company from main_facts.md", async () => {
@@ -102,5 +106,53 @@ describe("handleDraftEmail", () => {
     const res = await handleDraftEmail({ slug: "acme", templateId: "intro" }, DATA_DIR);
     const parsed = JSON.parse(res.content[0]!.text) as { subject: string };
     expect(parsed.subject).not.toContain("{{");
+  });
+
+  it("polishes the body via LLM when a tone is provided", async () => {
+    const { callLlm } = await import("../../../src/core/llm.js");
+    vi.mocked(callLlm).mockResolvedValue("Dear Alice, it would be a pleasure to connect.");
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: MAIN_FACTS,
+      [`${DATA_DIR}/.agentic/templates/outreach/intro.md`]: TEMPLATE_CONTENT,
+    });
+    const { handleDraftEmail } = await import("../../../src/mcp/tools/draft-email.js");
+    const res = await handleDraftEmail(
+      { slug: "acme", templateId: "intro", tone: "formal" },
+      DATA_DIR
+    );
+    const parsed = JSON.parse(res.content[0]!.text) as { body: string; polished: boolean };
+    expect(parsed.polished).toBe(true);
+    expect(parsed.body).toContain("pleasure to connect");
+    expect(vi.mocked(callLlm)).toHaveBeenCalled();
+  });
+
+  it("falls back to the interpolated body when LLM polish fails", async () => {
+    const { callLlm } = await import("../../../src/core/llm.js");
+    vi.mocked(callLlm).mockRejectedValue(new Error("ANTHROPIC_API_KEY not set"));
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: MAIN_FACTS,
+      [`${DATA_DIR}/.agentic/templates/outreach/intro.md`]: TEMPLATE_CONTENT,
+    });
+    const { handleDraftEmail } = await import("../../../src/mcp/tools/draft-email.js");
+    const res = await handleDraftEmail(
+      { slug: "acme", templateId: "intro", tone: "formal" },
+      DATA_DIR
+    );
+    const parsed = JSON.parse(res.content[0]!.text) as { body: string; polished: boolean };
+    expect(parsed.polished).toBe(false);
+    expect(parsed.body).toContain("{{firstName}}");
+  });
+
+  it("does not call the LLM when no tone is requested", async () => {
+    const { callLlm } = await import("../../../src/core/llm.js");
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme/main_facts.md`]: MAIN_FACTS,
+      [`${DATA_DIR}/.agentic/templates/outreach/intro.md`]: TEMPLATE_CONTENT,
+    });
+    const { handleDraftEmail } = await import("../../../src/mcp/tools/draft-email.js");
+    const res = await handleDraftEmail({ slug: "acme", templateId: "intro" }, DATA_DIR);
+    const parsed = JSON.parse(res.content[0]!.text) as { polished: boolean };
+    expect(parsed.polished).toBe(false);
+    expect(vi.mocked(callLlm)).not.toHaveBeenCalled();
   });
 });

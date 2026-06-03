@@ -326,9 +326,11 @@ Get a specific email template with full body and detected template variables.
 - Input: { id: string } — Template ID (e.g. "enterprise-intro")
 - Returns: { id, name, category, subject, body, detectedVariables: string[] }
 
-### draft_email({ slug, templateId, overrides? })
+### draft_email({ slug, templateId, overrides?, tone? })
 Draft a personalized email for a customer using a stored template.
 Variables are auto-filled from the customer's main_facts.md.
+Optional tone (e.g. "formal", "friendly", "concise") LLM-polishes the body;
+falls back to plain template-fill without an ANTHROPIC_API_KEY.
 Does NOT send automatically — returns the draft for review.
 RBAC: rep+
 - Input: { slug, templateId, overrides?: Record<string, string> }
