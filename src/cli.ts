@@ -32,6 +32,7 @@ import { fieldsCommand, objectCommand } from "./commands/fields.js";
 import { webhookCommand } from "./commands/webhook.js";
 import { segmentCommand } from "./commands/segment.js";
 import { identityCommand } from "./commands/identity.js";
+import { metricsCommand } from "./commands/metrics.js";
 
 const program = new Command();
 program
@@ -75,5 +76,6 @@ program.addCommand(objectCommand);
 program.addCommand(webhookCommand);
 program.addCommand(segmentCommand);
 program.addCommand(identityCommand);
+program.addCommand(metricsCommand);
 
 await program.parseAsync(process.argv);
