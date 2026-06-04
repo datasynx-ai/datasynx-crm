@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.7.0...v1.8.0) (2026-06-04)
+
+
+### Features
+
+* **pipeline:** velocity analytics — stage dwell times, sales cycle, stalled deals ([52854e5](https://github.com/datasynx-ai/datasynx-crm/commit/52854e5bb37b130e2910c85eaf2036ab5ce0f0a1)), closes [#60](https://github.com/datasynx-ai/datasynx-crm/issues/60)
+
 # [1.7.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.6.0...v1.7.0) (2026-06-04)
 
 
