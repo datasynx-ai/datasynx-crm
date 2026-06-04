@@ -1,6 +1,6 @@
 {
   "name": "@datasynx/agentic-crm",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "The CRM your AI agents actually run — local-first, MCP-native, one autonomous agent per customer. 57 MCP tools for Claude Code, Codex & Cursor.",
   "type": "module",
   "license": "MIT",
