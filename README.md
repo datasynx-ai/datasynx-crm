@@ -21,6 +21,27 @@ DatasynxOpenCRM stores every customer as structured Markdown — no database, no
 
 ---
 
+## Table of Contents
+
+- [5-Minute Quickstart](#5-minute-quickstart)
+- [Why DatasynxOpenCRM?](#why-datasynxopencrm)
+- [CLI Commands](#cli-commands)
+- [MCP Tools](#mcp-tools-56-tools-for-ai-agents)
+- [Framework Integration](#framework-integration)
+- [Data Structure](#data-structure)
+- [Security & Compliance](#security--compliance)
+- [Sync Setup](#sync-setup)
+- [Agent Wake Notifications](#agent-wake-notifications)
+- [Team Setup](#team-setup)
+- [Manual MCP Configuration](#manual-mcp-configuration)
+- [Development](#development)
+- [Documentation](#docs)
+- [Community & Links](#community--links)
+
+**Project:** [Contributing](./CONTRIBUTING.md) · [Security Policy](./SECURITY.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [Changelog](./CHANGELOG.md) · [License](./LICENSE)
+
+---
+
 ## 5-Minute Quickstart
 
 ```bash
@@ -721,20 +742,25 @@ http://localhost:3847/mcp
 ```bash
 git clone https://github.com/datasynx-ai/datasynx-crm
 cd datasynx-crm
-npm install
-npm test          # All tests (Vitest, TDD)
-npm run build     # tsdown → dist/
-npm run typecheck # TypeScript strict check
+npm ci
+npm test            # All tests (Vitest, TDD)
+npm run build       # tsdown → dist/
+npm run typecheck   # TypeScript strict check
+npm run lint        # ESLint (zero warnings)
+npm run docs:generate  # Regenerate CLI/MCP reference from code
 ```
 
 ### Running Tests
 
 ```bash
-npm test                           # All tests
-npm test -- --run src/__tests__    # Unit tests only
-npm test -- --run __tests__/e2e    # E2E tests only
-npm test -- --reporter verbose     # Verbose output
+npm test                          # All tests
+npm test -- __tests__/commands    # A single directory
+npm test -- __tests__/e2e         # E2E tests only
+npm run test:coverage             # With coverage thresholds
 ```
+
+New contributors: please read **[CONTRIBUTING.md](./CONTRIBUTING.md)** for the
+TDD workflow, commit conventions, and the documentation-generation step.
 
 ---
 
@@ -749,6 +775,7 @@ npm test -- --reporter verbose     # Verbose output
 - [Framework Integrations](./docs/integrations.md)
 - [Deployment](./docs/deployment.md)
 - [Team Setup](./docs/team-setup.md)
+- [Compliance](./docs/compliance.md)
 
 ---
 
@@ -757,6 +784,8 @@ npm test -- --reporter verbose     # Verbose output
 - 📦 **npm:** [@datasynx/agentic-crm](https://www.npmjs.com/package/@datasynx/agentic-crm)
 - 💻 **GitHub:** [datasynx-ai/datasynx-crm](https://github.com/datasynx-ai/datasynx-crm)
 - 🐛 **Issues:** [Report a bug or request a feature](https://github.com/datasynx-ai/datasynx-crm/issues)
+- 🔒 **Security:** [Report a vulnerability privately](./SECURITY.md)
+- 🤝 **Contributing:** [CONTRIBUTING.md](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md)
 - 💼 **LinkedIn:** [Datasynx AI](https://de.linkedin.com/company/datasynx-ai)
 - 📄 **License:** [MIT](./LICENSE)
 
