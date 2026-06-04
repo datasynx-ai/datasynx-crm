@@ -1,17 +1,18 @@
-import { google, type Auth } from "googleapis";
+import { calendar as calendarApi } from "@googleapis/calendar";
+import type { OAuth2Client } from "google-auth-library";
 import { appendInteraction } from "../fs/interactions-writer.js";
 
 interface CalendarSyncOptions {
   slug: string;
   dataDir: string;
-  auth: Auth.OAuth2Client;
+  auth: OAuth2Client;
   since?: Date;
 }
 
 export async function syncCalendar(
   opts: CalendarSyncOptions
 ): Promise<{ synced: number; skipped: number }> {
-  const calendar = google.calendar({ version: "v3", auth: opts.auth });
+  const calendar = calendarApi({ version: "v3", auth: opts.auth });
 
   const timeMin =
     opts.since?.toISOString() ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();

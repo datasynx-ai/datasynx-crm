@@ -37,4 +37,6 @@ vi.mock("@huggingface/transformers", () => ({
   env: { cacheDir: "" },
 }));
 
-vi.mock("googleapis");
+vi.mock("@googleapis/gmail");
+vi.mock("@googleapis/calendar");
+vi.mock("google-auth-library");

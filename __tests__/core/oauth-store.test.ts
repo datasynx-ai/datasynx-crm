@@ -62,7 +62,7 @@ describe("initOAuthFromDisk", () => {
 
     const fakeClient = {
       setCredentials: vi.fn(),
-    } as unknown as import("googleapis").Auth.OAuth2Client;
+    } as unknown as import("google-auth-library").OAuth2Client;
     mockLoadAuth.mockResolvedValue(fakeClient);
 
     const { initOAuthFromDisk } = await import("../../src/core/oauth-store.js");
@@ -80,7 +80,7 @@ describe("initOAuthFromDisk", () => {
 
     const fakeClient = {
       setCredentials: vi.fn(),
-    } as unknown as import("googleapis").Auth.OAuth2Client;
+    } as unknown as import("google-auth-library").OAuth2Client;
     mockLoadAuth.mockResolvedValue(fakeClient);
 
     const { initOAuthFromDisk, getGmailAuth } = await import("../../src/core/oauth-store.js");
@@ -112,7 +112,7 @@ describe("resetOAuthStore", () => {
 
     const fakeClient = {
       setCredentials: vi.fn(),
-    } as unknown as import("googleapis").Auth.OAuth2Client;
+    } as unknown as import("google-auth-library").OAuth2Client;
     mockLoadAuth.mockResolvedValue(fakeClient);
 
     const { initOAuthFromDisk, getGmailAuth, resetOAuthStore } =

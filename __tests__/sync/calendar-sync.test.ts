@@ -8,12 +8,10 @@ vi.mock("../../src/fs/interactions-writer.js", () => ({
 
 const mockEventsList = vi.hoisted(() => vi.fn());
 
-vi.mock("googleapis", () => ({
-  google: {
-    calendar: () => ({
-      events: { list: mockEventsList },
-    }),
-  },
+vi.mock("@googleapis/calendar", () => ({
+  calendar: () => ({
+    events: { list: mockEventsList },
+  }),
 }));
 
 beforeEach(async () => {

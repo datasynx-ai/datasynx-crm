@@ -70,7 +70,7 @@ This makes EU data residency guarantees straightforward — a key differentiator
 | Package | Purpose | Cloud dependency? |
 |---|---|---|
 | \`@modelcontextprotocol/sdk\` | MCP server | No |
-| \`googleapis\` | Gmail sync | Optional — only if configured |
+| \`@googleapis/gmail\`, \`@googleapis/calendar\` | Gmail/Calendar sync | Optional — only if configured |
 | \`@anthropic-ai/sdk\` | LLM summarization | Optional — only if API key set |
 | \`lancedb\` | Local vector search | No — embedded DB |
 | \`gray-matter\` | Markdown frontmatter | No |

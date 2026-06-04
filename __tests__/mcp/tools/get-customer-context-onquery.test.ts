@@ -40,7 +40,9 @@ const enabledSources = JSON.stringify({
   gmail: { enabled: true, query: "from:acme.com" },
 });
 
-const fakeAuth = { setCredentials: vi.fn() } as unknown as import("googleapis").Auth.OAuth2Client;
+const fakeAuth = {
+  setCredentials: vi.fn(),
+} as unknown as import("google-auth-library").OAuth2Client;
 
 beforeEach(() => {
   vol.reset();

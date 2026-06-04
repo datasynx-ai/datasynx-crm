@@ -19,7 +19,7 @@ beforeEach(() => {
 
 describe("syncGmail", () => {
   function makeAuth() {
-    return {} as import("googleapis").Auth.OAuth2Client;
+    return {} as import("google-auth-library").OAuth2Client;
   }
 
   it("syncs new emails and returns synced count", async () => {
@@ -27,7 +27,7 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
@@ -43,7 +43,7 @@ describe("syncGmail", () => {
         snippet: "Email snippet",
       },
     });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -65,14 +65,14 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": `# Interactions\n\nsourceRef: ${source}\n`,
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
     const getMock = vi.fn().mockResolvedValue({
       data: { payload: { headers: [] }, snippet: "" },
     });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -93,8 +93,8 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
-    vi.mocked(google.gmail).mockReturnValue({
+    const { gmail } = await import("@googleapis/gmail");
+    vi.mocked(gmail).mockReturnValue({
       users: {
         messages: {
           list: vi.fn().mockResolvedValue({ data: { messages: [] } }),
@@ -120,9 +120,9 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({ data: { messages: [] } });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: vi.fn() } },
     } as never);
 
@@ -145,7 +145,7 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi
       .fn()
       .mockResolvedValueOnce({
@@ -169,7 +169,7 @@ describe("syncGmail", () => {
         snippet: "snippet",
       },
     });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -193,7 +193,7 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     // Always return a nextPageToken — should stop at maxPages (default 5)
     const listMock = vi.fn().mockResolvedValue({
       data: {
@@ -224,7 +224,7 @@ describe("syncGmail", () => {
         snippet: "",
       },
     });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMockDynamic, get: getMock } },
     } as never);
 
@@ -246,7 +246,7 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
@@ -266,7 +266,7 @@ describe("syncGmail", () => {
           snippet: "snippet",
         },
       });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -294,14 +294,14 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
     const rateLimitError = Object.assign(new Error("Rate limit exceeded"), { status: 429 });
     // Fail all 4 attempts (initial + 3 retries)
     const getMock = vi.fn().mockRejectedValue(rateLimitError);
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -333,7 +333,7 @@ describe("syncGmail", () => {
       "/data/customers/acme-corp/interactions.md": "# Interactions\n",
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
@@ -353,7 +353,7 @@ describe("syncGmail", () => {
           snippet: "snippet",
         },
       });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -386,7 +386,7 @@ describe("syncGmail", () => {
       }),
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
@@ -402,7 +402,7 @@ describe("syncGmail", () => {
         snippet: "Hi, interested in your product",
       },
     });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 
@@ -431,7 +431,7 @@ describe("syncGmail", () => {
       // No .agentic/agents/acme-corp.agent.json
     });
 
-    const { google } = await import("googleapis");
+    const { gmail } = await import("@googleapis/gmail");
     const listMock = vi.fn().mockResolvedValue({
       data: { messages: [{ id: "msg1", threadId: "t1" }] },
     });
@@ -447,7 +447,7 @@ describe("syncGmail", () => {
         snippet: "snippet",
       },
     });
-    vi.mocked(google.gmail).mockReturnValue({
+    vi.mocked(gmail).mockReturnValue({
       users: { messages: { list: listMock, get: getMock } },
     } as never);
 

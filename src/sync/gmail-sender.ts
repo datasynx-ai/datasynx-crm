@@ -1,7 +1,8 @@
-import { google, type Auth } from "googleapis";
+import { gmail as gmailApi } from "@googleapis/gmail";
+import type { OAuth2Client } from "google-auth-library";
 
 export interface SendEmailOpts {
-  auth: Auth.OAuth2Client;
+  auth: OAuth2Client;
   to: string;
   subject: string;
   body: string; // HTML or plain text
@@ -32,7 +33,7 @@ function buildMime(opts: SendEmailOpts): string {
 }
 
 export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
-  const gmail = google.gmail({ version: "v1", auth: opts.auth });
+  const gmail = gmailApi({ version: "v1", auth: opts.auth });
   const raw = Buffer.from(buildMime(opts)).toString("base64url");
 
   const res = await gmail.users.messages.send({

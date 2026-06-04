@@ -2,16 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockSend = vi.hoisted(() => vi.fn());
 
-vi.mock("googleapis", () => ({
-  google: {
-    gmail: vi.fn().mockReturnValue({
-      users: { messages: { send: mockSend } },
-    }),
-    auth: { OAuth2: vi.fn() },
-  },
+vi.mock("@googleapis/gmail", () => ({
+  gmail: vi.fn().mockReturnValue({
+    users: { messages: { send: mockSend } },
+  }),
 }));
 
-const fakeAuth = {} as import("googleapis").Auth.OAuth2Client;
+const fakeAuth = {} as import("google-auth-library").OAuth2Client;
 
 describe("sendEmail", () => {
   beforeEach(() => {

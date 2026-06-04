@@ -1,20 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { vol } from "memfs";
 
-vi.mock("googleapis", () => {
+vi.mock("google-auth-library", () => {
   const setCredentials = vi.fn();
   const generateAuthUrl = vi.fn().mockReturnValue("https://accounts.google.com/o/oauth2/auth");
   const getToken = vi.fn().mockResolvedValue({ tokens: { access_token: "new-token" } });
-  const OAuth2 = vi.fn().mockImplementation(() => ({
+  const OAuth2Client = vi.fn().mockImplementation(() => ({
     setCredentials,
     generateAuthUrl,
     getToken,
   }));
-  return {
-    google: {
-      auth: { OAuth2 },
-    },
-  };
+  return { OAuth2Client };
 });
 
 vi.mock("readline", () => ({

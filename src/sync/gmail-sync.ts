@@ -1,15 +1,15 @@
 // src/sync/gmail-sync.ts
 import fs from "fs";
 import path from "path";
-import { google, type Auth, type gmail_v1 } from "googleapis";
-import type { GaxiosResponse } from "gaxios";
+import { gmail as gmailApi, type gmail_v1 } from "@googleapis/gmail";
+import type { OAuth2Client } from "google-auth-library";
 import { readInteractions, appendInteraction } from "../fs/interactions-writer.js";
 import { notifyAgentWake } from "../core/agent-notifier.js";
 
 interface SyncOptions {
   slug: string;
   dataDir: string;
-  auth: Auth.OAuth2Client;
+  auth: OAuth2Client;
   query: string;
   since?: Date;
   maxPages?: number;
@@ -34,7 +34,7 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3):
 }
 
 export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; skipped: number }> {
-  const gmail = google.gmail({ version: "v1", auth: opts.auth });
+  const gmail = gmailApi({ version: "v1", auth: opts.auth });
   const maxPages = opts.maxPages ?? 5;
 
   let q = opts.query;
@@ -49,7 +49,7 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
   let pagesFetched = 0;
 
   do {
-    const listResp: GaxiosResponse<gmail_v1.Schema$ListMessagesResponse> =
+    const listResp: { data: gmail_v1.Schema$ListMessagesResponse } =
       await gmail.users.messages.list({
         userId: "me",
         q,
@@ -84,7 +84,7 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
     // Task B — exponential backoff retry on any error
     let msgData: gmail_v1.Schema$Message;
     try {
-      const detail: GaxiosResponse<gmail_v1.Schema$Message> = await retryWithBackoff(() =>
+      const detail = await retryWithBackoff(() =>
         gmail.users.messages.get({
           userId: "me",
           id: msg.id!,

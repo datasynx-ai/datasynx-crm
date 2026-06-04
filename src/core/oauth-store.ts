@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
-import type { Auth } from "googleapis";
+import type { OAuth2Client } from "google-auth-library";
 
-let _auth: Auth.OAuth2Client | null = null;
+let _auth: OAuth2Client | null = null;
 
 export async function initOAuthFromDisk(dataDir: string): Promise<boolean> {
   const credPath = path.join(dataDir, ".agentic", "gmail-credentials.json");
@@ -21,7 +21,7 @@ export async function initOAuthFromDisk(dataDir: string): Promise<boolean> {
   }
 }
 
-export function getGmailAuth(): Auth.OAuth2Client | null {
+export function getGmailAuth(): OAuth2Client | null {
   return _auth;
 }
 

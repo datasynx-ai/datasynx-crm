@@ -79,6 +79,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
+    "@googleapis/calendar": "15.0.0",
+    "@googleapis/gmail": "17.0.0",
     "@huggingface/transformers": "^3.8.1",
     "@iarna/toml": "^2.2.5",
     "@lancedb/lancedb": "^0.29.0",
@@ -91,7 +93,7 @@
     "cli-table3": "^0.6.3",
     "commander": "^14.0.0",
     "cron": "^4.4.0",
-    "googleapis": "^140.0.0",
+    "google-auth-library": "10.6.2",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
     "slug": "^9.0.0",
