@@ -31,6 +31,7 @@ import { kbCommand } from "./commands/kb.js";
 import { fieldsCommand, objectCommand } from "./commands/fields.js";
 import { webhookCommand } from "./commands/webhook.js";
 import { segmentCommand } from "./commands/segment.js";
+import { identityCommand } from "./commands/identity.js";
 
 const program = new Command();
 program
@@ -73,5 +74,6 @@ program.addCommand(fieldsCommand);
 program.addCommand(objectCommand);
 program.addCommand(webhookCommand);
 program.addCommand(segmentCommand);
+program.addCommand(identityCommand);
 
 await program.parseAsync(process.argv);
