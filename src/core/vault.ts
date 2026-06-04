@@ -21,7 +21,13 @@ export function loadVault(dataDir: string, key: string): VaultData {
   const p = vaultPath(dataDir);
   if (!fs.existsSync(p)) return {};
   const encrypted = fs.readFileSync(p, "utf-8") as string;
-  const decrypted = decryptFieldStr(encrypted, key);
+  let decrypted: string;
+  try {
+    decrypted = decryptFieldStr(encrypted, key);
+  } catch {
+    // AES-GCM auth-tag failure → wrong master key (or a corrupted/tampered file).
+    throw new Error("Unable to decrypt vault: wrong master key or corrupted vault file.");
+  }
   const data = JSON.parse(decrypted) as VaultData;
   return data && typeof data === "object" ? data : {};
 }

@@ -709,17 +709,18 @@ describe("backupCommand main action", () => {
   });
 
   it("parses and invokes action when called via parseAsync", async () => {
-    // runBackup uses process.cwd() when dataDir is undefined (fire-and-forget action)
-    const cwd = process.cwd();
+    // The action resolves the data dir from DXCRM_DATA_DIR (set to /crm in beforeEach).
     const { execSync } = await import("child_process");
     vi.mocked(execSync).mockReturnValue(Buffer.from(""));
-    vol.fromJSON({ [`${cwd}/customers/acme/main_facts.md`]: "# Acme" });
+    vol.fromJSON({ "/crm/customers/acme/main_facts.md": "# Acme" });
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const consolErrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { backupCommand } = await import("../../src/commands/backup.js");
     expect(backupCommand.name()).toBe("backup");
     await backupCommand.parseAsync(["node", "backup"]);
     await new Promise((resolve) => setTimeout(resolve, 50));
+    // Backed up from /crm (no process.exit), so no error was logged.
+    expect(consolErrSpy).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
     consolErrSpy.mockRestore();
   });

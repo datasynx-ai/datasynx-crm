@@ -29,10 +29,10 @@ describe("vault", () => {
     expect(raw).not.toContain("super-secret-value");
   });
 
-  it("fails to decrypt with the wrong master key", async () => {
+  it("fails to decrypt with the wrong master key (clear error)", async () => {
     const { setSecret, getSecret } = await import("../../src/core/vault.js");
     setSecret(DATA_DIR, KEY, "token", "x");
-    expect(() => getSecret(DATA_DIR, "wrong-key", "token")).toThrow();
+    expect(() => getSecret(DATA_DIR, "wrong-key", "token")).toThrow(/wrong master key/i);
   });
 
   it("removes a secret", async () => {

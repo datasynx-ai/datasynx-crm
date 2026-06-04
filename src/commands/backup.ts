@@ -660,7 +660,7 @@ export const backupCommand = new Command("backup")
   .option("--encrypt", "Encrypt the backup (AES-256-GCM)")
   .option("--remote <url>", "Also upload to remote (s3://, rsync://, or path)")
   .action((output?: string, opts?: { encrypt?: boolean; remote?: string }) => {
-    void runBackup(output, undefined, opts ?? {});
+    void runBackup(output, process.env["DXCRM_DATA_DIR"] ?? process.cwd(), opts ?? {});
   });
 
 backupCommand.addCommand(scheduleSubCommand);
@@ -671,4 +671,4 @@ backupCommand.addCommand(listSubCommand);
 export const restoreCommand = new Command("restore")
   .argument("<path>", "Path to backup zip")
   .description("Restore from backup zip")
-  .action((zipPath: string) => runRestore(zipPath));
+  .action((zipPath: string) => runRestore(zipPath, process.env["DXCRM_DATA_DIR"] ?? process.cwd()));

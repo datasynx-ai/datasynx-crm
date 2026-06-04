@@ -1,5 +1,5 @@
 // src/setup/harness-content.ts
-// Single Source of Truth for all harness file content — v2 (44 MCP tools, growing).
+// Single Source of Truth for all harness file content — v2 (see TOOL_COUNT below).
 
 // All registered MCP tools — keep in sync with src/mcp/server.ts
 const ALL_TOOLS = [

@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 import { execSync } from "child_process";
 import type { FrameworkAdapter, InstallConfig, InstallResult } from "../framework-adapter.js";
-import { buildClaudeMd } from "../harness-content.js";
+import { buildClaudeMd, TOOL_COUNT } from "../harness-content.js";
 
 const HOME = os.homedir();
 const CLAUDE_JSON = path.join(HOME, ".claude.json");
@@ -49,20 +49,17 @@ export class ClaudeCodeAdapter implements FrameworkAdapter {
     // 4. Project-scope .claude/settings.json in dataDir
     const projectSettingsDir = path.join(config.dataDir, ".claude");
     fs.mkdirSync(projectSettingsDir, { recursive: true });
-    const projectSettings = {
-      permissions: {
-        allow: [
-          "mcp__datasynx-opencrm__get_capabilities",
-          "mcp__datasynx-opencrm__get_active_session",
-          "mcp__datasynx-opencrm__get_customer_context",
-          "mcp__datasynx-opencrm__search_customer_knowledge",
-          "mcp__datasynx-opencrm__list_customers",
-          "mcp__datasynx-opencrm__log_interaction",
-          "mcp__datasynx-opencrm__update_deal",
-          "mcp__datasynx-opencrm__export_customer",
-        ],
-      },
-    };
+    const allow = [
+      "mcp__datasynx-opencrm__get_capabilities",
+      "mcp__datasynx-opencrm__get_active_session",
+      "mcp__datasynx-opencrm__get_customer_context",
+      "mcp__datasynx-opencrm__search_customer_knowledge",
+      "mcp__datasynx-opencrm__list_customers",
+      "mcp__datasynx-opencrm__log_interaction",
+      "mcp__datasynx-opencrm__update_deal",
+      "mcp__datasynx-opencrm__export_customer",
+    ];
+    const projectSettings = { permissions: { allow } };
     const settingsPath = path.join(projectSettingsDir, "settings.json");
     fs.writeFileSync(settingsPath, JSON.stringify(projectSettings, null, 2));
     harnessFiles.push(settingsPath);
@@ -73,7 +70,7 @@ export class ClaudeCodeAdapter implements FrameworkAdapter {
       transport: "stdio",
       configPath: CLAUDE_JSON,
       harnessFiles,
-      notes: "alwaysAllow set for all 44 MCP tools. CLAUDE.md written to CRM root.",
+      notes: `${allow.length} of ${TOOL_COUNT} MCP tools pre-allowed (common read/write); CLAUDE.md written to CRM root.`,
     };
   }
 

@@ -15,6 +15,16 @@ function masterKey(): string {
   return key;
 }
 
+/** Run a vault action, turning decryption/IO failures into a clean exit. */
+async function guard(fn: () => Promise<void> | void): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    console.error(error((e as Error).message));
+    process.exit(1);
+  }
+}
+
 export const vaultCommand = new Command("vault").description(
   "Local encrypted credential vault (AES-256-GCM)"
 );
@@ -22,45 +32,53 @@ export const vaultCommand = new Command("vault").description(
 vaultCommand
   .command("set <name> <value>")
   .description("Store (or overwrite) a secret")
-  .action(async (name: string, value: string) => {
-    const { setSecret } = await import("../core/vault.js");
-    setSecret(dataDir(), masterKey(), name, value);
-    console.log(success(`Secret '${name}' stored.`));
-  });
+  .action((name: string, value: string) =>
+    guard(async () => {
+      const { setSecret } = await import("../core/vault.js");
+      setSecret(dataDir(), masterKey(), name, value);
+      console.log(success(`Secret '${name}' stored.`));
+    })
+  );
 
 vaultCommand
   .command("get <name>")
   .description("Retrieve a secret")
-  .action(async (name: string) => {
-    const { getSecret } = await import("../core/vault.js");
-    const value = getSecret(dataDir(), masterKey(), name);
-    if (value === undefined) {
-      console.log(info(`No secret named '${name}'.`));
-      return;
-    }
-    console.log(value);
-  });
+  .action((name: string) =>
+    guard(async () => {
+      const { getSecret } = await import("../core/vault.js");
+      const value = getSecret(dataDir(), masterKey(), name);
+      if (value === undefined) {
+        console.log(info(`No secret named '${name}'.`));
+        return;
+      }
+      console.log(value);
+    })
+  );
 
 vaultCommand
   .command("list")
   .description("List secret names (values stay encrypted)")
-  .action(async () => {
-    const { listSecretKeys } = await import("../core/vault.js");
-    const names = listSecretKeys(dataDir(), masterKey());
-    if (names.length === 0) {
-      console.log(info("Vault is empty."));
-      return;
-    }
-    for (const n of names.sort()) console.log(n);
-  });
+  .action(() =>
+    guard(async () => {
+      const { listSecretKeys } = await import("../core/vault.js");
+      const names = listSecretKeys(dataDir(), masterKey());
+      if (names.length === 0) {
+        console.log(info("Vault is empty."));
+        return;
+      }
+      for (const n of names.sort()) console.log(n);
+    })
+  );
 
 vaultCommand
   .command("rm <name>")
   .description("Remove a secret")
-  .action(async (name: string) => {
-    const { removeSecret } = await import("../core/vault.js");
-    const removed = removeSecret(dataDir(), masterKey(), name);
-    console.log(
-      removed ? success(`Secret '${name}' removed.`) : info(`No secret named '${name}'.`)
-    );
-  });
+  .action((name: string) =>
+    guard(async () => {
+      const { removeSecret } = await import("../core/vault.js");
+      const removed = removeSecret(dataDir(), masterKey(), name);
+      console.log(
+        removed ? success(`Secret '${name}' removed.`) : info(`No secret named '${name}'.`)
+      );
+    })
+  );

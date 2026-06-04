@@ -718,24 +718,21 @@ describe("E2E: dxcrm init — schema.json generation", () => {
     vol.mkdirSync(DATA_DIR, { recursive: true });
     const { initCommand } = await import("../../src/commands/init.js");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await initCommand.parseAsync(["node", "dxcrm", "init"], { from: "user" }).catch(() => {});
+    // initCommand IS the `init` command — parse with 0 operands (from: "user").
+    await initCommand.parseAsync([], { from: "user" }).catch(() => {});
     logSpy.mockRestore();
 
-    const schemaPath = `${DATA_DIR}/.agentic/schema.json`;
+    // init writes relative to process.cwd(); under the memfs mock that path is virtual.
     const { fs: mfs } = await import("memfs");
-    if (mfs.existsSync(schemaPath)) {
-      const schema = JSON.parse(mfs.readFileSync(schemaPath, "utf-8") as string) as {
-        version: number;
-        main_facts: { required: string[] };
-      };
-      expect(schema.version).toBe(1);
-      expect(schema.main_facts.required).toContain("name");
-      expect(schema.main_facts.required).toContain("relationship_stage");
-    } else {
-      // init may target real cwd; just verify the schema content structure is correct
-      const { initCommand: ic } = await import("../../src/commands/init.js");
-      expect(ic.name()).toBe("init");
-    }
+    const schemaPath = `${process.cwd()}/.agentic/schema.json`;
+    expect(mfs.existsSync(schemaPath)).toBe(true);
+    const schema = JSON.parse(mfs.readFileSync(schemaPath, "utf-8") as string) as {
+      version: number;
+      main_facts: { required: string[] };
+    };
+    expect(schema.version).toBe(1);
+    expect(schema.main_facts.required).toContain("name");
+    expect(schema.main_facts.required).toContain("relationship_stage");
   });
 
   it("init writes schema.json to custom dataDir", async () => {
