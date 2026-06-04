@@ -83,6 +83,21 @@ export function canSeeCustomer(dataDir: string, actor: string, slug: string): bo
   return (owned[actor] ?? []).includes(slug);
 }
 
+/**
+ * Build a once-loaded predicate for which customers `actor` may see. Equivalent
+ * to calling canSeeCustomer per slug, but reads/parses rbac.json a single time
+ * (and uses O(1) Set membership) — for hot loops like list_customers.
+ */
+export function customerVisibility(dataDir: string, actor: string): (slug: string) => boolean {
+  if (!fs.existsSync(rbacPath(dataDir))) return () => true; // open access
+  if (actor === "system") return () => true;
+  const config = getRbacConfig(dataDir);
+  const role = config.actors[actor] ?? config.default ?? "rep";
+  if (role === "admin" || role === "manager") return () => true;
+  const owned = new Set(config.owned_customers?.[actor] ?? []);
+  return (slug: string) => owned.has(slug);
+}
+
 /** Load the field-level ACL (field → allowed roles) from rbac.json. */
 export function loadFieldAcl(dataDir: string): Record<string, Role[]> {
   return getRbacConfig(dataDir).field_acl ?? {};

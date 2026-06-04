@@ -64,19 +64,19 @@ export async function runValidate(opts: { fix?: boolean }, dataDir: string): Pro
 
     try {
       let content = fs.readFileSync(factsPath, "utf-8") as string;
-      const { data } = matter(content);
+      let parsed = matter(content);
 
       if (opts.fix) {
-        const result = applyFix(factsPath, content, data as Record<string, unknown>);
+        const result = applyFix(factsPath, content, parsed.data as Record<string, unknown>);
         if (result) {
           content = result.content;
+          parsed = matter(content); // only re-parse when a fix actually rewrote content
           fixedCount++;
           console.log(info(`⚙ ${slug}: fixed ${result.fixed.join(", ")}`));
         }
       }
 
-      const { data: refetchedData } = matter(content);
-      MainFactsSchema.parse(refetchedData);
+      MainFactsSchema.parse(parsed.data);
 
       if (!fs.existsSync(interactionsPath)) {
         console.log(warning(`⚠ ${slug}: missing interactions.md`));

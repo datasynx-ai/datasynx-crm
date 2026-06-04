@@ -1,7 +1,7 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import fs from "fs";
-import path from "path";
+import { readPipelineSync } from "../../fs/pipeline-writer.js";
+import { listCustomerSlugs } from "../../fs/customer-dir.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -20,31 +20,16 @@ export async function handleGetPipelineForecast(
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   try {
-    const customersDir = path.join(dataDir, "customers");
-    if (!fs.existsSync(customersDir)) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ deals: [], totalWeightedValue: 0, byStage: {} }, null, 2),
-          },
-        ],
-      };
-    }
-
-    const slugs = fs.readdirSync(customersDir).filter((d) => {
-      if (input.filter && !d.includes(input.filter)) return false;
-      return fs.statSync(path.join(customersDir, d)).isDirectory();
-    });
+    const slugs = listCustomerSlugs(dataDir).filter(
+      (d) => !input.filter || d.includes(input.filter)
+    );
 
     const allDeals: ForecastDeal[] = [];
 
     for (const slug of slugs) {
-      const pipelinePath = path.join(customersDir, slug, "pipeline.md");
-      if (!fs.existsSync(pipelinePath)) continue;
-
-      const { readPipeline } = await import("../../fs/pipeline-writer.js");
-      const deals = await readPipeline(dataDir, slug).catch(() => []);
+      // readPipelineSync already guards a missing file (returns []); no need for
+      // a per-iteration existsSync + dynamic import.
+      const deals = readPipelineSync(dataDir, slug);
 
       for (const deal of deals) {
         if (deal.stage === "won" || deal.stage === "lost") continue;

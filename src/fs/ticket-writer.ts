@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { TicketSchema, type Ticket } from "../schemas/ticket.js";
+import { listCustomerSlugs } from "./customer-dir.js";
 
 const TICKET_HEADER = "# Tickets\n\n";
 const TABLE_HEADER = `| ID | Title | Status | Priority | Assignee | Created | SLA Due | Resolved |
@@ -91,29 +92,23 @@ export async function listAllTickets(
   dataDir: string,
   filter?: { slug?: string; status?: string; priority?: string; assignee?: string }
 ): Promise<Array<{ slug: string; ticket: Ticket }>> {
-  const customersDir = path.join(dataDir, "customers");
-  if (!fs.existsSync(customersDir)) return [];
+  const slugs = filter?.slug ? [filter.slug] : listCustomerSlugs(dataDir);
 
-  const slugs = filter?.slug
-    ? [filter.slug]
-    : fs.readdirSync(customersDir).filter((s) => {
-        try {
-          return fs.statSync(path.join(customersDir, s)).isDirectory();
-        } catch {
-          return false;
-        }
-      });
-
-  const results: Array<{ slug: string; ticket: Ticket }> = [];
-  for (const slug of slugs) {
-    const tickets = await readTickets(dataDir, slug);
-    for (const ticket of tickets) {
-      if (filter?.status && ticket.status !== filter.status) continue;
-      if (filter?.priority && ticket.priority !== filter.priority) continue;
-      if (filter?.assignee && ticket.assignee !== filter.assignee) continue;
-      results.push({ slug, ticket });
-    }
-  }
+  // Each customer's tickets file is independent — read them in parallel.
+  const perCustomer = await Promise.all(
+    slugs.map(async (slug) => {
+      const tickets = await readTickets(dataDir, slug);
+      return tickets
+        .filter(
+          (ticket) =>
+            (!filter?.status || ticket.status === filter.status) &&
+            (!filter?.priority || ticket.priority === filter.priority) &&
+            (!filter?.assignee || ticket.assignee === filter.assignee)
+        )
+        .map((ticket) => ({ slug, ticket }));
+    })
+  );
+  const results = perCustomer.flat();
 
   // Sort: urgent first, then by created date
   const priorityOrder: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };

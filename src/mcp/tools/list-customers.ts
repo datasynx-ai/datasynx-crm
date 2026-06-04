@@ -3,7 +3,7 @@ import path from "path";
 import matter from "gray-matter";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { canSeeCustomer } from "../../core/rbac.js";
+import { customerVisibility } from "../../core/rbac.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -40,6 +40,10 @@ export async function handleListCustomers(
   }
 
   const entries = fs.readdirSync(customersDir) as string[];
+
+  // Resolve RBAC visibility once (reads rbac.json a single time, not per customer).
+  const actor = process.env["DXCRM_ACTOR"] ?? "system";
+  const canSee = customerVisibility(dataDir, actor);
 
   for (const entry of entries) {
     const customerDir = path.join(customersDir, entry);
@@ -85,8 +89,7 @@ export async function handleListCustomers(
       }
 
       // RBAC data-visibility: rep role only sees owned customers
-      const actor = process.env["DXCRM_ACTOR"] ?? "system";
-      if (!canSeeCustomer(dataDir, actor, entry)) continue;
+      if (!canSee(entry)) continue;
 
       customers.push(summary);
     } catch {

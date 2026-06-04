@@ -15,18 +15,21 @@ export async function searchAcrossCustomers(
 ): Promise<CrossCustomerResult[]> {
   const slugs = listCustomerSlugs(dataDir).filter((d) => d !== excludeSlug);
 
-  const allResults: CrossCustomerResult[] = [];
-
-  for (const slug of slugs) {
-    const results = await searchKnowledge(dataDir, slug, query, 2);
-    for (const r of results) {
-      allResults.push({
+  // Each customer's vector search is independent — fan out in parallel rather
+  // than awaiting one LanceDB query at a time (latency was linear in #customers).
+  const perCustomer = await Promise.all(
+    slugs.map(async (slug) => {
+      const results = await searchKnowledge(dataDir, slug, query, 2);
+      return results.map((r) => ({
         slug,
         relevantContent: r.content.slice(0, 200),
         score: r.score,
-      });
-    }
-  }
+      }));
+    })
+  );
 
-  return allResults.sort((a, b) => b.score - a.score).slice(0, limit);
+  return perCustomer
+    .flat()
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { readPipeline } from "../fs/pipeline-writer.js";
 import { scoreDeal } from "../core/deal-health.js";
-import { computeCustomerHealth } from "../core/relationship-health.js";
+import { computeCustomerHealth, readHealth } from "../core/relationship-health.js";
 import type { InteractionEntry } from "../schemas/interaction.js";
 import { readGraph, getStakeholders } from "../core/graph.js";
 import { callLlm } from "../core/llm.js";
@@ -219,7 +219,10 @@ export async function observeDeal(
     ...(deal.probability !== undefined ? { probability: deal.probability } : {}),
   });
 
-  const health = computeCustomerHealth(dataDir, slug, today);
+  // Prefer the cached health snapshot (written on each interaction); only
+  // recompute — re-reading and parsing the full interactions file — when none
+  // exists yet. Mirrors proactive-worker's read-then-compute pattern.
+  const health = readHealth(dataDir, slug) ?? computeCustomerHealth(dataDir, slug, today);
   const atRiskContacts = health.contacts
     .filter((c) => c.riskFlags.length > 0)
     .map((c) => c.email ?? c.contactId);
