@@ -129,10 +129,15 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
   liefert Talk-Ratio, Discovery-Question-Count, längsten Monolog, Objection-Erkennung (D9-Heuristik) und
   regelbasierte Coaching-Tipps — deterministisch & offline. ASR/Diarization/Realtime bleiben im Agent/Voice-
   Framework. CLI `dxcrm coach <file> [--rep labels]`.
-### D17 · Compliance-Härtung + lokale-LLM-Option — §3 · M
+### D17 ✅ · Compliance-Härtung + lokale-LLM-Option — §3 · M
 - EU-AI-Act-Art.-50-Kennzeichnung über alle generierten Inhalte, `callLlm` provider-agnostisch
   (Anthropic | lokal/Ollama) als Datenschutz-Moat, DSGVO-Doku (DPIA/FRIA). Als **Querschnitts-Härtung am
   Ende**, weil es alle vorhandenen Features gleichzeitig betrifft (✅ `gdpr erase` bereits vorhanden).
+- **Umgesetzt:** `src/core/compliance.ts` — `aiDisclosure`/`labelAiContent` (Art. 50, on-by-default, de/en,
+  opt-out via `DXCRM_AI_DISCLOSURE=off`), in `draft_email` verdrahtet. `llmProvider`/`localLlmConfig` +
+  OpenAI-kompatibler Local-Path in `callLlm` (fetch zu Ollama/local, `DXCRM_LLM_PROVIDER/BASE_URL/MODEL`),
+  Usage-Recording paritätisch. `complianceConfig` + CLI `dxcrm compliance` als Posture-Read-out. Doku
+  `docs/compliance.md` (Art. 50, Local-LLM, PII/Guardrails, DSGVO Art. 17 erase, DPIA/FRIA-Hinweise).
 
 ---
 

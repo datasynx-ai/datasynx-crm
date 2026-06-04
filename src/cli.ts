@@ -47,6 +47,7 @@ import { churnCommand } from "./commands/churn.js";
 import { leadscoreCommand } from "./commands/leadscore.js";
 import { enrichCommand } from "./commands/enrich.js";
 import { coachCommand } from "./commands/coach.js";
+import { complianceCommand } from "./commands/compliance.js";
 
 const program = new Command();
 program
@@ -106,5 +107,6 @@ program.addCommand(churnCommand);
 program.addCommand(leadscoreCommand);
 program.addCommand(enrichCommand);
 program.addCommand(coachCommand);
+program.addCommand(complianceCommand);
 
 await program.parseAsync(process.argv);

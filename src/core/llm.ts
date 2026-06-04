@@ -3,6 +3,7 @@ import { CircuitBreaker } from "./resilience.js";
 import { guardLlmResponse } from "./input-guard.js";
 import { maskPii, piiMaskingEnabled } from "./pii.js";
 import { neutralizeUntrusted, guardrailsEnabled } from "./guardrails.js";
+import { llmProvider, localLlmConfig } from "./compliance.js";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -132,12 +133,62 @@ export function resetLlmClient(): void {
   _client = null;
 }
 
+function recordCall(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  ctx?: { slug?: string; tool?: string }
+): void {
+  const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+  void import("./usage.js").then(({ recordUsage }) =>
+    recordUsage(dataDir, {
+      ...(ctx?.slug ? { slug: ctx.slug } : {}),
+      ...(ctx?.tool ? { tool: ctx.tool } : {}),
+      model,
+      inputTokens,
+      outputTokens,
+    })
+  );
+}
+
+/**
+ * Local-LLM path (D17): call an OpenAI-compatible endpoint (Ollama/local) via
+ * fetch — no extra dependency — so customer data can stay on-machine. Usage is
+ * still recorded for cost/observability parity with the Anthropic path.
+ */
+async function callLocalLlm(
+  masked: string,
+  ctx?: { slug?: string; tool?: string }
+): Promise<string> {
+  const { baseUrl, model } = localLlmConfig();
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      max_tokens: 500,
+      messages: [{ role: "user", content: masked }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Local LLM error ${res.status}`);
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  };
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("No text response from local LLM");
+  if (data.usage)
+    recordCall(model, data.usage.prompt_tokens ?? 0, data.usage.completion_tokens ?? 0, ctx);
+  return text;
+}
+
 export async function callLlm(
   prompt: string,
   ctx?: { slug?: string; tool?: string }
 ): Promise<string> {
-  const client = getClient();
-  if (!client) throw new Error("ANTHROPIC_API_KEY not set");
+  const provider = llmProvider();
+  const client = provider === "anthropic" ? getClient() : null;
+  if (provider === "anthropic" && !client) throw new Error("ANTHROPIC_API_KEY not set");
 
   // Opt-in guardrails (neutralize prompt-injection) + PII masking, then restore.
   const guarded = guardrailsEnabled() ? neutralizeUntrusted(prompt) : prompt;
@@ -145,8 +196,12 @@ export async function callLlm(
     ? maskPii(guarded)
     : { masked: guarded, unmask: (t: string) => t };
 
+  if (provider !== "anthropic") {
+    return llmCircuit.call(async () => unmask(guardLlmResponse(await callLocalLlm(masked, ctx))));
+  }
+
   return llmCircuit.call(async () => {
-    const response = await client.messages.create({
+    const response = await client!.messages.create({
       model: MODEL,
       max_tokens: 500,
       messages: [{ role: "user", content: masked }],
@@ -154,18 +209,7 @@ export async function callLlm(
 
     // Token-cost observability (D3): record usage per customer/tool.
     const usage = response.usage;
-    if (usage) {
-      const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
-      void import("./usage.js").then(({ recordUsage }) =>
-        recordUsage(dataDir, {
-          ...(ctx?.slug ? { slug: ctx.slug } : {}),
-          ...(ctx?.tool ? { tool: ctx.tool } : {}),
-          model: MODEL,
-          inputTokens: usage.input_tokens,
-          outputTokens: usage.output_tokens,
-        })
-      );
-    }
+    if (usage) recordCall(MODEL, usage.input_tokens, usage.output_tokens, ctx);
 
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") throw new Error("No text response from LLM");

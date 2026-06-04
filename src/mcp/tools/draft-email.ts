@@ -56,7 +56,9 @@ export async function handleDraftEmail(
           `Return ONLY the rewritten email body, no preamble.\n\n---\n${interpolatedBody}`
       );
       if (refined && refined.trim()) {
-        body = refined.trim();
+        // EU-AI-Act Art. 50 (D17): label AI-generated content (opt-out).
+        const { labelAiContent } = await import("../../core/compliance.js");
+        body = labelAiContent(refined.trim());
         polished = true;
       }
     } catch {

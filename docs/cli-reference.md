@@ -904,3 +904,17 @@ dxcrm coach ./transcript.txt --rep "rep,ae,me"   # which speaker labels are the 
 ```
 
 Transcript format: one `Speaker: text` per line, e.g. `Rep: ...` / `Customer: ...`.
+
+## dxcrm compliance (governance posture)
+
+Shows the active privacy/compliance configuration: LLM provider (and local
+endpoint if self-hosted), EU-AI-Act Art. 50 disclosure, PII masking and prompt
+guardrails. See [docs/compliance.md](./compliance.md) for the full reference.
+
+```bash
+dxcrm compliance
+```
+
+Relevant env vars: `DXCRM_LLM_PROVIDER` (anthropic|ollama|openai|local),
+`DXCRM_LLM_BASE_URL`, `DXCRM_LLM_MODEL`, `DXCRM_AI_DISCLOSURE` (off to opt out),
+`DXCRM_AI_DISCLOSURE_LANG` (de|en), `DXCRM_PII_MASKING`, `DXCRM_GUARDRAILS`.
