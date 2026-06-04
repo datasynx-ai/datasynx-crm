@@ -39,6 +39,7 @@ import { hygieneCommand } from "./commands/hygiene.js";
 import { memoryCommand } from "./commands/memory.js";
 import { sopCommand } from "./commands/sop.js";
 import { toneCommand } from "./commands/tone.js";
+import { autofillCommand } from "./commands/autofill.js";
 
 const program = new Command();
 program
@@ -90,5 +91,6 @@ program.addCommand(hygieneCommand);
 program.addCommand(memoryCommand);
 program.addCommand(sopCommand);
 program.addCommand(toneCommand);
+program.addCommand(autofillCommand);
 
 await program.parseAsync(process.argv);

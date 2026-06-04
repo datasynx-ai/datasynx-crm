@@ -82,7 +82,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 
 ## Welle 2 — Killer-Features (höchster Nutzer-/Wettbewerbswert, jetzt entrisikt)
 
-### D9 · Call/Meeting → CRM-Autofill — *löst den #1-Schmerz, ruht auf allen Fundamenten* · C1 · M
+### D9 ✅ · Call/Meeting → CRM-Autofill — *löst den #1-Schmerz, ruht auf allen Fundamenten* · C1 · M
 - **Warum hier:** Transkript → strukturierte Felder/Deal. Nutzt D2 (Kontext), D3 (Kosten), D4 (Approval),
   D6 (Memory), D7 (SOP-Regeln) — alles bereits da, daher de-risked und schnell.
 - **Hängt ab von:** D2, D3, D4, D6, D7; vorhandener Transcript-Watcher/`summarize_meeting`.
