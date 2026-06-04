@@ -37,7 +37,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 - **Hängt ab von:** vorhandene LanceDB-Vektorsuche.
 - **Schaltet frei:** D5, D6, D7, D10, D11.
 
-### D3 · Token-Kosten/Observability am `callLlm`-Choke-Point — *jedes spätere LLM-Feature wird automatisch gemessen* · F7 · M
+### D3 ✅ · Token-Kosten/Observability am `callLlm`-Choke-Point — *jedes spätere LLM-Feature wird automatisch gemessen* · F7 · M
 - **Warum jetzt:** Wird der eine LLM-Engpass **vor** den LLM-Features instrumentiert, sind alle folgenden
   Features „born observable" (Kosten je Kunde, Usage-Ledger) — kein Nachrüsten. Basis für Outcome-Pricing.
 - **Hängt ab von:** `callLlm` (vorhanden); ergänzt `computeAuditMetrics`.

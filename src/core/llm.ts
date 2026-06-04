@@ -132,7 +132,10 @@ export function resetLlmClient(): void {
   _client = null;
 }
 
-export async function callLlm(prompt: string): Promise<string> {
+export async function callLlm(
+  prompt: string,
+  ctx?: { slug?: string; tool?: string }
+): Promise<string> {
   const client = getClient();
   if (!client) throw new Error("ANTHROPIC_API_KEY not set");
 
@@ -148,6 +151,21 @@ export async function callLlm(prompt: string): Promise<string> {
       max_tokens: 500,
       messages: [{ role: "user", content: masked }],
     });
+
+    // Token-cost observability (D3): record usage per customer/tool.
+    const usage = response.usage;
+    if (usage) {
+      const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+      void import("./usage.js").then(({ recordUsage }) =>
+        recordUsage(dataDir, {
+          ...(ctx?.slug ? { slug: ctx.slug } : {}),
+          ...(ctx?.tool ? { tool: ctx.tool } : {}),
+          model: MODEL,
+          inputTokens: usage.input_tokens,
+          outputTokens: usage.output_tokens,
+        })
+      );
+    }
 
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") throw new Error("No text response from LLM");
