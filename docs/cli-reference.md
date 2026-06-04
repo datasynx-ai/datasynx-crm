@@ -323,9 +323,12 @@ The daemon runs four scheduled jobs:
 | Schedule | Job | Description |
 |---|---|---|
 | `*/${DXCRM_DAEMON_INTERVAL:-30} * * * *` | Gmail sync | Syncs emails for all customers |
+| `*/${DXCRM_DAEMON_INTERVAL:-30} * * * *` | Mailbox poll | Auto-routes new mail from every logged-in IMAP/OAuth mailbox |
 | `*/60 * * * *` | Backup check | Runs backup if >1 day since last |
 | `0 6 * * *` | Push renewal | Renews expiring Gmail push subscriptions |
 | `0 7 * * *` | Proactive checks | Relationship decay + deal risk + daily briefing → dispatched |
+
+**Mailbox polling** (same interval as Gmail sync): once you've run `dxcrm mailbox login gmail|microsoft` (or set `DXCRM_IMAP_*`), the daemon polls each mailbox every cycle, refreshes OAuth tokens automatically, and auto-routes new messages to customers by domain — no manual `dxcrm mailbox sync` needed. The poll window overlaps the interval and dedup keeps it idempotent.
 
 **Proactive dispatch** (`0 7 * * *`): Runs `runDailyProactiveChecks` then `drainProactiveQueue`.
 Tasks sent to Telegram (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`) or Slack (`SLACK_WEBHOOK_URL`).

@@ -108,7 +108,7 @@ describe("resolveAccountConfig", () => {
   });
 
   it("rejects a malformed account", async () => {
-    await expect(resolveAccountConfig("/data", "bogus")).rejects.toThrow(/Invalid --account/);
+    await expect(resolveAccountConfig("/data", "bogus")).rejects.toThrow(/Invalid account/);
   });
 });
 

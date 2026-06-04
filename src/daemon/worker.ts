@@ -224,6 +224,32 @@ async function takeDailySnapshot(): Promise<void> {
   }
 }
 
+/**
+ * Poll every configured mailbox (stored OAuth accounts + env IMAP) and
+ * auto-route new mail to customers by domain. The window overlaps the interval
+ * so nothing is missed; dedup keeps it idempotent.
+ */
+async function pollMailboxes(intervalMin: number): Promise<void> {
+  try {
+    const { listMailboxTokens } = await import("../sync/oauth/token-store.js");
+    const { imapConfigFromEnv } = await import("../sync/mailbox-config.js");
+    if (listMailboxTokens(DATA_DIR).length === 0 && imapConfigFromEnv() === null) return;
+
+    const { runMailboxPollCycle } = await import("./mailbox-poll.js");
+    const since = new Date(Date.now() - (intervalMin + 5) * 60 * 1000);
+    const result = await runMailboxPollCycle(DATA_DIR, since);
+    if (result.synced > 0) {
+      logger.info("daemon", "mailbox cycle", {
+        accounts: result.accounts,
+        synced: result.synced,
+        unrouted: result.unrouted,
+      });
+    }
+  } catch (err) {
+    logger.error("daemon", "mailbox poll cycle failed", { error: (err as Error).message });
+  }
+}
+
 // Gmail sync — interval configurable via DXCRM_DAEMON_INTERVAL (minutes, default 30)
 const daemonIntervalMin = Math.max(
   1,
@@ -233,6 +259,7 @@ new CronJob(
   `*/${daemonIntervalMin} * * * *`,
   async () => {
     await syncAllCustomers();
+    await pollMailboxes(daemonIntervalMin);
     await checkAgentWakeTriggers().catch((err: unknown) => {
       logger.error("daemon", "wake trigger check failed", { error: (err as Error).message });
     });
