@@ -73,6 +73,7 @@ const ALL_TOOLS = [
   "trigger_sync",
   "get_audit_log",
   "get_logs",
+  "get_diagnostics",
   // Metadata / custom objects (Platform)
   "define_custom_object",
   "create_record",
@@ -82,7 +83,7 @@ const ALL_TOOLS = [
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
 export { ALL_TOOLS };
-export const TOOL_COUNT = ALL_TOOLS.length; // 57
+export const TOOL_COUNT = ALL_TOOLS.length; // 58
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -210,6 +211,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`trigger_sync({ slug?, since? })\` — force immediate Gmail sync for one or all customers (bypasses 30-min daemon cycle)
 - \`get_audit_log({ slug?, actor?, limit? })\` — read append-only audit log of all write operations
 - \`get_logs({ level?, component?, since?, contains?, limit?, summary? })\` — query/aggregate the structured application log
+- \`get_diagnostics({ fix? })\` — self-diagnostic health check (data integrity, temp files, log errors, backups)
 
 ### Custom Objects (Platform / metadata)
 - \`define_custom_object({ name, label?, fields })\` — define a runtime entity type with typed fields (no migration), admin
@@ -477,7 +479,7 @@ create_ticket · update_ticket · list_tickets · close_ticket ·
 send_nps_survey · get_survey_results ·
 search_knowledge_base · create_kb_article ·
 backup_now · list_backups ·
-trigger_sync · get_audit_log · get_logs ·
+trigger_sync · get_audit_log · get_logs · get_diagnostics ·
 define_custom_object · create_record · list_records · list_custom_objects
 
 ## Data: ${dataDir}`.trim();
