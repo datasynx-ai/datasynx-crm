@@ -1,6 +1,5 @@
 import { searchKnowledge } from "./lancedb.js";
-import fs from "fs";
-import path from "path";
+import { listCustomerSlugs } from "../fs/customer-dir.js";
 
 export interface CrossCustomerResult {
   slug: string;
@@ -14,12 +13,7 @@ export async function searchAcrossCustomers(
   limit = 5,
   excludeSlug?: string
 ): Promise<CrossCustomerResult[]> {
-  const customersDir = path.join(dataDir, "customers");
-  if (!fs.existsSync(customersDir)) return [];
-
-  const slugs = fs
-    .readdirSync(customersDir)
-    .filter((d) => d !== excludeSlug && fs.statSync(path.join(customersDir, d)).isDirectory());
+  const slugs = listCustomerSlugs(dataDir).filter((d) => d !== excludeSlug);
 
   const allResults: CrossCustomerResult[] = [];
 

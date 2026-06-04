@@ -2,6 +2,7 @@ import { Command } from "commander";
 import fs from "fs";
 import path from "path";
 import { success, error, info, bold } from "../ui/colors.js";
+import { listCustomerSlugs } from "../fs/customer-dir.js";
 import { readSyncState } from "../fs/sync-state.js";
 import { readUnmatched } from "../fs/unmatched-transcripts.js";
 import { getSession } from "../core/session-store.js";
@@ -26,22 +27,6 @@ function checkDaemon(dataDir: string): { running: boolean; pid?: number } {
     return { running: true, pid };
   } catch {
     return { running: false };
-  }
-}
-
-function getCustomerSlugs(dataDir: string): string[] {
-  const customersDir = path.join(dataDir, "customers");
-  if (!fs.existsSync(customersDir)) return [];
-  try {
-    return fs.readdirSync(customersDir).filter((s) => {
-      try {
-        return fs.statSync(path.join(customersDir, s)).isDirectory();
-      } catch {
-        return false;
-      }
-    });
-  } catch {
-    return [];
   }
 }
 
@@ -94,7 +79,7 @@ export async function runStatus(
   }
 
   const daemon = checkDaemon(dir);
-  const slugs = getCustomerSlugs(dir);
+  const slugs = listCustomerSlugs(dir);
   const syncState = readSyncState(dir);
   const unmatched = readUnmatched(dir);
 

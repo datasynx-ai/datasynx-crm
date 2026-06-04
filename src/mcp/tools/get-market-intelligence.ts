@@ -1,8 +1,7 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { searchAcrossCustomers, type CrossCustomerResult } from "../../core/cross-customer.js";
-import fs from "fs";
-import path from "path";
+import { listCustomerSlugs } from "../../fs/customer-dir.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -13,14 +12,10 @@ export async function handleGetMarketIntelligence(
   const excludeSlug = input.excludeCurrentCustomer ? input.slug : undefined;
 
   // Count total customers before excluding
-  const customersDir = path.join(dataDir, "customers");
-  let totalCustomersSearched = 0;
-  if (fs.existsSync(customersDir)) {
-    const all = fs
-      .readdirSync(customersDir)
-      .filter((d) => fs.statSync(path.join(customersDir, d)).isDirectory());
-    totalCustomersSearched = excludeSlug ? all.filter((s) => s !== excludeSlug).length : all.length;
-  }
+  const all = listCustomerSlugs(dataDir);
+  const totalCustomersSearched = excludeSlug
+    ? all.filter((s) => s !== excludeSlug).length
+    : all.length;
 
   const results: CrossCustomerResult[] = await searchAcrossCustomers(
     dataDir,
