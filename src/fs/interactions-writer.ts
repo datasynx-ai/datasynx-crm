@@ -12,11 +12,18 @@ export function formatInteractionEntry(entry: InteractionEntry): string {
   const nextStepsBlock =
     entry.nextSteps.length > 0 ? entry.nextSteps.map((s) => `- [ ] ${s}`).join("\n") : "- [ ] —";
 
+  const attachmentsLine =
+    entry.attachments && entry.attachments.length > 0
+      ? `\n**Attachments:** ${entry.attachments
+          .map((a) => `[${a.split("/").pop()}](attachments/${a})`)
+          .join(", ")}`
+      : "";
+
   return `${header}
 **${withLabel}:** ${entry.with}
 **Summary:** ${entry.summary}
 **Next Steps:**
-${nextStepsBlock}
+${nextStepsBlock}${attachmentsLine}
 **Source:** ${entry.sourceRef}
 **Synced:** ${entry.synced}
 ${INTERACTION_SEPARATOR}

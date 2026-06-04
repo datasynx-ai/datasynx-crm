@@ -461,4 +461,62 @@ describe("syncGmail", () => {
 
     expect(mockNotifyAgentWake).not.toHaveBeenCalled();
   });
+
+  it("downloads attachments, writes Markdown, and links them in the interaction", async () => {
+    vol.fromJSON({ "/data/customers/acme-corp/interactions.md": "# Interactions\n" });
+
+    const csv = "item,qty\nWidget,3";
+    const attData = Buffer.from(csv).toString("base64url");
+
+    const { gmail } = await import("@googleapis/gmail");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msgA", threadId: "tA" }] },
+    });
+    const getMock = vi.fn().mockResolvedValue({
+      data: {
+        payload: {
+          mimeType: "multipart/mixed",
+          headers: [
+            { name: "Subject", value: "Order" },
+            { name: "From", value: "buyer@example.com" },
+            { name: "Date", value: "Mon, 01 Jun 2026 10:00:00 +0000" },
+          ],
+          parts: [
+            { mimeType: "text/plain", body: { size: 4 } },
+            {
+              filename: "order.csv",
+              mimeType: "text/csv",
+              body: { size: csv.length, attachmentId: "attA" },
+            },
+          ],
+        },
+        snippet: "an order",
+      },
+    });
+    const attachGet = vi.fn().mockResolvedValue({ data: { data: attData } });
+    vi.mocked(gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock, attachments: { get: attachGet } } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    const result = await syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+
+    expect(result.synced).toBe(1);
+    expect(attachGet).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: "msgA", id: "attA" })
+    );
+
+    const json = vol.toJSON();
+    expect(json["/data/customers/acme-corp/attachments/msgA__order.csv"]).toBe(csv);
+    const md = json["/data/customers/acme-corp/attachments/msgA__order.csv.md"] as string;
+    expect(md).toContain("| item | qty |");
+    const interactions = json["/data/customers/acme-corp/interactions.md"] as string;
+    expect(interactions).toContain("**Attachments:**");
+    expect(interactions).toContain("(attachments/msgA__order.csv.md)");
+  });
 });

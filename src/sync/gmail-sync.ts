@@ -13,6 +13,10 @@ interface SyncOptions {
   query: string;
   since?: Date;
   maxPages?: number;
+  /** Download, convert and index email attachments (default true). */
+  includeAttachments?: boolean;
+  /** Per-attachment size cap in bytes. */
+  maxAttachmentBytes?: number;
 }
 
 /**
@@ -36,6 +40,7 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3):
 export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; skipped: number }> {
   const gmail = gmailApi({ version: "v1", auth: opts.auth });
   const maxPages = opts.maxPages ?? 5;
+  const includeAttachments = opts.includeAttachments ?? true;
 
   let q = opts.query;
   if (opts.since) {
@@ -88,8 +93,11 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
         gmail.users.messages.get({
           userId: "me",
           id: msg.id!,
-          format: "metadata",
-          metadataHeaders: ["Subject", "From", "Date"],
+          // "full" exposes payload.parts so attachments can be downloaded;
+          // fall back to lighter "metadata" when attachment sync is disabled.
+          ...(includeAttachments
+            ? { format: "full" }
+            : { format: "metadata", metadataHeaders: ["Subject", "From", "Date"] }),
         })
       );
       msgData = detail.data;
@@ -114,6 +122,32 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
     const { summarizeEmail } = await import("../core/llm.js");
     const emailSummary = await summarizeEmail(subject, snippet, from);
 
+    // Download, convert and index attachments before logging the interaction so
+    // the entry can link to the generated Markdown. Failures here are swallowed.
+    let attachmentLinks: string[] = [];
+    if (includeAttachments) {
+      try {
+        const { processMessageAttachments } = await import("./attachments.js");
+        const saved = await processMessageAttachments({
+          gmail,
+          dataDir: opts.dataDir,
+          slug: opts.slug,
+          messageId: msg.id,
+          source,
+          payload: msgData.payload ?? undefined,
+          date,
+          ...(opts.maxAttachmentBytes !== undefined
+            ? { maxBytes: opts.maxAttachmentBytes }
+            : {}),
+        });
+        attachmentLinks = saved.map((a) => a.markdownName);
+      } catch (err) {
+        process.stderr.write(
+          `[gmail-sync] attachment processing failed for ${msg.id}: ${(err as Error).message}\n`
+        );
+      }
+    }
+
     await appendInteraction(opts.dataDir, opts.slug, {
       date,
       type: "Email",
@@ -122,6 +156,7 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
       subject,
       summary: emailSummary.summary,
       nextSteps: emailSummary.nextSteps,
+      ...(attachmentLinks.length > 0 ? { attachments: attachmentLinks } : {}),
       sourceRef: source,
       synced: new Date().toISOString(),
     });

@@ -8,6 +8,8 @@ export const InteractionEntrySchema = z.object({
   subject: z.string().optional(),
   summary: z.string().min(1),
   nextSteps: z.array(z.string()).default([]),
+  /** Relative links (from the customer dir) to converted attachment Markdown. */
+  attachments: z.array(z.string()).optional(),
   sourceRef: z.string().min(1),
   synced: z.string().min(1),
 });
