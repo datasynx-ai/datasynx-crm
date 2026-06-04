@@ -727,3 +727,16 @@ dxcrm template render <id> --slug <slug>         # Render template with customer
 
 **Variables:** `{{customerName}}`, `{{contactEmail}}`, `{{dealValue}}`, `{{stage}}`, `{{ownerName}}`
 
+
+## dxcrm webhook
+
+Outbound webhooks for event-driven integrations. Deliveries are signed
+(`X-DXCRM-Signature: sha256=...`) when a secret is set; failures queue in
+`.agentic/webhook-failures.json` and are replayed by `dxcrm webhook retry`.
+
+```bash
+dxcrm webhook add https://hooks.example.com/x --events record.created,deal.updated --secret s3cr3t
+dxcrm webhook list
+dxcrm webhook retry          # re-attempt failed deliveries
+dxcrm webhook remove <id>
+```

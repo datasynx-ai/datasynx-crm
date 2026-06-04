@@ -41,6 +41,10 @@ export function handleCreateRecord(
   enforceRbac(dataDir, "create_record");
   const res = createRecord(dataDir, input.object, input.values);
   if (!res.ok) return json({ error: (res.errors ?? []).join("; ") });
+  // Fire-and-forget outbound webhook (event-driven; failures queue for replay).
+  void import("../../core/webhooks.js").then(({ emitEvent }) =>
+    emitEvent(dataDir, "record.created", { object: input.object, record: res.record })
+  );
   return json({ record: res.record });
 }
 

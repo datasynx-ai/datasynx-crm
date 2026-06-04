@@ -181,7 +181,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N4-2 | Journeys (mehrstufig, multichannel) | Marketing | L | 🔲 |
 | N4-3 | CDP: Identity Resolution + Unified Profiles + Calculated Insights | Data | L | 🔲 |
 | N5-1 | Custom Objects/Fields via Metadata-API (No-Migration) | Platform | L | ✅ (CRUD + `dxcrm object` CLI + 4 MCP-Tools) |
-| N5-2 | Webhook-CRUD-Events (Backoff + Replay-Store) | Platform | M | 🔲 |
+| N5-2 | Webhook-CRUD-Events (Backoff + Replay-Store) | Platform | M | ✅ (`dxcrm webhook` + emitEvent/retryFailures; create_record emittiert) |
 | N5-3 | Sharing-Rules / Field-/Row-Level-Security | Platform | M | 🔲 |
 | N6-1 | Bi-temporaler Wissensgraph (4 Zeitstempel/Edge) | Memory | L | 🟡 (Primitive ✅: validFrom/To+recordedAt/invalidatedAt, invalidateEdge/activeEdges; Auto-Invalidation widersprüchlicher Fakten + Kùzu offen) |
 | N6-2 | Multi-Agent-Orchestrierung (Subagents/Handoffs) | Agentic | L | 🔲 |
