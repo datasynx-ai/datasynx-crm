@@ -1,4 +1,4 @@
-# Data Schemas — DatasynxOpenCRM
+# Data Schemas — Datasynx Agentic CRM
 
 All schemas are validated with Zod v3. Source files are in `src/schemas/`.
 

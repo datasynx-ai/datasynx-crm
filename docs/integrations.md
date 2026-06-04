@@ -1,4 +1,4 @@
-# Framework Integrations — DatasynxOpenCRM
+# Framework Integrations — Datasynx Agentic CRM
 
 `dxcrm init` automatically detects and configures all supported frameworks.
 

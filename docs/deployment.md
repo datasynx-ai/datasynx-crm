@@ -1,4 +1,4 @@
-# Deployment Guide — DatasynxOpenCRM
+# Deployment Guide — Datasynx Agentic CRM
 
 ## Local (Single User)
 
@@ -86,7 +86,7 @@ dxcrm status
 ```ini
 # /etc/systemd/system/dxcrm.service
 [Unit]
-Description=DatasynxOpenCRM MCP Server
+Description=Datasynx Agentic CRM MCP Server
 After=network.target
 
 [Service]

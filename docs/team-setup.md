@@ -1,8 +1,8 @@
-# Team Setup Guide — DatasynxOpenCRM
+# Team Setup Guide — Datasynx Agentic CRM
 
 ## Overview
 
-DatasynxOpenCRM supports shared team access via a central HTTP MCP server on a VM. Each team member connects their AI framework to the shared server. All writes are serialized per customer file; the audit trail tracks who did what.
+Datasynx Agentic CRM supports shared team access via a central HTTP MCP server on a VM. Each team member connects their AI framework to the shared server. All writes are serialized per customer file; the audit trail tracks who did what.
 
 ## Prerequisites
 
@@ -144,7 +144,7 @@ dxcrm audit --limit 100
 
 ## Concurrent Writes
 
-DatasynxOpenCRM uses a per-file write queue (`withFileQueue`) to serialize concurrent writes to the same customer's `interactions.md`. No locking library required — the queue is in-process on the shared server.
+Datasynx Agentic CRM uses a per-file write queue (`withFileQueue`) to serialize concurrent writes to the same customer's `interactions.md`. No locking library required — the queue is in-process on the shared server.
 
 ---
 

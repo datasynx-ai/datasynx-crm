@@ -1,19 +1,27 @@
 {
   "name": "@datasynx/agentic-crm",
   "version": "0.1.0",
-  "description": "Local-first, MCP-native CRM. One agent per customer. npm install.",
+  "description": "The CRM your AI agents actually run — local-first, MCP-native, one autonomous agent per customer. 56 MCP tools for Claude Code, Codex & Cursor.",
   "type": "module",
   "license": "MIT",
   "author": "Datasynx Engineering <eng@datasynx.io>",
   "keywords": [
     "crm",
+    "agentic-crm",
+    "ai-crm",
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "local-first",
     "ai-agent",
     "claude",
+    "claude-code",
+    "codex",
+    "cursor",
+    "anthropic",
     "cli",
     "sales",
+    "self-hosted",
     "lancedb"
   ],
   "repository": {

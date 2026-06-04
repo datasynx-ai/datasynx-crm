@@ -1,6 +1,6 @@
 # Compliance & Privacy
 
-DatasynxOpenCRM is built local-first, which makes most data-protection questions
+Datasynx Agentic CRM is built local-first, which makes most data-protection questions
 easy to answer: your CRM data lives in plain Markdown on your own disk. This page
 covers the governance features that make it defensible in a regulated context
 (EU AI Act, GDPR/DSGVO) — all introduced in domino **D17**.

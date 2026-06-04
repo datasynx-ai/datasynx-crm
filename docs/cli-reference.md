@@ -64,7 +64,7 @@
 
 ## dxcrm init
 
-Initialize DatasynxOpenCRM in the current directory.
+Initialize Datasynx Agentic CRM in the current directory.
 
 ```bash
 dxcrm init
@@ -283,7 +283,7 @@ dxcrm status --unmatched      # List unmatched transcript queue
 **Output example:**
 ```
 ─────────────────────────────────────
- DatasynxOpenCRM Status
+ Datasynx Agentic CRM Status
 ─────────────────────────────────────
  Daemon:     running (PID 12345)
  Kunden:     3 aktiv
