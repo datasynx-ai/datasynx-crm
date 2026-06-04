@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.2.0...v1.3.0) (2026-06-04)
+
+
+### Features
+
+* **daemon:** self-healing — auto-clean temp files + log failed health checks ([b86233c](https://github.com/datasynx-ai/datasynx-crm/commit/b86233c1e0b86e8c20717e3c00050f453a0f360f))
+
 # [1.2.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.1.0...v1.2.0) (2026-06-04)
 
 
