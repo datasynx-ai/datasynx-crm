@@ -24,7 +24,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 
 ## Welle 0 — Fundament (macht alles Folgende sicher, messbar, steuerbar)
 
-### D1 · Backup-all + Restore-Drill — *macht jede weitere Iteration risikofrei* · F1 · S
+### D1 ✅ · Backup-all + Restore-Drill — *macht jede weitere Iteration risikofrei* · F1 · S
 - **Warum zuerst:** Billiges Sicherheitsnetz. Ein generisches, verschlüsseltes Backup über `customers/` **+**
   `.agentic/` erfasst automatisch **jeden später hinzukommenden Datentyp** (Memories, SOPs, Vault). Danach
   ist jedes Experiment reversibel → man baut mutiger und schneller.

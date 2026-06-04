@@ -552,6 +552,65 @@ export async function runRestore(zipPath: string, dataDir?: string): Promise<voi
   }
 }
 
+export interface RestoreDrillReport {
+  ok: boolean;
+  verified: boolean;
+  hasCustomers: boolean;
+  hasAgentic: boolean;
+  reason?: string;
+}
+
+/**
+ * Restore-drill: verify a backup is actually restorable WITHOUT touching live
+ * data — checks integrity (unzip -t) and that the archive contains the expected
+ * top-level state (customers/, .agentic/). Returns a report for monitoring.
+ */
+export async function runRestoreDrill(
+  zipPath: string,
+  opts: { silent?: boolean } = {}
+): Promise<RestoreDrillReport> {
+  const resolved = path.resolve(zipPath);
+  if (!fs.existsSync(resolved)) {
+    if (!opts.silent) console.error(error(`✗ File not found: ${zipPath}`));
+    return {
+      ok: false,
+      verified: false,
+      hasCustomers: false,
+      hasAgentic: false,
+      reason: "not_found",
+    };
+  }
+
+  const verified = verifyBackupFile(resolved);
+  let hasCustomers = false;
+  let hasAgentic = false;
+  if (verified) {
+    try {
+      const listing = execSync(`unzip -l "${resolved}"`, { stdio: "pipe" }).toString();
+      hasCustomers = listing.includes("customers/");
+      hasAgentic = listing.includes(".agentic/");
+    } catch {
+      /* listing failed — treated as incomplete */
+    }
+  }
+
+  const ok = verified && hasCustomers;
+  if (!opts.silent) {
+    if (ok) {
+      console.log(
+        success(
+          `✓ Restore drill OK — integrity verified; customers/${hasAgentic ? " + .agentic/" : ""} present`
+        )
+      );
+    } else {
+      console.error(
+        error(`✗ Restore drill failed (verified=${verified}, customers=${hasCustomers})`)
+      );
+    }
+  }
+  return { ok, verified, hasCustomers, hasAgentic };
+}
+
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
 const scheduleSubCommand = new Command("schedule")
@@ -569,6 +628,14 @@ const verifySubCommand = new Command("verify")
   .argument("<path>", "Path to backup zip")
   .description("Verify backup integrity (SHA-256 + zip test)")
   .action((zipPath: string) => runVerify(zipPath));
+
+const drillSubCommand = new Command("drill")
+  .argument("<path>", "Path to backup zip")
+  .description("Restore-drill: verify a backup is restorable without touching live data")
+  .action(async (zipPath: string) => {
+    const report = await runRestoreDrill(zipPath);
+    if (!report.ok) process.exitCode = 1;
+  });
 
 const listSubCommand = new Command("list").description("List available backups").action(() => {
   const dir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
@@ -598,6 +665,7 @@ export const backupCommand = new Command("backup")
 
 backupCommand.addCommand(scheduleSubCommand);
 backupCommand.addCommand(verifySubCommand);
+backupCommand.addCommand(drillSubCommand);
 backupCommand.addCommand(listSubCommand);
 
 export const restoreCommand = new Command("restore")

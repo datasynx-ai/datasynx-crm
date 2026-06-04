@@ -764,3 +764,39 @@ describe("runVerify", () => {
     exitSpy.mockRestore();
   });
 });
+
+describe("runRestoreDrill", () => {
+  it("returns ok when integrity verifies and customers/ + .agentic/ are present", async () => {
+    vol.fromJSON({ "/crm/backup.zip": "data" });
+    const { execSync } = await import("child_process");
+    vi.mocked(execSync).mockReturnValue(
+      Buffer.from("Archive:\n  customers/acme/main_facts.md\n  .agentic/config.json\n")
+    );
+    const { runRestoreDrill } = await import("../../src/commands/backup.js");
+    const report = await runRestoreDrill("/crm/backup.zip", { silent: true });
+    expect(report.ok).toBe(true);
+    expect(report.verified).toBe(true);
+    expect(report.hasCustomers).toBe(true);
+    expect(report.hasAgentic).toBe(true);
+  });
+
+  it("returns not_found for a missing file", async () => {
+    vol.fromJSON({});
+    const { runRestoreDrill } = await import("../../src/commands/backup.js");
+    const report = await runRestoreDrill("/crm/missing.zip", { silent: true });
+    expect(report.ok).toBe(false);
+    expect(report.reason).toBe("not_found");
+  });
+
+  it("fails when integrity check throws", async () => {
+    vol.fromJSON({ "/crm/backup.zip": "corrupt" });
+    const { execSync } = await import("child_process");
+    vi.mocked(execSync).mockImplementation(() => {
+      throw new Error("unzip: bad CRC");
+    });
+    const { runRestoreDrill } = await import("../../src/commands/backup.js");
+    const report = await runRestoreDrill("/crm/backup.zip", { silent: true });
+    expect(report.ok).toBe(false);
+    expect(report.verified).toBe(false);
+  });
+});
