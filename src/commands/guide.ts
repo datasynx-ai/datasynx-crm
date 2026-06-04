@@ -8,7 +8,7 @@ export const guideCommand = new Command("guide")
     console.log(CAPABILITIES_TEXT);
   });
 
-export const mcpCommand = new Command("mcp");
+export const mcpCommand = new Command("mcp").description("MCP server management and documentation");
 
 mcpCommand.command("docs").action(() => {
   console.log(CAPABILITIES_TEXT);

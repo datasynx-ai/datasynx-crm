@@ -112,6 +112,10 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write   # Required for npm provenance attestation
+    env:
+      # Reading the secret into env here lets the publish step gate on it
+      # (the `secrets` context is not available in step-level `if`).
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -138,7 +142,13 @@ jobs:
           name: sbom
           path: sbom-cyclonedx.json
       - name: Semantic Release
+        # Skips cleanly until NPM_TOKEN is configured, so merges to main stay
+        # green; once the secret is added, releases publish automatically.
+        if: env.HAS_NPM_TOKEN == 'true'
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Release skipped (no NPM_TOKEN)
+        if: env.HAS_NPM_TOKEN != 'true'
+        run: echo "::notice::NPM_TOKEN secret not set — skipping npm release. Add it in Settings → Secrets → Actions to enable automated publishing."

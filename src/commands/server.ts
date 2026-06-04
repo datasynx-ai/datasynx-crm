@@ -99,7 +99,9 @@ export function runServerStatus(dataDir?: string): void {
   }
 }
 
-export const serverCommand = new Command("server");
+export const serverCommand = new Command("server").description(
+  "Start the shared HTTP MCP server for team use"
+);
 
 serverCommand
   .command("start")

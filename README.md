@@ -40,14 +40,14 @@ dxcrm create "Acme Corp" --domain acme.com --email ceo@acme.com
 
 ## Why DatasynxOpenCRM?
 
-| Problem | HubSpot | dxcrm |
+| | Typical SaaS CRM | dxcrm |
 |---|---|---|
-| Monthly cost | €90–900/seat | Free (self-hosted) |
-| AI integration | Plugin/API only | Native MCP, works in Claude Code/Codex/Cursor |
-| Data ownership | Their cloud | Your machine, your files |
-| Offline access | No | Yes — pure markdown |
-| Privacy/GDPR | Complex | Full GDPR erasure built-in |
-| Customization | Limited | Fork it, it's TypeScript |
+| Pricing model | Per-seat subscription | Free & open source (MIT), self-hosted |
+| AI integration | Add-on or API | Native MCP — works in Claude Code, Codex, Cursor |
+| Data location | Vendor cloud | Your machine, plain Markdown files |
+| Offline access | Requires connection | Fully offline |
+| Privacy / GDPR | Cloud data processing | Local-first, with built-in GDPR erasure |
+| Customization | Vendor roadmap | Open source TypeScript — fork & extend |
 
 ---
 

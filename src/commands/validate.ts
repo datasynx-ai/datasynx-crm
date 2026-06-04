@@ -102,6 +102,7 @@ export async function runValidate(opts: { fix?: boolean }, dataDir: string): Pro
 }
 
 export const validateCommand = new Command("validate")
+  .description("Validate all customer data against schemas")
   .option("--fix", "Auto-fix recoverable issues")
   .action(async (opts: { fix?: boolean }) => {
     await runValidate(opts, process.env["DXCRM_DATA_DIR"] ?? process.cwd());

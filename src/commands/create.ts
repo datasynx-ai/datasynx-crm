@@ -68,6 +68,7 @@ export async function createCustomer(opts: {
 }
 
 export const createCommand = new Command("create")
+  .description("Create a new customer")
   .argument("<name>", "Customer name")
   .option("--domain <domain>", "Primary domain (for Gmail sync)")
   .option("--email <email>", "Primary contact email")

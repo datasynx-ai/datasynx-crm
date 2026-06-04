@@ -8,7 +8,7 @@ function getPidFile(): string {
   return path.join(process.cwd(), ".agentic", "daemon.pid");
 }
 
-export const daemonCommand = new Command("daemon");
+export const daemonCommand = new Command("daemon").description("Manage the background sync daemon");
 
 daemonCommand.command("start").action(async () => {
   const pidFile = getPidFile();

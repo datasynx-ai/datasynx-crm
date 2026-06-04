@@ -64,6 +64,7 @@
   ],
   "scripts": {
     "build": "tsdown && node scripts/postbuild.js",
+    "docs:generate": "tsx scripts/generate-docs.ts",
     "dev": "tsx watch src/cli.ts",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.types.json",
     "lint": "eslint src --max-warnings 0",

@@ -4,6 +4,7 @@ import { renderCustomerTable } from "../ui/table.js";
 import type { MainFacts } from "../schemas/main-facts.js";
 
 export const listCommand = new Command("list")
+  .description("List all customers")
   .option("--filter <query>", "Filter by name or slug")
   .action(async (opts: { filter?: string }) => {
     const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();

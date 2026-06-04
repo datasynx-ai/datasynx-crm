@@ -70,7 +70,9 @@ export function readAllSessions(
     .filter((s): s is NonNullable<typeof s> => s !== null);
 }
 
-export const sessionCommand = new Command("session");
+export const sessionCommand = new Command("session").description(
+  "Manage the active customer session"
+);
 
 sessionCommand
   .command("open <slug>")

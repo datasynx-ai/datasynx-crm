@@ -1,53 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { createCommand } from "./commands/create.js";
-import { listCommand } from "./commands/list.js";
-import { validateCommand } from "./commands/validate.js";
-import { sessionCommand } from "./commands/session.js";
-import { guideCommand, mcpCommand } from "./commands/guide.js";
-import { initCommand } from "./commands/init.js";
-import { syncCommand } from "./commands/sync.js";
-import { backupCommand, restoreCommand } from "./commands/backup.js";
-import { daemonCommand } from "./commands/daemon.js";
-import { statusCommand } from "./commands/status.js";
-import { agentCommand } from "./commands/agent.js";
-import { importCommand } from "./commands/import.js";
-import { serverCommand } from "./commands/server.js";
-import { auditCommand } from "./commands/audit.js";
-import { rbacCommand } from "./commands/rbac.js";
-import { gdprCommand } from "./commands/gdpr.js";
-import { securityReportCommand } from "./commands/security-report.js";
-import { stagesCommand } from "./commands/pipeline-stages.js";
-import { pluginCommand } from "./commands/plugin.js";
-import { goalCommand } from "./commands/goal.js";
-import { pushCommand } from "./commands/push.js";
-import { attachCommand } from "./commands/attach.js";
-import { templateCommand } from "./commands/template.js";
-import { sequenceCommand } from "./commands/sequence.js";
-import { quoteCommand } from "./commands/quote.js";
-import { ticketCommand } from "./commands/ticket.js";
-import { surveyCommand } from "./commands/survey.js";
-import { kbCommand } from "./commands/kb.js";
-import { fieldsCommand, objectCommand } from "./commands/fields.js";
-import { webhookCommand } from "./commands/webhook.js";
-import { segmentCommand } from "./commands/segment.js";
-import { identityCommand } from "./commands/identity.js";
-import { metricsCommand } from "./commands/metrics.js";
-import { usageCommand } from "./commands/usage.js";
-import { approvalsCommand, policyCommand } from "./commands/approvals.js";
-import { hygieneCommand } from "./commands/hygiene.js";
-import { memoryCommand } from "./commands/memory.js";
-import { sopCommand } from "./commands/sop.js";
-import { toneCommand } from "./commands/tone.js";
-import { autofillCommand } from "./commands/autofill.js";
-import { askCommand } from "./commands/ask.js";
-import { nbaCommand } from "./commands/nba.js";
-import { vaultCommand } from "./commands/vault.js";
-import { churnCommand } from "./commands/churn.js";
-import { leadscoreCommand } from "./commands/leadscore.js";
-import { enrichCommand } from "./commands/enrich.js";
-import { coachCommand } from "./commands/coach.js";
-import { complianceCommand } from "./commands/compliance.js";
+import { ALL_COMMANDS } from "./commands/registry.js";
 
 const program = new Command();
 program
@@ -56,57 +9,8 @@ program
   .version("0.1.0")
   .exitOverride(); // for testability
 
-program.addCommand(initCommand);
-program.addCommand(createCommand);
-program.addCommand(listCommand);
-program.addCommand(validateCommand);
-program.addCommand(sessionCommand);
-program.addCommand(guideCommand);
-program.addCommand(mcpCommand);
-program.addCommand(syncCommand);
-program.addCommand(backupCommand);
-program.addCommand(restoreCommand);
-program.addCommand(daemonCommand);
-program.addCommand(statusCommand);
-program.addCommand(agentCommand);
-program.addCommand(importCommand);
-program.addCommand(serverCommand);
-program.addCommand(auditCommand);
-program.addCommand(rbacCommand);
-program.addCommand(gdprCommand);
-program.addCommand(securityReportCommand);
-program.addCommand(stagesCommand);
-program.addCommand(pluginCommand);
-program.addCommand(goalCommand);
-program.addCommand(pushCommand);
-program.addCommand(attachCommand);
-program.addCommand(templateCommand);
-program.addCommand(sequenceCommand);
-program.addCommand(quoteCommand);
-program.addCommand(ticketCommand);
-program.addCommand(surveyCommand);
-program.addCommand(kbCommand);
-program.addCommand(fieldsCommand);
-program.addCommand(objectCommand);
-program.addCommand(webhookCommand);
-program.addCommand(segmentCommand);
-program.addCommand(identityCommand);
-program.addCommand(metricsCommand);
-program.addCommand(usageCommand);
-program.addCommand(approvalsCommand);
-program.addCommand(policyCommand);
-program.addCommand(hygieneCommand);
-program.addCommand(memoryCommand);
-program.addCommand(sopCommand);
-program.addCommand(toneCommand);
-program.addCommand(autofillCommand);
-program.addCommand(askCommand);
-program.addCommand(nbaCommand);
-program.addCommand(vaultCommand);
-program.addCommand(churnCommand);
-program.addCommand(leadscoreCommand);
-program.addCommand(enrichCommand);
-program.addCommand(coachCommand);
-program.addCommand(complianceCommand);
+for (const command of ALL_COMMANDS) {
+  program.addCommand(command);
+}
 
 await program.parseAsync(process.argv);
