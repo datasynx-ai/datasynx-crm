@@ -4,6 +4,7 @@ import chokidar, { type FSWatcher } from "chokidar";
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
+import { escapeRegExp } from "../core/regex.js";
 
 interface WatchOptions {
   paths: string[];
@@ -102,8 +103,7 @@ function fuzzyMatchCustomer(
     }
 
     // Count name occurrences in content
-    const escaped = nameLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    score += contentPreview.match(new RegExp(escaped, "g"))?.length ?? 0;
+    score += contentPreview.match(new RegExp(escapeRegExp(nameLower), "g"))?.length ?? 0;
 
     if (score > 0 && (!best || score > best.score)) {
       best = { slug, score };

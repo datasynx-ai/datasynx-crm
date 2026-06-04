@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
+import { escapeRegExp } from "./regex.js";
 
 const MAX_INTERACTIONS = 10;
 
@@ -25,7 +26,7 @@ function parsePipelineContent(filePath: string): string {
 }
 
 function extractSection(content: string, sectionName: string): string {
-  const regex = new RegExp(`## ${sectionName}([\\s\\S]*?)(?=^## |$)`, "m");
+  const regex = new RegExp(`## ${escapeRegExp(sectionName)}([\\s\\S]*?)(?=^## |$)`, "m");
   const match = regex.exec(content);
   return match ? (match[1] ?? "").trim() : "";
 }
