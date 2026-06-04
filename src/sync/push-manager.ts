@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeJsonFile } from "../fs/json-store.js";
 
 export type PushProvider = "gmail" | "microsoft-graph" | "slack";
 export type PushStatus = "active" | "expired" | "revoked" | "error" | "permanently_failed";
@@ -59,7 +60,7 @@ export async function writeSubscriptions(dataDir: string, subs: PushSubscription
   const filePath = subscriptionsPath(dataDir);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const file: PushSubscriptionsFile = { subscriptions: subs, updatedAt: new Date().toISOString() };
-  fs.writeFileSync(filePath, JSON.stringify(file, null, 2), "utf-8");
+  writeJsonFile(filePath, file);
 }
 
 function expiresAtForProvider(provider: PushProvider): string | null {

@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { success, error, info, bold } from "../ui/colors.js";
 import { AgentConfigSchema, type AgentConfig } from "../schemas/agent-config.js";
+import { writeJsonFile } from "../fs/json-store.js";
 
 function agentsDir(dataDir: string): string {
   return path.join(dataDir, ".agentic", "agents");
@@ -39,8 +40,7 @@ export async function runAgentSpawn(
     ...(opts.chatId !== undefined ? { telegramChatId: opts.chatId } : {}),
   });
 
-  fs.mkdirSync(agentsDir(dir), { recursive: true });
-  fs.writeFileSync(agentConfigPath(dir, slug), JSON.stringify(config, null, 2), "utf-8");
+  writeJsonFile(agentConfigPath(dir, slug), config);
 
   console.log(success(`✓ Agent spawned: ${bold(slug)}`));
   console.log(info(`  Channel:  ${channel}`));

@@ -4,6 +4,8 @@ import path from "path";
 import { createHash } from "crypto";
 import { success, error, info, bold } from "../ui/colors.js";
 import { appendInteraction, InteractionDedup } from "../fs/interactions-writer.js";
+import { writeFileAtomic } from "../fs/atomic-write.js";
+import { writeJsonFile } from "../fs/json-store.js";
 
 interface ImportResult {
   customersCreated: number;
@@ -121,32 +123,20 @@ function ensureCustomer(
     .filter(Boolean)
     .join("\n");
 
-  fs.writeFileSync(mainFactsPath, `${frontmatter}\n\n# Customer: ${name}\n`, "utf-8");
-  fs.writeFileSync(
-    path.join(customerDir, "interactions.md"),
-    `# Interactions — ${name}\n\n`,
-    "utf-8"
-  );
-  fs.writeFileSync(path.join(customerDir, "pipeline.md"), `# Pipeline — ${name}\n\n`, "utf-8");
-  fs.writeFileSync(
-    path.join(customerDir, "sources.json"),
-    JSON.stringify(
-      {
-        gmail: {
-          query: domain
-            ? `from:${domain} OR to:${domain}`
-            : email
-              ? `from:${email} OR to:${email}`
-              : "",
-          enabled: true,
-        },
-        transcripts: { paths: [], extensions: [".txt", ".vtt"], enabled: false },
-      },
-      null,
-      2
-    ),
-    "utf-8"
-  );
+  writeFileAtomic(mainFactsPath, `${frontmatter}\n\n# Customer: ${name}\n`);
+  writeFileAtomic(path.join(customerDir, "interactions.md"), `# Interactions — ${name}\n\n`);
+  writeFileAtomic(path.join(customerDir, "pipeline.md"), `# Pipeline — ${name}\n\n`);
+  writeJsonFile(path.join(customerDir, "sources.json"), {
+    gmail: {
+      query: domain
+        ? `from:${domain} OR to:${domain}`
+        : email
+          ? `from:${email} OR to:${email}`
+          : "",
+      enabled: true,
+    },
+    transcripts: { paths: [], extensions: [".txt", ".vtt"], enabled: false },
+  });
 
   return { slug, created: true };
 }

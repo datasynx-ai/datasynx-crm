@@ -4,6 +4,7 @@
 import https from "https";
 import fs from "fs";
 import path from "path";
+import { writeJsonFile } from "../fs/json-store.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,9 +56,7 @@ export function writeSignals(
   date: string,
   signals: ExternalSignal[]
 ): void {
-  const dir = signalsDir(dataDir, slug);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(signalsFilePath(dataDir, slug, date), JSON.stringify(signals, null, 2), "utf-8");
+  writeJsonFile(signalsFilePath(dataDir, slug, date), signals);
 }
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────

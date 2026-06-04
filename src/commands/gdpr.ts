@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import fs from "fs";
 import path from "path";
+import { writeJsonFile } from "../fs/json-store.js";
 import { success, info, bold } from "../ui/colors.js";
 import { writeAuditEntry, getActor } from "../fs/audit-log.js";
 import { withJsonFile } from "../core/file-lock.js";
@@ -31,7 +32,7 @@ function appendErasure(dataDir: string, record: ErasureRecord): void {
   fs.mkdirSync(path.dirname(p), { recursive: true });
   const existing = readErasures(dataDir);
   existing.push(record);
-  fs.writeFileSync(p, JSON.stringify(existing, null, 2), "utf-8");
+  writeJsonFile(p, existing);
 }
 
 export async function runGdprErase(

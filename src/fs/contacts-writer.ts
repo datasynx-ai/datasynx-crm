@@ -1,6 +1,7 @@
 import path from "path";
 import { z } from "zod";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
+import { assertSafeSlug } from "./customer-dir.js";
 
 export const CustomerContactSchema = z.object({
   email: z.string().email(),
@@ -31,6 +32,7 @@ export function listContacts(dataDir: string, slug: string): CustomerContact[] {
 }
 
 export function upsertContact(dataDir: string, slug: string, contact: CustomerContact): void {
+  assertSafeSlug(slug);
   const contacts = listContacts(dataDir, slug);
   const idx = contacts.findIndex((c) => c.email.toLowerCase() === contact.email.toLowerCase());
   if (idx >= 0) {

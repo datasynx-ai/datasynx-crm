@@ -7,6 +7,7 @@
 import fs from "fs";
 import https from "https";
 import path from "path";
+import { writeJsonFile } from "../fs/json-store.js";
 import { AgentConfigSchema, type AgentConfig } from "../schemas/agent-config.js";
 import { summarizeEmail } from "./llm.js";
 
@@ -41,7 +42,7 @@ function writeLastWake(dataDir: string, slug: string, config: AgentConfig): void
   const p = agentConfigPath(dataDir, slug);
   try {
     const updated: AgentConfig = { ...config, lastWake: new Date().toISOString() };
-    fs.writeFileSync(p, JSON.stringify(updated, null, 2), "utf-8");
+    writeJsonFile(p, updated);
   } catch {
     // non-fatal — just a housekeeping write
   }

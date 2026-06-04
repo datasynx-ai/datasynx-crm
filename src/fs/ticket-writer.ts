@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { TicketSchema, type Ticket } from "../schemas/ticket.js";
-import { listCustomerSlugs } from "./customer-dir.js";
+import { listCustomerSlugs, assertSafeSlug } from "./customer-dir.js";
 import { writeFileAtomic } from "./atomic-write.js";
 
 const TICKET_HEADER = "# Tickets\n\n";
@@ -9,6 +9,7 @@ const TABLE_HEADER = `| ID | Title | Status | Priority | Assignee | Created | SL
 |----|-------|--------|----------|----------|---------|---------|---------|`;
 
 function ticketsPath(dataDir: string, slug: string): string {
+  assertSafeSlug(slug);
   return path.join(dataDir, "customers", slug, "tickets.md");
 }
 

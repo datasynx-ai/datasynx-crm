@@ -27,7 +27,7 @@ Your pipeline lives as plain Markdown on your machine — and your AI agents rea
 
 > **You don't open a CRM to find your customer. Your customer's agent finds _you_ — briefed, current, and ready to act.**
 
-Your AI agents are brilliant — and forgetful. **Datasynx Agentic CRM is the long-term memory and the hands** they use to run your customer relationships. Every customer is a folder of human-readable Markdown on your own disk; **56 purpose-built [Model Context Protocol](https://modelcontextprotocol.io) tools** let any agent load full context, score deals, forecast revenue, draft the follow-up, and log what happened — without you copy-pasting a thing.
+Your AI agents are brilliant — and forgetful. **Datasynx Agentic CRM is the long-term memory and the hands** they use to run your customer relationships. Every customer is a folder of human-readable Markdown on your own disk; **55+ purpose-built [Model Context Protocol](https://modelcontextprotocol.io) tools** let any agent load full context, score deals, forecast revenue, draft the follow-up, and log what happened — without you copy-pasting a thing.
 
 **No database. No cloud lock-in. No per-seat pricing. Zero telemetry.**
 
@@ -64,7 +64,7 @@ flowchart LR
     Agent["🤖 Claude Code · Codex · Cursor"] <-->|Model Context Protocol| MCP
 
     subgraph local["🔒 Your machine"]
-        MCP["⚙️ dxcrm MCP server<br/>56 typed tools · RBAC · audit"]
+        MCP["⚙️ dxcrm MCP server<br/>55+ typed tools · RBAC · audit"]
         Files["📁 customers/&lt;name&gt;/<br/>main_facts · interactions · pipeline"]
         MCP <--> Files
     end
@@ -109,7 +109,7 @@ flowchart LR
 Every customer is a folder of <code>main_facts</code>, <code>interactions</code>, and <code>pipeline</code> files. Git-friendly, grep-able, yours forever.
 </td>
 <td align="center" width="33%">
-<h3>🔌 56 MCP tools</h3>
+<h3>🔌 55+ MCP tools</h3>
 Typed tools for context, deals, comms, and intelligence — discoverable by agents via <code>get_capabilities</code>.
 </td>
 <td align="center" width="33%">
@@ -181,7 +181,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                   dxcrm MCP server  ·  56 tools                    │
+│                   dxcrm MCP server  ·  55+ tools                    │
 │                                                                    │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐  │
 │  │  Customer  │ │  Pipeline  │ │Relationship│ │   Forecasting   │  │
@@ -206,7 +206,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
   Import:   HubSpot · Salesforce · Pipedrive · CSV
 ```
 
-→ Full reference: **[52 CLI commands](https://datasynx-ai.github.io/datasynx-crm/#full-cli-reference)** · **[56 MCP tools](https://datasynx-ai.github.io/datasynx-crm/#full-mcp-reference)**
+→ Full reference: **[54 CLI commands](https://datasynx-ai.github.io/datasynx-crm/#full-cli-reference)** · **[55+ MCP tools](https://datasynx-ai.github.io/datasynx-crm/#full-mcp-reference)**
 
 <br/>
 
@@ -245,7 +245,7 @@ bundle of all conversations and documents for a customer with the
 | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | **Not another SaaS tab.**    | It lives inside your AI agent and your filesystem — not a browser dashboard you have to open. |
 | **Not a database.**          | Customers are Markdown folders. Back them up with `cp`, version them with `git`.              |
-| **Not a chatbot wrapper.**   | 56 typed MCP tools with RBAC and audit — not a single prompt pretending to be a product.      |
+| **Not a chatbot wrapper.**   | 55+ typed MCP tools with RBAC and audit — not a single prompt pretending to be a product.      |
 | **Not a data grab.**         | Zero telemetry. Your data never leaves your machine unless you wire up an integration.        |
 | **Not lock-in.**             | MIT-licensed, plain files, export anytime. Leaving is a `cp -r` away.                         |
 
@@ -319,7 +319,7 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 
 **Shipped**
 
-- ✅ 56 MCP tools · 52 CLI commands · local-first Markdown store
+- ✅ 55+ MCP tools · 54 CLI commands · local-first Markdown store
 - ✅ Hybrid (vector + full-text) search over emails & transcripts
 - ✅ Sync: Gmail, Outlook, Google Drive, Teams, Google Meet
 - ✅ Import: HubSpot, Salesforce, Pipedrive, CSV

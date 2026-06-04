@@ -17,6 +17,8 @@ import { agentCommand } from "./agent.js";
 import { importCommand } from "./import.js";
 import { serverCommand } from "./server.js";
 import { auditCommand } from "./audit.js";
+import { logsCommand } from "./logs.js";
+import { doctorCommand } from "./doctor.js";
 import { rbacCommand } from "./rbac.js";
 import { gdprCommand } from "./gdpr.js";
 import { securityReportCommand } from "./security-report.js";
@@ -70,6 +72,8 @@ export const ALL_COMMANDS: readonly Command[] = [
   importCommand,
   serverCommand,
   auditCommand,
+  logsCommand,
+  doctorCommand,
   rbacCommand,
   gdprCommand,
   securityReportCommand,

@@ -4,6 +4,7 @@ import path from "path";
 import { execSync } from "child_process";
 import { createHash } from "crypto";
 import { success, error, info, bold } from "../ui/colors.js";
+import { writeJsonFile } from "../fs/json-store.js";
 
 export interface BackupManifest {
   version: "1";
@@ -59,9 +60,7 @@ function readAgenticConfig(dataDir: string): AgenticConfig {
 }
 
 function writeAgenticConfig(dataDir: string, config: AgenticConfig): void {
-  const filePath = getConfigPath(dataDir);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(config, null, 2), "utf-8");
+  writeJsonFile(getConfigPath(dataDir), config);
 }
 
 // ─── Manifest ─────────────────────────────────────────────────────────────────
@@ -160,8 +159,7 @@ function appendBackupLog(dataDir: string, entry: BackupEntry): void {
   entries.unshift(entry);
   // Keep last 100 entries
   if (entries.length > 100) entries = entries.slice(0, 100);
-  fs.mkdirSync(path.dirname(logPath), { recursive: true });
-  fs.writeFileSync(logPath, JSON.stringify(entries, null, 2), "utf-8");
+  writeJsonFile(logPath, entries);
 }
 
 export function readBackupLog(dataDir: string): BackupEntry[] {

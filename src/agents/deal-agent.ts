@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeJsonFile } from "../fs/json-store.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
 import { deriveDealTiming, scoreDealForToday } from "../core/deal-health.js";
 import { computeCustomerHealth, readHealth } from "../core/relationship-health.js";
@@ -128,7 +129,7 @@ export function writeAgentQueue(dataDir: string, slug: string, queue: AgentQueue
   const dir = path.dirname(p);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const updated: AgentQueue = { ...queue, updatedAt: new Date().toISOString() };
-  fs.writeFileSync(p, JSON.stringify(updated, null, 2), "utf-8");
+  writeJsonFile(p, updated);
 }
 
 // ─── Action ID ────────────────────────────────────────────────────────────────

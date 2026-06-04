@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { appendInteraction, formatInteractionEntry } from "../../fs/interactions-writer.js";
+import { writeFileAtomic } from "../../fs/atomic-write.js";
 import type { InteractionEntry } from "../../schemas/interaction.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 import { enforceRbac } from "../../core/rbac.js";
@@ -75,7 +76,7 @@ export async function handleLogInteraction(
           /^(last_touchpoint:\s*)['"](\d{4}-\d{2}-\d{2})['"]/m,
           "$1$2"
         );
-        fs.writeFileSync(mainFactsPath, serialized, "utf-8");
+        writeFileAtomic(mainFactsPath, serialized);
       } catch {
         // non-critical — interaction is already written
       }

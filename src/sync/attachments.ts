@@ -4,6 +4,8 @@ import path from "path";
 import type { gmail_v1 } from "@googleapis/gmail";
 import { convertAttachment } from "./converters/registry.js";
 import { chunkText } from "../core/chunk.js";
+import { assertSafeSlug } from "../fs/customer-dir.js";
+import { logger } from "../core/logger.js";
 
 /** Default per-attachment size cap (skip larger blobs to keep syncs bounded). */
 export const DEFAULT_MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
@@ -88,6 +90,7 @@ export async function processMessageAttachments(opts: {
   const parts = collectAttachmentParts(opts.payload);
   if (parts.length === 0) return [];
 
+  assertSafeSlug(opts.slug);
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_ATTACHMENT_BYTES;
   const attachmentsDir = path.join(opts.dataDir, "customers", opts.slug, "attachments");
   fs.mkdirSync(attachmentsDir, { recursive: true });
@@ -98,9 +101,10 @@ export async function processMessageAttachments(opts: {
   for (const part of parts) {
     try {
       if (part.size > maxBytes) {
-        process.stderr.write(
-          `[gmail-sync] Skipping oversized attachment ${part.filename} (${part.size} bytes)\n`
-        );
+        logger.warn("gmail-sync", "skipping oversized attachment", {
+          filename: part.filename,
+          bytes: part.size,
+        });
         continue;
       }
 
@@ -128,9 +132,9 @@ export async function processMessageAttachments(opts: {
           date: opts.date,
           type: "attachment",
         }).catch((err: unknown) => {
-          process.stderr.write(
-            `[gmail-sync] attachment index failed: ${(err as Error).message}\n`
-          );
+          logger.error("gmail-sync", "attachment index failed", {
+            error: (err as Error).message,
+          });
         });
       }
 
@@ -142,9 +146,10 @@ export async function processMessageAttachments(opts: {
         chunks: chunks.length,
       });
     } catch (err) {
-      process.stderr.write(
-        `[gmail-sync] attachment ${part.filename} failed: ${(err as Error).message}\n`
-      );
+      logger.warn("gmail-sync", "attachment failed", {
+        filename: part.filename,
+        error: (err as Error).message,
+      });
     }
   }
 

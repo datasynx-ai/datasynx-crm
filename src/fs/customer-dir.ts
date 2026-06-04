@@ -4,8 +4,19 @@ import matter from "gray-matter";
 import { fromZodError } from "zod-validation-error";
 import { MainFactsSchema, type MainFacts } from "../schemas/main-facts.js";
 import { writeFileAtomic } from "./atomic-write.js";
+import { isSafePathSegment, assertSafePathSegment } from "./safe-path.js";
+
+/** A customer slug is safe iff it is a safe filesystem path segment. */
+export function isSafeSlug(slug: unknown): slug is string {
+  return isSafePathSegment(slug);
+}
+
+export function assertSafeSlug(slug: string): void {
+  assertSafePathSegment(slug, "customer slug");
+}
 
 export function getCustomerDir(dataDir: string, slug: string): string {
+  assertSafeSlug(slug);
   return path.join(dataDir, "customers", slug);
 }
 

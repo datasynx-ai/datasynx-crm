@@ -11,8 +11,8 @@ Any content generated with an LLM (e.g. an AI-polished `draft_email` body) is
 labelled with a transparency disclosure so recipients know AI was involved.
 
 - **On by default.** Opt out with `DXCRM_AI_DISCLOSURE=off`.
-- **Localized.** `DXCRM_AI_DISCLOSURE_LANG=de|en` (default `de`).
-- Disclosure text: *"Hinweis: Dieser Inhalt wurde mithilfe von KI erstellt (EU-AI-Act Art. 50)."*
+- **Localized.** `DXCRM_AI_DISCLOSURE_LANG=en|de` (default `en`).
+- Disclosure text (default): *"Note: This content was generated with the help of AI (EU AI Act Art. 50)."* (German available via `DXCRM_AI_DISCLOSURE_LANG=de`)
 
 ```bash
 dxcrm compliance            # show the active posture (provider, disclosure, PII, guardrails)

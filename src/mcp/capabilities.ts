@@ -97,6 +97,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | list_backups | List available backups with date, size, verification status, and customer count | any |
 | trigger_sync | Force immediate Gmail sync for one or all customers | rep+ |
 | get_audit_log | Read audit log — all write operations with actor, tool, customer | admin |
+| get_logs | Query/aggregate the structured application log (level, component, errors) | admin |
 | define_custom_object | Define a runtime custom object type with typed fields (no migration) | admin |
 | create_record | Create a record of a custom object (validated against its schema) | rep+ |
 | list_records | List records of a custom object | any |

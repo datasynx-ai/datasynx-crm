@@ -3,6 +3,8 @@ import path from "path";
 import fs from "fs";
 import slugify from "slug";
 import { ensureCustomerDir, writeMainFacts } from "../fs/customer-dir.js";
+import { writeFileAtomic } from "../fs/atomic-write.js";
+import { writeJsonFile } from "../fs/json-store.js";
 import { success, error, bold } from "../ui/colors.js";
 
 export async function createCustomer(opts: {
@@ -32,13 +34,13 @@ export async function createCustomer(opts: {
   // Create interactions.md
   const interactionsPath = path.join(dir, "interactions.md");
   if (!fs.existsSync(interactionsPath)) {
-    fs.writeFileSync(interactionsPath, `# Interactions — ${opts.name}\n\n`);
+    writeFileAtomic(interactionsPath, `# Interactions — ${opts.name}\n\n`);
   }
 
   // Create pipeline.md
   const pipelinePath = path.join(dir, "pipeline.md");
   if (!fs.existsSync(pipelinePath)) {
-    fs.writeFileSync(
+    writeFileAtomic(
       pipelinePath,
       `# Pipeline — ${opts.name}\n\n| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes |\n|---|---|---|---|---|---|---|---|\n`
     );
@@ -61,7 +63,7 @@ export async function createCustomer(opts: {
       version: 1,
       created: new Date().toISOString(),
     };
-    fs.writeFileSync(sourcesPath, JSON.stringify(sources, null, 2));
+    writeJsonFile(sourcesPath, sources);
   }
 
   return { id, dir };

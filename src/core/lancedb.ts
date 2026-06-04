@@ -4,6 +4,7 @@ import { makeArrowTable } from "@lancedb/lancedb";
 import { Schema, Field, FixedSizeList, Float32 as ArrowFloat32, Utf8 } from "apache-arrow";
 import path from "path";
 import { embedText } from "./embedder.js";
+import { logger } from "./logger.js";
 
 let _db: lancedb.Connection | null = null;
 
@@ -73,7 +74,7 @@ export async function indexInLanceDB(
       .whenNotMatchedInsertAll()
       .execute(data);
   } catch (err) {
-    process.stderr.write(`[lancedb] indexInLanceDB failed: ${(err as Error).message}\n`);
+    logger.error("lancedb", "indexInLanceDB failed", { error: (err as Error).message });
   }
 }
 
@@ -86,7 +87,7 @@ export async function dropCustomerTable(dataDir: string, slug: string): Promise<
       await db.dropTable(tableName);
     }
   } catch (err) {
-    process.stderr.write(`[lancedb] dropCustomerTable failed: ${(err as Error).message}\n`);
+    logger.error("lancedb", "dropCustomerTable failed", { error: (err as Error).message });
   }
 }
 

@@ -8,6 +8,7 @@ import { guardIsoDate } from "./input-guard.js";
 import type { DealSnapshot, SimulationInput } from "./revenue-simulation.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
 import { listCustomerSlugs } from "../fs/customer-dir.js";
+import { writeJsonFile } from "../fs/json-store.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,13 +76,7 @@ export function readGoals(dataDir: string): Goal[] {
 }
 
 export function writeGoals(dataDir: string, goals: Goal[]): void {
-  const p = goalsPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(
-    p,
-    JSON.stringify({ goals, updatedAt: new Date().toISOString() }, null, 2),
-    "utf-8"
-  );
+  writeJsonFile(goalsPath(dataDir), { goals, updatedAt: new Date().toISOString() });
 }
 
 export function makeGoalId(): string {

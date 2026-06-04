@@ -5,6 +5,7 @@ import { gmail as gmailApi, type gmail_v1 } from "@googleapis/gmail";
 import type { OAuth2Client } from "google-auth-library";
 import { readInteractions, appendInteraction } from "../fs/interactions-writer.js";
 import { notifyAgentWake } from "../core/agent-notifier.js";
+import { logger } from "../core/logger.js";
 
 interface SyncOptions {
   slug: string;
@@ -102,9 +103,10 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
       );
       msgData = detail.data;
     } catch (err) {
-      process.stderr.write(
-        `[gmail-sync] Skipping message ${msg.id} after retries: ${(err as Error).message}\n`
-      );
+      logger.warn("gmail-sync", "skipping message after retries", {
+        messageId: msg.id,
+        error: (err as Error).message,
+      });
       skipped++;
       continue;
     }
@@ -147,9 +149,10 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
         });
         attachmentLinks = saved.map((a) => a.markdownName);
       } catch (err) {
-        process.stderr.write(
-          `[gmail-sync] attachment processing failed for ${msg.id}: ${(err as Error).message}\n`
-        );
+        logger.warn("gmail-sync", "attachment processing failed", {
+          messageId: msg.id,
+          error: (err as Error).message,
+        });
       }
     }
 
@@ -180,7 +183,7 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
         date,
         type: "Email",
       }).catch((err: unknown) => {
-        process.stderr.write(`[gmail-sync] LanceDB index failed: ${(err as Error).message}\n`);
+        logger.error("gmail-sync", "LanceDB index failed", { error: (err as Error).message });
       });
     }
 

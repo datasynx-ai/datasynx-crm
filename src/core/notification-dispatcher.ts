@@ -3,6 +3,7 @@
 // marks them done for mcp_tool_response (consumed by get_proactive_briefing).
 import https from "https";
 import { readQueue, markTaskDone, type AgentTask } from "./proactive-agent.js";
+import { logger } from "./logger.js";
 
 // ─── Transport helpers ────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ export async function drainProactiveQueue(dataDir: string): Promise<DrainResult>
       sent++;
     } catch (err) {
       failed++;
-      process.stderr.write(`[dispatch] Task ${task.id} failed: ${(err as Error).message}\n`);
+      logger.error("dispatch", "task failed", { task: task.id, error: (err as Error).message });
     }
   }
 

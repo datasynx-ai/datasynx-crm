@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { PipelineDealSchema, type PipelineDeal } from "../schemas/pipeline.js";
 import { writeFileAtomic } from "./atomic-write.js";
+import { assertSafeSlug } from "./customer-dir.js";
 
 const PIPELINE_HEADER = "# Pipeline\n\n";
 const TABLE_HEADER = `| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |
@@ -97,6 +98,7 @@ export async function readPipeline(dataDir: string, slug: string): Promise<Pipel
 }
 
 export async function upsertDeal(dataDir: string, slug: string, deal: PipelineDeal): Promise<void> {
+  assertSafeSlug(slug);
   const filePath = path.join(dataDir, "customers", slug, "pipeline.md");
   const existing = await readPipeline(dataDir, slug);
 
