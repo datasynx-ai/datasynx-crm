@@ -54,7 +54,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 
 ## Welle 1 — Multiplikatoren (machen jede Interaktion klüger/konsistenter/besser)
 
-### D5 · Daten-Hygiene-Agent (Fuzzy-Dedupe + Auto-Fix mit Approval) — *bessere Daten ⇒ jedes AI-Feature wird besser* · C5 · M
+### D5 ✅ · Daten-Hygiene-Agent (Fuzzy-Dedupe + Auto-Fix mit Approval) — *bessere Daten ⇒ jedes AI-Feature wird besser* · C5 · M
 - **Warum hier:** ResearchCRM-Kernthese — „kein AI-Problem, ein Datenhygiene-Problem im AI-Kostüm". Saubere
   Daten heben **rückwirkend** die Qualität von Scoring, Memories, Suche, NBA. Nutzt D4 (Approval) + D2 (Fuzzy).
 - **Hängt ab von:** D2, D4; vorhandenes `identity`-Dedup v1.
