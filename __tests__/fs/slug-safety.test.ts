@@ -70,3 +70,36 @@ describe("fs writers reject traversal slugs", () => {
     ).rejects.toThrow(/invalid customer slug/i);
   });
 });
+
+describe("untrusted name → path guards", () => {
+  it("defineCustomObject rejects a traversal object name", async () => {
+    const { defineCustomObject } = await import("../../src/core/custom-objects.js");
+    expect(() => defineCustomObject("/crm", { name: "../../evil", fields: [] })).toThrow(
+      /invalid custom object name/i
+    );
+    expect(() => defineCustomObject("/crm", { name: "contract", fields: [] })).not.toThrow();
+  });
+
+  it("writeKbArticle rejects traversal id/category", async () => {
+    const { writeKbArticle } = await import("../../src/fs/knowledge-base.js");
+    const base = {
+      title: "T",
+      body: "B",
+      tags: [],
+      public: false,
+      createdAt: "2026-01-01",
+      updatedAt: "2026-01-01",
+    };
+    expect(() => writeKbArticle("/crm", { ...base, id: "../escape", category: "general" })).toThrow(
+      /invalid knowledge-base article id/i
+    );
+    expect(() => writeKbArticle("/crm", { ...base, id: "ok", category: "../x" })).toThrow(
+      /invalid knowledge-base category/i
+    );
+  });
+
+  it("getKbArticle returns null for an unsafe id (no throw on read)", async () => {
+    const { getKbArticle } = await import("../../src/fs/knowledge-base.js");
+    expect(getKbArticle("/crm", "../../etc/passwd")).toBeNull();
+  });
+});
