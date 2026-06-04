@@ -208,18 +208,29 @@ function readMainFactsRaw(dataDir: string, slug: string): string {
   return fs.existsSync(p) ? (fs.readFileSync(p, "utf-8") as string) : "";
 }
 
-function updateMainFactsField(dataDir: string, slug: string, field: string, value: string): void {
+/** Patch several frontmatter fields in main_facts.md with a single read+write. */
+function updateMainFactsFields(
+  dataDir: string,
+  slug: string,
+  fields: Record<string, string | undefined>
+): void {
+  const entries = Object.entries(fields).filter(
+    (e): e is [string, string] => e[1] !== undefined && e[1] !== ""
+  );
+  if (entries.length === 0) return;
   const p = path.join(dataDir, "customers", slug, "main_facts.md");
   if (!fs.existsSync(p)) return;
   let content = fs.readFileSync(p, "utf-8") as string;
-  const regex = new RegExp(`^${field}:.*$`, "m");
-  if (regex.test(content)) {
-    content = content.replace(regex, `${field}: ${value}`);
-  } else {
-    const firstDash = content.indexOf("---");
-    const secondDash = content.indexOf("---", firstDash + 3);
-    if (secondDash >= 0) {
-      content = content.slice(0, secondDash) + `${field}: ${value}\n` + content.slice(secondDash);
+  for (const [field, value] of entries) {
+    const regex = new RegExp(`^${field}:.*$`, "m");
+    if (regex.test(content)) {
+      content = content.replace(regex, `${field}: ${value}`);
+    } else {
+      const firstDash = content.indexOf("---");
+      const secondDash = content.indexOf("---", firstDash + 3);
+      if (secondDash >= 0) {
+        content = content.slice(0, secondDash) + `${field}: ${value}\n` + content.slice(secondDash);
+      }
     }
   }
   fs.writeFileSync(p, content, "utf-8");
@@ -435,23 +446,22 @@ export async function runHubSpotCsvImport(
         result.companiesProcessed++;
 
         if (!dryRun && created) {
-          // Map known fields
+          // Map known fields + owner + HubSpot id, batched into one read+write.
+          const factsPatch: Record<string, string | undefined> = {};
           for (const [hsKey, dxKey] of Object.entries(COMPANY_FIELD_MAP)) {
             const val = row[hsKey] ?? "";
-            if (val) updateMainFactsField(dataDir, slug, dxKey, val);
+            if (val) factsPatch[dxKey] = val;
           }
 
-          // Owner mapping
           const ownerEmail = row["hubspot_owner_email"] ?? row["HubSpot Owner Email"] ?? "";
           if (ownerEmail && ownerMap[ownerEmail]) {
-            updateMainFactsField(dataDir, slug, "assigned_rep", ownerMap[ownerEmail]!);
+            factsPatch["assigned_rep"] = ownerMap[ownerEmail]!;
             result.ownersResolved++;
           }
 
-          // HubSpot ID reference
-          if (hubspotId) {
-            updateMainFactsField(dataDir, slug, "hubspot_company_id", hubspotId);
-          }
+          if (hubspotId) factsPatch["hubspot_company_id"] = hubspotId;
+
+          updateMainFactsFields(dataDir, slug, factsPatch);
 
           // Custom properties — everything not in known columns
           const customProps: Record<string, string> = {};
@@ -553,22 +563,22 @@ export async function runHubSpotCsvImport(
           }
         }
 
-        // Update main_facts primary contact (first contact only)
+        // Update main_facts primary contact (first contact only) — batched into
+        // a single read+write instead of one per field.
         const existing = readMainFactsRaw(dataDir, slug);
-        if (email && !existing.includes("email:"))
-          updateMainFactsField(dataDir, slug, "email", email);
-        if (phone && !existing.includes("phone:"))
-          updateMainFactsField(dataDir, slug, "phone", phone);
-        if (contactName && !existing.includes("primary_contact:")) {
-          updateMainFactsField(dataDir, slug, "primary_contact", contactName);
-        }
+        const factsPatch: Record<string, string | undefined> = {};
+        if (email && !existing.includes("email:")) factsPatch["email"] = email;
+        if (phone && !existing.includes("phone:")) factsPatch["phone"] = phone;
+        if (contactName && !existing.includes("primary_contact:"))
+          factsPatch["primary_contact"] = contactName;
 
         // Owner mapping
         const ownerEmail = row["contact_owner"] ?? row["Contact Owner"] ?? "";
         if (ownerEmail && ownerMap[ownerEmail] && !existing.includes("assigned_rep:")) {
-          updateMainFactsField(dataDir, slug, "assigned_rep", ownerMap[ownerEmail]!);
+          factsPatch["assigned_rep"] = ownerMap[ownerEmail]!;
           result.ownersResolved++;
         }
+        updateMainFactsFields(dataDir, slug, factsPatch);
       }
 
       if (email) emailSlugMap.set(email.toLowerCase(), slug);
@@ -658,7 +668,8 @@ export async function runHubSpotCsvImport(
   const engagementsPath = path.join(exportDir, "engagements.csv");
   if (fs.existsSync(engagementsPath) && progress.phases.engagements.status !== "done") {
     if (!dryRun) {
-      const { appendInteraction, readInteractions } = await import("../fs/interactions-writer.js");
+      const { appendInteraction, InteractionDedup } = await import("../fs/interactions-writer.js");
+      const dedup = new InteractionDedup(dataDir);
       progress.phases.engagements.status = "in-progress";
       writeProgress(dataDir, progress);
 
@@ -717,8 +728,7 @@ export async function runHubSpotCsvImport(
 
         const sourceRef = `hubspot://engagement/${engId}`;
         try {
-          const existing = await readInteractions(dataDir, slug).catch(() => "");
-          if (existing.includes(sourceRef)) continue;
+          if (await dedup.seen(slug, sourceRef)) continue;
 
           const date = coerceDate(timestamp);
           const type = TYPE_MAP[engType] ?? "Note";
@@ -742,6 +752,7 @@ export async function runHubSpotCsvImport(
             sourceRef,
             synced: new Date().toISOString(),
           });
+          dedup.markAppended(slug, sourceRef);
           result.engagementsImported++;
         } catch (err) {
           result.errors.push(`Engagement ${engId}: ${(err as Error).message}`);
