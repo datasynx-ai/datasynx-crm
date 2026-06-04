@@ -84,3 +84,50 @@ pipelineCommand
       for (const d of diff.added) console.log(`  ${d.slug}/${d.name}`);
     }
   });
+
+pipelineCommand
+  .command("velocity")
+  .description("Stage dwell times, sales cycle, and stalled deals from snapshot history")
+  .option("--stalled-days <n>", "Days in one stage before a deal counts as stalled (default 14)")
+  .action(async (opts: { stalledDays?: string }) => {
+    const { analyzeVelocity } = await import("../core/velocity.js");
+    const analyzeOpts: { stalledDays?: number } = {};
+    if (opts.stalledDays !== undefined) {
+      const n = parseInt(opts.stalledDays, 10);
+      if (Number.isFinite(n) && n > 0) analyzeOpts.stalledDays = n;
+    }
+    const report = analyzeVelocity(dataDir(), analyzeOpts);
+    if (report.snapshotCount === 0) {
+      console.log(
+        info("No snapshots yet. Run 'dxcrm pipeline snapshot' (or let the daemon take daily ones).")
+      );
+      return;
+    }
+
+    console.log(
+      bold(
+        `Pipeline velocity (${report.snapshotCount} snapshots, ${report.fromId} → ${report.toId})`
+      )
+    );
+    if (report.stageDurations.length) {
+      console.log(info("\nAvg time in stage:"));
+      for (const s of report.stageDurations) {
+        const samples = `${s.samples} sample${s.samples === 1 ? "" : "s"}`;
+        console.log(`  ${s.stage.padEnd(14)} ${s.avgDays}d  (${samples})`);
+      }
+    }
+    const cycle = report.avgSalesCycleDays;
+    const cycleStr = cycle === null ? "n/a (no won deals yet)" : `${cycle}d avg`;
+    console.log(`\n  ${"Sales cycle".padEnd(14)} ${cycleStr} over ${report.wonCount} won`);
+
+    if (report.stalledDeals.length) {
+      console.log(error(`\nStalled deals (> ${report.stalledThresholdDays}d in stage):`));
+      for (const d of report.stalledDeals) {
+        console.log(
+          `  ${d.slug}/${d.name}: ${d.stage}, ${d.daysInStage}d  €${d.value.toLocaleString()}`
+        );
+      }
+    } else {
+      console.log(success(`\nNo stalled deals (threshold ${report.stalledThresholdDays}d).`));
+    }
+  });

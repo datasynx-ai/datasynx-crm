@@ -77,15 +77,15 @@ dxcrm init
 **What it does:**
 1. Detects all installed AI frameworks (Claude Code, Codex, Cursor, Claude Desktop, ...)
 2. Registers the MCP server in each detected framework
-3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 59 MCP tools and proactive usage patterns
+3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 60 MCP tools and proactive usage patterns
 4. Creates `.agentic/` directory with `config.json` + `sources.json`
 5. Starts background daemon for automatic sync
 
 **Harness files written (v2):**
-- `CLAUDE.md` — all 59 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
+- `CLAUDE.md` — all 60 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
 - `AGENTS.md` — for Codex / OpenClaw / Antigravity
 - `SOUL.md` — identity + v2 autonomy boundaries for Hermes / OpenClaw
-- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 59 tools
+- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 60 tools
 - `.grok/settings.json` — Grok Build MCP config
 
 ---
@@ -531,15 +531,24 @@ dxcrm pipeline snapshot                 # capture the current pipeline now
 dxcrm pipeline list                     # list snapshots (deal count + open value)
 dxcrm pipeline changes                  # what changed since 7 days ago (default)
 dxcrm pipeline changes --since 2026-06-01   # …since a specific date
+dxcrm pipeline velocity                 # stage dwell times, sales cycle, stalled deals
+dxcrm pipeline velocity --stalled-days 21   # tune the "stalled" threshold
 ```
 
 `changes` reports won / lost / new / removed deals, stage moves, value changes,
 and the net open-value delta — comparing the live pipeline against the most
 recent snapshot at or before the baseline date.
 
+`velocity` reconstructs each deal's stage journey across the snapshot history to
+report the **average time deals dwell in each stage**, the **average sales cycle**
+(first-seen → won), and the **stalled deals** — open deals that have sat in the
+same stage longer than the threshold (default 14 days, or `DXCRM_STALLED_DAYS`).
+It answers *where do deals get stuck?* and *which deals are rotting?*.
+
 Snapshots live in `.agentic/snapshots/<YYYY-MM-DD>.json` (atomic writes, one per
 day). Retention defaults to the last 90 days; override with `DXCRM_SNAPSHOT_KEEP`.
-The same data is available to agents via the `get_pipeline_changes` MCP tool.
+The same data is available to agents via the `get_pipeline_changes` and
+`get_pipeline_velocity` MCP tools.
 
 ## dxcrm logs (observability)
 

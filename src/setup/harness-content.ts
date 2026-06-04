@@ -75,6 +75,7 @@ const ALL_TOOLS = [
   "get_logs",
   "get_diagnostics",
   "get_pipeline_changes",
+  "get_pipeline_velocity",
   // Metadata / custom objects (Platform)
   "define_custom_object",
   "create_record",
@@ -84,7 +85,7 @@ const ALL_TOOLS = [
 
 export type McpToolName = (typeof ALL_TOOLS)[number];
 export { ALL_TOOLS };
-export const TOOL_COUNT = ALL_TOOLS.length; // 59
+export const TOOL_COUNT = ALL_TOOLS.length; // 60
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -214,6 +215,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`get_logs({ level?, component?, since?, contains?, limit?, summary? })\` — query/aggregate the structured application log
 - \`get_diagnostics({ fix? })\` — self-diagnostic health check (data integrity, temp files, log errors, backups)
 - \`get_pipeline_changes({ since?, days? })\` — pipeline time-travel: what changed (won/lost/moved/value) since a date
+- \`get_pipeline_velocity({ stalledDays? })\` — stage dwell times, sales cycle, and stalled deals from snapshot history
 
 ### Custom Objects (Platform / metadata)
 - \`define_custom_object({ name, label?, fields })\` — define a runtime entity type with typed fields (no migration), admin
@@ -481,7 +483,8 @@ create_ticket · update_ticket · list_tickets · close_ticket ·
 send_nps_survey · get_survey_results ·
 search_knowledge_base · create_kb_article ·
 backup_now · list_backups ·
-trigger_sync · get_audit_log · get_logs · get_diagnostics · get_pipeline_changes ·
+trigger_sync · get_audit_log · get_logs · get_diagnostics ·
+get_pipeline_changes · get_pipeline_velocity ·
 define_custom_object · create_record · list_records · list_custom_objects
 
 ## Data: ${dataDir}`.trim();

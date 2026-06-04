@@ -75,6 +75,7 @@ import { registerGetAuditLog } from "./tools/get-audit-log.js";
 import { registerGetLogs } from "./tools/get-logs.js";
 import { registerGetDiagnostics } from "./tools/get-diagnostics.js";
 import { registerGetPipelineChanges } from "./tools/get-pipeline-changes.js";
+import { registerGetPipelineVelocity } from "./tools/get-pipeline-velocity.js";
 import { logger } from "../core/logger.js";
 import { registerPrompts } from "./prompts.js";
 import { registerResources } from "./resources.js";
@@ -103,7 +104,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 59 tools
+  // Register all 60 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -160,6 +161,7 @@ export function createMcpServer(): McpServer {
   registerGetLogs(server);
   registerGetDiagnostics(server);
   registerGetPipelineChanges(server);
+  registerGetPipelineVelocity(server);
   registerCustomObjectTools(server);
 
   // MCP Prompts (playbooks) + Resources (read-only entities) — agent-native primitives
