@@ -1,6 +1,6 @@
 import fs from "fs";
-import path from "path";
 import { withFileQueue } from "../fs/write-queue.js";
+import { writeFileAtomic } from "../fs/atomic-write.js";
 
 export async function withJsonFile<T>(
   filePath: string,
@@ -20,9 +20,8 @@ export async function withJsonFile<T>(
     // Apply updater — may throw, in which case we do NOT write
     const next = await updater(current);
 
-    // Write atomically (within the queue lock)
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(next, null, 2), "utf-8");
+    // Serialized by the queue lock AND crash-safe via temp-file + rename.
+    writeFileAtomic(filePath, JSON.stringify(next, null, 2));
 
     return next;
   });

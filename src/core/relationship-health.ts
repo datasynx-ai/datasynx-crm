@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { readGraph } from "./graph.js";
 import { extractEmail, extractDisplayName, makePersonId } from "./graph-extractor.js";
+import { readJsonFile, writeJsonFile } from "../fs/json-store.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,21 +69,11 @@ export function healthPath(dataDir: string, slug: string): string {
 // ─── Read / Write ─────────────────────────────────────────────────────────────
 
 export function readHealth(dataDir: string, slug: string): HealthSnapshot | null {
-  const p = healthPath(dataDir, slug);
-  if (!fs.existsSync(p)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8")) as HealthSnapshot;
-  } catch {
-    return null;
-  }
+  return readJsonFile<HealthSnapshot | null>(healthPath(dataDir, slug), null);
 }
 
 export function writeHealth(dataDir: string, slug: string, health: HealthSnapshot): void {
-  const p = healthPath(dataDir, slug);
-  const dir = path.dirname(p);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  const updated: HealthSnapshot = { ...health, updatedAt: new Date().toISOString() };
-  fs.writeFileSync(p, JSON.stringify(updated, null, 2), "utf-8");
+  writeJsonFile(healthPath(dataDir, slug), { ...health, updatedAt: new Date().toISOString() });
 }
 
 // ─── Parsing ──────────────────────────────────────────────────────────────────
