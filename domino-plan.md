@@ -31,7 +31,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 - **Hängt ab von:** nichts (erweitert vorhandenes `dxcrm backup` + `encryption.ts`).
 - **Schaltet frei:** fearless iteration für D2–D17.
 
-### D2 · Hybrid-Search-Engine — *die Retrieval-Grundlage, auf der die meisten Features sitzen* · F8 · M
+### D2 ✅ · Hybrid-Search-Engine — *die Retrieval-Grundlage, auf der die meisten Features sitzen* · F8 · M
 - **Warum jetzt:** Direkter Prerequisite für **Memories (D6), SOP (D7), Ask-your-CRM (D10), NBA (D11)**.
   Einmal gebaut (Vektor + Keyword + Rerank + Provenance), profitieren alle Retrieval-Features sofort.
 - **Hängt ab von:** vorhandene LanceDB-Vektorsuche.
