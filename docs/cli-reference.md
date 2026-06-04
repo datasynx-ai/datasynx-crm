@@ -77,15 +77,15 @@ dxcrm init
 **What it does:**
 1. Detects all installed AI frameworks (Claude Code, Codex, Cursor, Claude Desktop, ...)
 2. Registers the MCP server in each detected framework
-3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 60 MCP tools and proactive usage patterns
+3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 61 MCP tools and proactive usage patterns
 4. Creates `.agentic/` directory with `config.json` + `sources.json`
 5. Starts background daemon for automatic sync
 
 **Harness files written (v2):**
-- `CLAUDE.md` — all 60 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
+- `CLAUDE.md` — all 61 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
 - `AGENTS.md` — for Codex / OpenClaw / Antigravity
 - `SOUL.md` — identity + v2 autonomy boundaries for Hermes / OpenClaw
-- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 60 tools
+- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 61 tools
 - `.grok/settings.json` — Grok Build MCP config
 
 ---
@@ -542,6 +542,7 @@ dxcrm pipeline changes                  # what changed since 7 days ago (default
 dxcrm pipeline changes --since 2026-06-01   # …since a specific date
 dxcrm pipeline velocity                 # stage dwell times, sales cycle, stalled deals
 dxcrm pipeline velocity --stalled-days 21   # tune the "stalled" threshold
+dxcrm pipeline funnel                   # conversion funnel & win rate (where deals leak)
 ```
 
 `changes` reports won / lost / new / removed deals, stage moves, value changes,
@@ -554,10 +555,15 @@ report the **average time deals dwell in each stage**, the **average sales cycle
 same stage longer than the threshold (default 14 days, or `DXCRM_STALLED_DAYS`).
 It answers *where do deals get stuck?* and *which deals are rotting?*.
 
+`funnel` builds a cumulative conversion funnel from the same history: how many
+deals **reached each stage**, the **stage-to-stage conversion %**, the overall
+**win rate** (won / won+lost), and the **biggest leak** (lowest-converting
+transition). It answers *where do deals leak out of my pipeline?*.
+
 Snapshots live in `.agentic/snapshots/<YYYY-MM-DD>.json` (atomic writes, one per
 day). Retention defaults to the last 90 days; override with `DXCRM_SNAPSHOT_KEEP`.
-The same data is available to agents via the `get_pipeline_changes` and
-`get_pipeline_velocity` MCP tools.
+The same data is available to agents via the `get_pipeline_changes`,
+`get_pipeline_velocity`, and `get_pipeline_funnel` MCP tools.
 
 ## dxcrm logs (observability)
 

@@ -101,6 +101,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | get_diagnostics | Self-diagnostic health check (data integrity, temp files, log errors, backups) | admin |
 | get_pipeline_changes | Pipeline time-travel: what changed (won/lost/moved/value) since a date | any |
 | get_pipeline_velocity | Stage dwell times, sales cycle, and stalled deals from snapshot history | any |
+| get_pipeline_funnel | Conversion funnel & win rate: where deals leak out of the pipeline | any |
 | define_custom_object | Define a runtime custom object type with typed fields (no migration) | admin |
 | create_record | Create a record of a custom object (validated against its schema) | rep+ |
 | list_records | List records of a custom object | any |

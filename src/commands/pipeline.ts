@@ -131,3 +131,36 @@ pipelineCommand
       console.log(success(`\nNo stalled deals (threshold ${report.stalledThresholdDays}d).`));
     }
   });
+
+pipelineCommand
+  .command("funnel")
+  .description("Conversion funnel & win rate: where deals leak out of the pipeline")
+  .action(async () => {
+    const { analyzeFunnel } = await import("../core/funnel.js");
+    const report = analyzeFunnel(dataDir());
+    if (report.snapshotCount === 0) {
+      console.log(
+        info("No snapshots yet. Run 'dxcrm pipeline snapshot' (or let the daemon take daily ones).")
+      );
+      return;
+    }
+
+    console.log(
+      bold(`Pipeline funnel (${report.snapshotCount} snapshots, ${report.fromId} → ${report.toId})`)
+    );
+    for (const s of report.stages) {
+      const conv = s.conversionPctToNext === null ? "" : `  → ${s.conversionPctToNext}% convert`;
+      console.log(`  ${s.stage.padEnd(14)} ${String(s.reached).padStart(4)} reached${conv}`);
+    }
+
+    const wr = report.winRatePct;
+    const wrStr = wr === null ? "n/a (nothing closed yet)" : `${wr}%`;
+    console.log(
+      `\n  ${"Win rate".padEnd(14)} ${wrStr} (${report.wonCount} won / ${report.lostCount} lost)`
+    );
+
+    if (report.biggestLeak) {
+      const l = report.biggestLeak;
+      console.log(error(`\nBiggest leak: ${l.from} → ${l.to} (only ${l.conversionPct}% convert)`));
+    }
+  });
