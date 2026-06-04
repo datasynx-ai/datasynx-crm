@@ -176,7 +176,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N1-7 | **Metadaten-Datenmodell** (object/fieldMetadata, Runtime-Zod) | Core | L | 🟡 (Custom-Fields-Registry + `dxcrm fields` ✅; Runtime-Zod-Merge/Custom-Objects offen) |
 | N2-1 | LLM-Opportunity-Scoring | Sales | M | 🔲 |
 | N3-1 | Omni-Channel-Routing (skill/load) | Service | M | 🟡 (routeTicket + Agent-Store; Ticket-Auto-Assign-Wiring offen) |
-| N3-2 | Vektorisierte KB + Eskalation (transfer-to-human Action) | Service | M | 🔲 |
+| N3-2 | KB-Eskalation / transfer-to-human | Service | M | 🟡 (escalateToHuman: Ticket + Routing-Assign; MCP-Action-Wiring offen) |
 | N4-1 | Segmente/Listen | Marketing | M | ✅ (`dxcrm segment` + evaluateSegment) |
 | N4-2 | Journeys (Branching) | Marketing | L | 🟡 (Engine: advance/branch + Storage; Enrollment-Runner/CLI offen) |
 | N4-3 | CDP: Identity Resolution + Unified Profiles | Data | L | 🟡 (deterministische Dedup `dxcrm identity duplicates`; Unified Profiles + probabilistisch offen) |
