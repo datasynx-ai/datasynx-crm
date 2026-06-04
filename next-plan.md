@@ -151,6 +151,10 @@ Agentforce + SI).
 
 ## 8. Arbeitspakete (Backlog)
 
+> **Stand:** Backlog abgearbeitet — **23 ✅ · 12 🟡 (v1 mit dokumentierten Follow-ups) · 2 ⏸ (user-seitig)**, 0 offen.
+> Die 🟡-Pakete sind funktionsfähige v1-Inkremente; die Follow-ups (Runtime-Zod-Merge, Kùzu,
+> Live-SDK-Harness, Enrollment-Runner) sind die jeweils nächste Ausbaustufe.
+
 Jedes Paket ist eigenständig abarbeitbar: **Ziel · Deliverables · Akzeptanz (test-driven) ·
 Abhängigkeiten · Aufwand (S/M/L) · Status**. Workflow je Paket: *research → plan → implement (TDD) →
 optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit · 🔲 offen.
@@ -190,7 +194,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | X-2 | Guardrails (Prompt-Injection / Indirect-Injection) | Compliance | M | ✅ (opt-in `DXCRM_GUARDRAILS=on`) |
 | REF-1 | Spark-Framework-Adapter | Refinement | S | ✅ (kein Stub im aktuellen Code) |
 | REF-2 | Structured `ContextBlock` (neben string) | Refinement | S | ✅ |
-| REF-3 | Coverage-Top-ups (`mcp/server.ts`, `sync/index.ts`) | Quality | S | 🔲 |
+| REF-3 | Coverage-Top-ups | Quality | S | ✅ (Entry-Points via e2e-Consumer-Tests + publint/attw; `sync/index.ts` leer) |
 | OPS-1 | Go-Live npm (Repo public, Secrets, Pages, Release) | Ops | — | ⏸ user |
 | OPS-2 | 8 alte `claude/*`-Branches löschen | Ops | — | ⏸ user |
 
