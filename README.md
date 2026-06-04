@@ -206,7 +206,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
   Import:   HubSpot · Salesforce · Pipedrive · CSV
 ```
 
-→ Full reference: **[53 CLI commands](https://datasynx-ai.github.io/datasynx-crm/#full-cli-reference)** · **[57 MCP tools](https://datasynx-ai.github.io/datasynx-crm/#full-mcp-reference)**
+→ Full reference: **[54 CLI commands](https://datasynx-ai.github.io/datasynx-crm/#full-cli-reference)** · **[57 MCP tools](https://datasynx-ai.github.io/datasynx-crm/#full-mcp-reference)**
 
 <br/>
 
@@ -312,7 +312,7 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 
 **Shipped**
 
-- ✅ 57 MCP tools · 53 CLI commands · local-first Markdown store
+- ✅ 57 MCP tools · 54 CLI commands · local-first Markdown store
 - ✅ Hybrid (vector + full-text) search over emails & transcripts
 - ✅ Sync: Gmail, Outlook, Google Drive, Teams, Google Meet
 - ✅ Import: HubSpot, Salesforce, Pipedrive, CSV
