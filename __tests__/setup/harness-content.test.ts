@@ -69,6 +69,7 @@ const ALL_TOOLS = [
   "get_audit_log",
   "get_logs",
   "get_diagnostics",
+  "get_pipeline_changes",
   "define_custom_object",
   "create_record",
   "list_records",
@@ -92,7 +93,7 @@ const V2_CRITICAL_TOOLS = [
 
 describe("TOOL_COUNT", () => {
   it("exports correct tool count (56)", () => {
-    expect(TOOL_COUNT).toBe(58);
+    expect(TOOL_COUNT).toBe(59);
   });
 });
 
@@ -100,7 +101,7 @@ describe("buildClaudeMd", () => {
   const content = buildClaudeMd(DATA_DIR);
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("58");
+    expect(content).toContain("59");
   });
 
   it("includes the data directory", () => {
@@ -147,7 +148,7 @@ describe("buildAgentsMd", () => {
   const content = buildAgentsMd(DATA_DIR);
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("58");
+    expect(content).toContain("59");
   });
 
   it("includes the data directory", () => {
@@ -264,7 +265,7 @@ describe("buildAgyGeminiMd — token budget (max 50 lines)", () => {
   });
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("58");
+    expect(content).toContain("59");
   });
 
   it("includes the data directory", () => {
@@ -325,7 +326,7 @@ describe("buildCursorRulesMdc", () => {
   });
 
   it("mentions correct tool count", () => {
-    expect(content).toContain("58");
+    expect(content).toContain("59");
   });
 
   it("includes all v2-critical tools", () => {

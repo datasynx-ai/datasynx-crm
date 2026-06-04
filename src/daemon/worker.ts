@@ -211,6 +211,19 @@ async function runSelfHeal(): Promise<void> {
   }
 }
 
+/** Take a pipeline snapshot once per day (self-populating time-travel history). */
+async function takeDailySnapshot(): Promise<void> {
+  try {
+    const { listSnapshots, takeSnapshot } = await import("../core/snapshots.js");
+    const today = new Date().toISOString().slice(0, 10);
+    if (listSnapshots(DATA_DIR).some((s) => s.id === today)) return; // already taken today
+    const snap = takeSnapshot(DATA_DIR, today);
+    logger.info("daemon", "pipeline snapshot taken", { id: snap.id, deals: snap.deals.length });
+  } catch (err) {
+    logger.error("daemon", "snapshot failed", { error: (err as Error).message });
+  }
+}
+
 // Gmail sync — interval configurable via DXCRM_DAEMON_INTERVAL (minutes, default 30)
 const daemonIntervalMin = Math.max(
   1,
@@ -224,6 +237,7 @@ new CronJob(
       logger.error("daemon", "wake trigger check failed", { error: (err as Error).message });
     });
     await runSelfHeal();
+    await takeDailySnapshot();
   },
   null,
   true,
