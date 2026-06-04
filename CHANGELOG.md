@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.3.0...v1.4.0) (2026-06-04)
+
+
+### Features
+
+* **mailbox:** universal IMAP sync with domain-based customer routing ([7a6ad41](https://github.com/datasynx-ai/datasynx-crm/commit/7a6ad417ab36896bfc012eb2a9709255fe0e0494))
+
 # [1.3.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.2.0...v1.3.0) (2026-06-04)
 
 
