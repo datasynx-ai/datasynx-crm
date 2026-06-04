@@ -21,7 +21,7 @@ Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 | `list_customers` | List all customers with stage, last interaction date, and deal value | any (rep: own only) |
 | `log_interaction` | Write a new interaction entry (call, email, meeting, note) — immediately searchable | rep+ |
 | `update_deal` | Create or update a deal in pipeline.md — upserts by deal name | rep+ |
-| `export_customer` | Export all customer data as JSON or Markdown | admin |
+| `export_customer` | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
 | `update_customer_facts` | Update fields in customer profile (domain, contact, stage, tags) | admin |
 | `get_deal_health` | Score deal health 0–100 (A–F grade) based on activity, velocity, close date, probability | any |
 | `get_pipeline_forecast` | Aggregate weighted pipeline revenue across all customers grouped by stage | any |
