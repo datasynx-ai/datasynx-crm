@@ -53,6 +53,7 @@ import { leadscoreCommand } from "./leadscore.js";
 import { enrichCommand } from "./enrich.js";
 import { coachCommand } from "./coach.js";
 import { complianceCommand } from "./compliance.js";
+import { mailboxCommand } from "./mailbox.js";
 
 /** Every top-level `dxcrm` command, in display order. */
 export const ALL_COMMANDS: readonly Command[] = [
@@ -64,6 +65,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   guideCommand,
   mcpCommand,
   syncCommand,
+  mailboxCommand,
   backupCommand,
   restoreCommand,
   daemonCommand,

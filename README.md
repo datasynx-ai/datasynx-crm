@@ -237,6 +237,16 @@ text into LanceDB so it's semantically searchable. Export a complete, sendable
 bundle of all conversations and documents for a customer with the
 `export_customer` MCP tool (`includeAttachmentContent: true`).
 
+Beyond Gmail, `dxcrm mailbox sync` connects **any IMAP mailbox** — Outlook/Office365,
+Fastmail, Yahoo, or a custom company inbox — and **auto-routes every message to the
+right customer by sender/recipient domain** (or to one customer with a slug). One
+mailbox connection, all customers populated, same attachment + search pipeline.
+
+```bash
+DXCRM_IMAP_HOST=outlook.office365.com DXCRM_IMAP_USER=me@org.com DXCRM_IMAP_TOKEN=ey... \
+  dxcrm mailbox sync          # auto-route the whole mailbox to customers by domain
+```
+
 <br/>
 
 ## What it's not
