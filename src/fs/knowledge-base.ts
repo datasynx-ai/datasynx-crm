@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { KbArticleSchema, type KbArticle, type KbArticleMeta } from "../schemas/kb-article.js";
+import { writeFileAtomic } from "./atomic-write.js";
+import { assertSafePathSegment, isSafePathSegment } from "./safe-path.js";
 
 export function kbDir(dataDir: string): string {
   return path.join(dataDir, ".agentic", "knowledge-base");
@@ -48,6 +50,7 @@ export function listKbArticles(
 }
 
 export function getKbArticle(dataDir: string, id: string): KbArticle | null {
+  if (!isSafePathSegment(id)) return null;
   // Articles are stored as <category>/<id>.md, so locate the file directly
   // instead of parsing the whole knowledge base to find one by id.
   const dir = kbDir(dataDir);
@@ -67,14 +70,15 @@ export function getKbArticle(dataDir: string, id: string): KbArticle | null {
 }
 
 export function writeKbArticle(dataDir: string, article: KbArticle): void {
-  const dir = path.join(kbDir(dataDir), article.category);
-  fs.mkdirSync(dir, { recursive: true });
+  assertSafePathSegment(article.category, "knowledge-base category");
+  assertSafePathSegment(article.id, "knowledge-base article id");
   const { body, ...meta } = article;
   const content = matter.stringify(body, meta as Record<string, unknown>);
-  fs.writeFileSync(path.join(dir, `${article.id}.md`), content, "utf-8");
+  writeFileAtomic(path.join(kbDir(dataDir), article.category, `${article.id}.md`), content);
 }
 
 export function deleteKbArticle(dataDir: string, id: string): boolean {
+  if (!isSafePathSegment(id)) return false;
   // Locate <category>/<id>.md directly rather than parsing every article.
   const dir = kbDir(dataDir);
   for (const cat of kbCategories(dir)) {

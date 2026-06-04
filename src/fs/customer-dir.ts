@@ -4,30 +4,15 @@ import matter from "gray-matter";
 import { fromZodError } from "zod-validation-error";
 import { MainFactsSchema, type MainFacts } from "../schemas/main-facts.js";
 import { writeFileAtomic } from "./atomic-write.js";
+import { isSafePathSegment, assertSafePathSegment } from "./safe-path.js";
 
-/**
- * A slug is safe iff it cannot escape the `customers/` directory: no path
- * separators, no `..`, no NUL, non-empty and bounded. Enforced at the fs
- * boundary so an untrusted slug (from an MCP tool, API, or import) can never be
- * used for path traversal (arbitrary read/write outside the data dir).
- */
+/** A customer slug is safe iff it is a safe filesystem path segment. */
 export function isSafeSlug(slug: unknown): slug is string {
-  return (
-    typeof slug === "string" &&
-    slug.length > 0 &&
-    slug.length <= 128 &&
-    slug !== "." &&
-    !slug.includes("/") &&
-    !slug.includes("\\") &&
-    !slug.includes("\0") &&
-    !slug.includes("..")
-  );
+  return isSafePathSegment(slug);
 }
 
 export function assertSafeSlug(slug: string): void {
-  if (!isSafeSlug(slug)) {
-    throw new Error(`Invalid customer slug: ${JSON.stringify(slug)}`);
-  }
+  assertSafePathSegment(slug, "customer slug");
 }
 
 export function getCustomerDir(dataDir: string, slug: string): string {

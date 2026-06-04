@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import path from "path";
 import { validateCustomFields, type FieldDefinition } from "./custom-fields.js";
 import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
+import { assertSafePathSegment } from "../fs/safe-path.js";
 
 /**
  * Custom objects — runtime-defined entity types with their own fields, stored
@@ -32,6 +33,7 @@ function objectsSchemaPath(dataDir: string): string {
   return path.join(dataDir, ".agentic", "schema", "custom-objects.json");
 }
 function recordsPath(dataDir: string, name: string): string {
+  assertSafePathSegment(name, "custom object name");
   return path.join(dataDir, ".agentic", "objects", `${name}.json`);
 }
 
@@ -45,6 +47,7 @@ export function getObjectDefinition(dataDir: string, name: string): ObjectDefini
 
 /** Add or update (by name) a custom object definition. */
 export function defineCustomObject(dataDir: string, def: ObjectDefinition): ObjectDefinition[] {
+  assertSafePathSegment(def.name, "custom object name");
   const objs = loadCustomObjects(dataDir);
   const idx = objs.findIndex((o) => o.name === def.name);
   if (idx >= 0) objs[idx] = def;
