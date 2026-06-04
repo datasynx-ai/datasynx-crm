@@ -51,6 +51,19 @@ describe("recordUsage + aggregateUsage", () => {
     expect(entries[0]!.costUsd).toBeCloseTo(6.0); // 1*1.0 + 1*5.0
   });
 
+  it("skips a malformed ledger line and keeps the valid ones", async () => {
+    const { loadUsage } = await import("../../src/core/usage.js");
+    const p = "/crm/.agentic/usage.ndjson";
+    // A ledger with a corrupt middle line (e.g. left over from a crash).
+    const good1 = JSON.stringify({ model: "m", inputTokens: 10, outputTokens: 5, costUsd: 0 });
+    const good2 = JSON.stringify({ model: "m", inputTokens: 20, outputTokens: 7, costUsd: 0 });
+    vol.fromJSON({ [p]: `${good1}\n{ truncated json\n${good2}\n` });
+
+    const entries = loadUsage(DATA_DIR);
+    expect(entries).toHaveLength(2); // the malformed line is skipped, both valid lines survive
+    expect(entries.map((e) => e.inputTokens).sort((a, b) => a - b)).toEqual([10, 20]);
+  });
+
   it("filters aggregation by slug", async () => {
     const { recordUsage, aggregateUsage } = await import("../../src/core/usage.js");
     recordUsage(DATA_DIR, {
