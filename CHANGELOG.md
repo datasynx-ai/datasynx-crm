@@ -1,3 +1,11 @@
+# [1.9.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.8.0...v1.9.0) (2026-06-04)
+
+
+### Features
+
+* **cli:** manage linked mailbox accounts (list, logout, status) ([12fae1f](https://github.com/datasynx-ai/datasynx-crm/commit/12fae1f95ac4e19b78fe9536c08eba736427cecc))
+* **pipeline:** conversion funnel & win-rate analytics ([723f839](https://github.com/datasynx-ai/datasynx-crm/commit/723f839c09312d4faf2ff650207430c27ff2fe34)), closes [#61](https://github.com/datasynx-ai/datasynx-crm/issues/61)
+
 # [1.8.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.7.0...v1.8.0) (2026-06-04)
 
 
