@@ -176,6 +176,29 @@ dxcrm attach acme-corp ./proposals/acme-q2-2026.pdf
 | `stripe` | Adds `get_stripe_context` MCP tool (revenue, subscriptions) |
 | `linear` | Adds `get_linear_issues` MCP tool (linked issues per customer) |
 
+### Intelligence & Governance
+
+| Command | Description |
+|---|---|
+| `dxcrm usage [--slug <slug>]` | Transparent per-customer LLM token costs |
+| `dxcrm memory add\|list\|search` | Agent memories (per customer + global), hybrid-searchable |
+| `dxcrm sop add\|list\|find` | Standard operating procedures (global/per customer) |
+| `dxcrm tone set\|show` | Per-customer writing tonality (feeds `draft_email`) |
+| `dxcrm hygiene scan` | Data-quality scan (missing/malformed/duplicate) |
+| `dxcrm policy set <tool> <auto\|approve\|block>` | Human-in-the-loop approval policy |
+| `dxcrm approvals list\|approve\|reject` | Review gated agent actions |
+| `dxcrm autofill <file>` | Transcript → structured summary/next-steps/objections |
+| `dxcrm ask "<question>" [--slug <slug>]` | Natural-language Q&A over your CRM |
+| `dxcrm nba <slug>` | Next-best-action recommendations |
+| `dxcrm churn assess <slug>` / `dxcrm churn scan` | Churn early-warning (relationship-health based) |
+| `dxcrm leadscore train` / `dxcrm leadscore predict <slug>` | Predictive lead-scoring (learned on won/lost) |
+| `dxcrm enrich <slug> [--write]` | Enrich customer facts (offline + plugins, vault-backed) |
+| `dxcrm coach <file>` | Conversation intelligence (talk-ratio/objections/coaching) |
+| `dxcrm vault set\|get\|list\|rm` | Local AES-256-GCM credential vault |
+| `dxcrm compliance` | Governance posture (AI-Act Art.50, local-LLM, PII, guardrails) |
+
+See [docs/cli-reference.md](./docs/cli-reference.md) and [docs/compliance.md](./docs/compliance.md) for full details.
+
 ### Security & Compliance
 
 | Command | Description |
@@ -196,6 +219,7 @@ dxcrm attach acme-corp ./proposals/acme-q2-2026.pdf
 | `dxcrm backup --remote s3://bucket/path/` | Backup + upload to S3 |
 | `dxcrm backup --remote rsync://host:/path/` | Backup + rsync to remote |
 | `dxcrm backup verify <path>` | Verify backup integrity (unzip -t + manifest check) |
+| `dxcrm backup drill <path>` | Restore-drill: verify a backup is actually restorable |
 | `dxcrm backup list` | List all logged backups with size + verification status |
 | `dxcrm backup schedule --every day --keep 7` | Daily backups, keep last 7 |
 | `dxcrm backup schedule --every week --keep 4 --monthly 12` | Grandfathering retention |
