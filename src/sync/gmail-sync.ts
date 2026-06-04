@@ -118,9 +118,14 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
       : new Date().toISOString().slice(0, 10);
     const snippet = msgData.snippet ?? "";
 
-    // LLM summary — non-blocking fallback to raw snippet if no API key or error
+    // Extract the full inline body (plain preferred, else HTML->Markdown) so
+    // summaries and search cover the whole message, not just the snippet.
+    const { extractEmailBodyMarkdown } = await import("./email-body.js");
+    const body = (await extractEmailBodyMarkdown(msgData.payload ?? undefined)) || snippet;
+
+    // LLM summary — non-blocking fallback to raw body/snippet if no API key or error
     const { summarizeEmail } = await import("../core/llm.js");
-    const emailSummary = await summarizeEmail(subject, snippet, from);
+    const emailSummary = await summarizeEmail(subject, body, from);
 
     // Download, convert and index attachments before logging the interaction so
     // the entry can link to the generated Markdown. Failures here are swallowed.
@@ -164,14 +169,20 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
     // Append to in-memory string so within-batch duplicates are detected
     existingContent += source;
 
-    // Index into LanceDB for semantic search (non-blocking)
+    // Index the full email (subject + body) into LanceDB for semantic search,
+    // chunked so long threads stay searchable (non-blocking).
     const { indexInLanceDB } = await import("../core/lancedb.js");
-    await indexInLanceDB(opts.dataDir, opts.slug, `${subject}\n${snippet}`, source, {
-      date,
-      type: "Email",
-    }).catch((err: unknown) => {
-      process.stderr.write(`[gmail-sync] LanceDB index failed: ${(err as Error).message}\n`);
-    });
+    const { chunkText } = await import("../core/chunk.js");
+    const bodyChunks = chunkText(`${subject}\n${body}`);
+    for (let i = 0; i < bodyChunks.length; i++) {
+      const ref = i === 0 ? source : `${source}#${i}`;
+      await indexInLanceDB(opts.dataDir, opts.slug, bodyChunks[i]!, ref, {
+        date,
+        type: "Email",
+      }).catch((err: unknown) => {
+        process.stderr.write(`[gmail-sync] LanceDB index failed: ${(err as Error).message}\n`);
+      });
+    }
 
     // Agent wake: notify if an agent config exists for this customer (fire-and-forget)
     if (agentConfigExists(opts.dataDir, opts.slug)) {

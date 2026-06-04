@@ -122,7 +122,7 @@ dxcrm list [--filter <query>]
 
 ## dxcrm sync
 
-Sync emails, transcripts, and cloud files for a customer. Writes to `interactions.md` and indexes into LanceDB for semantic search. Email attachments are downloaded, converted to Markdown (PDF, DOCX, XLSX, PPTX, CSV, HTML, images via OCR), saved under `attachments/`, linked from `interactions.md`, and indexed for search.
+Sync emails, transcripts, and cloud files for a customer. Writes to `interactions.md` and indexes into LanceDB for semantic search. The full email body (plain text, or HTML converted to Markdown) is summarized and indexed — not just the snippet. Email attachments are downloaded, converted to Markdown (PDF, DOCX, XLSX, PPTX, CSV, HTML, images via OCR), saved under `attachments/`, linked from `interactions.md`, and indexed for search.
 
 ```bash
 dxcrm sync <slug>                          # Full sync (last 30 days)

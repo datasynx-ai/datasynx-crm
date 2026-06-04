@@ -462,6 +462,48 @@ describe("syncGmail", () => {
     expect(mockNotifyAgentWake).not.toHaveBeenCalled();
   });
 
+  it("extracts and indexes the full email body, not just the snippet", async () => {
+    vol.fromJSON({ "/data/customers/acme-corp/interactions.md": "# Interactions\n" });
+
+    const { indexInLanceDB } = await import("../../src/core/lancedb.js");
+    const bodyText = "Full message body with renewal details and pricing.";
+
+    const { gmail } = await import("@googleapis/gmail");
+    const listMock = vi.fn().mockResolvedValue({
+      data: { messages: [{ id: "msgB", threadId: "tB" }] },
+    });
+    const getMock = vi.fn().mockResolvedValue({
+      data: {
+        payload: {
+          mimeType: "multipart/alternative",
+          headers: [
+            { name: "Subject", value: "Renewal" },
+            { name: "From", value: "client@example.com" },
+            { name: "Date", value: "Mon, 01 Jun 2026 10:00:00 +0000" },
+          ],
+          parts: [
+            { mimeType: "text/plain", body: { data: Buffer.from(bodyText).toString("base64url") } },
+          ],
+        },
+        snippet: "Full message",
+      },
+    });
+    vi.mocked(gmail).mockReturnValue({
+      users: { messages: { list: listMock, get: getMock, attachments: { get: vi.fn() } } },
+    } as never);
+
+    const { syncGmail } = await import("../../src/sync/gmail-sync.js");
+    await syncGmail({
+      slug: "acme-corp",
+      dataDir: "/data",
+      auth: makeAuth(),
+      query: "from:example.com",
+    });
+
+    const indexedTexts = vi.mocked(indexInLanceDB).mock.calls.map((c) => c[2]);
+    expect(indexedTexts.some((t) => t.includes("renewal details and pricing"))).toBe(true);
+  });
+
   it("downloads attachments, writes Markdown, and links them in the interaction", async () => {
     vol.fromJSON({ "/data/customers/acme-corp/interactions.md": "# Interactions\n" });
 
