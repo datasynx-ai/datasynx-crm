@@ -42,6 +42,7 @@ import { toneCommand } from "./commands/tone.js";
 import { autofillCommand } from "./commands/autofill.js";
 import { askCommand } from "./commands/ask.js";
 import { nbaCommand } from "./commands/nba.js";
+import { vaultCommand } from "./commands/vault.js";
 
 const program = new Command();
 program
@@ -96,5 +97,6 @@ program.addCommand(toneCommand);
 program.addCommand(autofillCommand);
 program.addCommand(askCommand);
 program.addCommand(nbaCommand);
+program.addCommand(vaultCommand);
 
 await program.parseAsync(process.argv);

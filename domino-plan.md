@@ -93,11 +93,15 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 ### D11 ✅ · Next-Best-Action-Engine — *macht jeden Deal-Schritt besser* · C3 · M
 - **Hängt ab von:** D2 (ähnliche Deals), D6 (Memory), D7 (SOP), D4 (Approval).
 
-### D12 · Vault + GUI (Credentials) — *macht Integrationen & Team-Deployments sicher* · F6 · L
+### D12 ✅ · Vault + GUI (Credentials) — *macht Integrationen & Team-Deployments sicher* · F6 · L
 - **Warum hier:** Sichere Geheimnis-Ablage (von D1-Backup verschlüsselt mit erfasst) ist Voraussetzung für
   externe API-Keys → schaltet **D15 Enrichment** und Integrationen frei. npm: kdbxweb (MIT) / @napi-rs/keyring (MIT).
 - **Hängt ab von:** `encryption.ts`; wird durch D1 mitgesichert.
 - **Schaltet frei:** D15.
+- **Umgesetzt:** `src/core/vault.ts` — dependency-freier AES-256-GCM-Vault über `encryption.ts`
+  (`loadVault`/`saveVault`/`setSecret`/`getSecret`/`listSecretKeys`/`removeSecret`), ein einzelner
+  verschlüsselter Blob `.agentic/vault.enc`. Master-Key nur via `DXCRM_VAULT_KEY` (nie auf Platte/Commit).
+  CLI `dxcrm vault set|get|list|rm`. GUI bleibt dokumentierter Follow-up; der headless Core ist scriptbar.
 
 ---
 

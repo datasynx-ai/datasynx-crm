@@ -753,3 +753,103 @@ dxcrm segment members hot
 ```
 
 Definitions live in `.agentic/segments.json`.
+
+## dxcrm usage (token costs)
+
+Transparent per-customer LLM token costs from the `.agentic/usage.ndjson` ledger.
+
+```bash
+dxcrm usage                      # aggregate across all customers
+dxcrm usage --slug acme          # one customer
+```
+
+## dxcrm approvals / policy (human-in-the-loop)
+
+Governance gate for agent actions. A policy of `approve` parks the action as
+`pending` until a human decides; `auto` runs it; `block` refuses it.
+
+```bash
+dxcrm policy set draft_email approve --slug acme   # require approval for this tool+customer
+dxcrm approvals list                               # pending requests
+dxcrm approvals approve <id>
+dxcrm approvals reject <id>
+```
+
+## dxcrm hygiene (data quality)
+
+Scans for missing contacts, malformed domains/emails, and duplicate clusters.
+
+```bash
+dxcrm hygiene scan
+```
+
+## dxcrm memory (agent memory)
+
+Persistent, typed memories — global or per customer — retrievable via hybrid search.
+
+```bash
+dxcrm memory add "Acme prefers async updates" --type preference --slug acme
+dxcrm memory list --slug acme
+dxcrm memory search "billing" --slug acme
+```
+
+## dxcrm sop (standard operating procedures)
+
+Reusable playbooks, global or per customer; customer scope wins on retrieval.
+
+```bash
+dxcrm sop add "Renewal flow" --triggers renewal,upsell --body "1. ... 2. ..." --slug acme
+dxcrm sop list
+dxcrm sop find "how do we handle renewals"
+```
+
+## dxcrm tone (per-customer tonality)
+
+Customer-specific writing tone, merged over a global default; feeds `draft_email`.
+
+```bash
+dxcrm tone set --formality formal --language de --slug acme
+dxcrm tone show --slug acme
+```
+
+## dxcrm autofill (transcript → structured)
+
+Extracts summary, next steps, objections and stage from a call/meeting transcript
+(LLM when available, heuristic fallback otherwise).
+
+```bash
+dxcrm autofill ./transcript.txt
+```
+
+## dxcrm ask (ask-your-CRM)
+
+Natural-language Q&A over memories, SOPs, interactions and pipeline via hybrid
+search; synthesizes a grounded answer when an LLM is configured.
+
+```bash
+dxcrm ask "how does acme pay invoices?" --slug acme
+```
+
+## dxcrm nba (next best action)
+
+Prioritized next steps from open pipeline + engagement recency, with rationale.
+
+```bash
+dxcrm nba acme
+```
+
+## dxcrm vault (local credential vault)
+
+Dependency-free **AES-256-GCM** store for secrets (portal passwords, API keys) the
+agent must hold but the customer markdown must never contain in plaintext. The whole
+vault is a single encrypted blob at `.agentic/vault.enc`; the master key lives only in
+`DXCRM_VAULT_KEY` — never on disk, never committed.
+
+```bash
+export DXCRM_VAULT_KEY="your-master-passphrase"
+dxcrm vault set stripe_api_key sk_live_123
+dxcrm vault set acme/portal_pw hunter2
+dxcrm vault get stripe_api_key
+dxcrm vault list           # names only; values stay encrypted
+dxcrm vault rm acme/portal_pw
+```
