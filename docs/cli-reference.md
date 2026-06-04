@@ -453,6 +453,33 @@ dxcrm audit --limit 100              # Show more entries
 
 **Actor resolution**: `DXCRM_ACTOR` env var → `"system"`
 
+## dxcrm logs (observability)
+
+View and analyze the unified structured application log at `.agentic/logs.ndjson`.
+Every operational event (syncs, wake triggers, SLA breaches, index/dispatch
+failures, …) is a structured NDJSON record with `level`, `component`, `message`
+and `context`. The same data is available to agents via the `get_logs` MCP tool.
+
+```bash
+dxcrm logs                              # Last 50 entries
+dxcrm logs --level error                # Only errors (and above)
+dxcrm logs --component gmail-sync       # One component
+dxcrm logs --contains "rate limit"      # Message substring
+dxcrm logs --since 2026-06-01T00:00:00Z # From a timestamp
+dxcrm logs --summary                    # Counts by level + component, recent errors
+```
+
+**Options:** `--level`, `--component`, `--since`, `--contains`, `--limit`, `--summary`
+
+**Configuration (env vars):**
+- `DXCRM_LOG_LEVEL` — minimum level to record: `debug` | `info` (default) | `warn` | `error`
+- `DXCRM_LOG_STDERR` — set to `off` to silence the stderr mirror (file logging continues)
+- `DXCRM_LOG_MAX_BYTES` — rotate the active ledger past this size (default `5000000` = 5 MB)
+- `DXCRM_LOG_MAX_FILES` — rotated archives to keep, `logs.ndjson.1..N` (default `5`; `0` = truncate)
+
+Logging never throws, the reader skips malformed lines, and queries span the
+active ledger plus rotated archives so history survives rotation.
+
 ---
 
 ## dxcrm rbac (Phase 4 — Role-Based Access Control)

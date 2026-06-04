@@ -34,6 +34,49 @@ function minLevel(): number {
   return LEVELS[env as LogLevel] ?? LEVELS.info;
 }
 
+/** Max bytes for the active ledger before it rotates (default 5 MB). */
+function maxBytes(): number {
+  const n = parseInt(process.env["DXCRM_LOG_MAX_BYTES"] ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : 5_000_000;
+}
+
+/** Number of rotated archives to keep (default 5; 0 = truncate, no archives). */
+function maxFiles(): number {
+  const n = parseInt(process.env["DXCRM_LOG_MAX_FILES"] ?? "", 10);
+  return Number.isFinite(n) && n >= 0 ? n : 5;
+}
+
+/**
+ * Size-based log rotation. Before an append would push the active ledger past
+ * the byte budget, the archives shift (logs.ndjson.1 → .2 → … dropping the
+ * oldest) and the current ledger becomes logs.ndjson.1, leaving a fresh active
+ * file. Best-effort: any fs error here is swallowed so logging never breaks.
+ */
+function rotateIfNeeded(p: string, incomingBytes: number): void {
+  let size = 0;
+  try {
+    size = fs.statSync(p).size;
+  } catch {
+    return; // no active file yet
+  }
+  if (size + incomingBytes <= maxBytes()) return;
+
+  const keep = maxFiles();
+  try {
+    if (keep <= 0) {
+      fs.rmSync(p, { force: true });
+      return;
+    }
+    fs.rmSync(`${p}.${keep}`, { force: true });
+    for (let i = keep - 1; i >= 1; i--) {
+      if (fs.existsSync(`${p}.${i}`)) fs.renameSync(`${p}.${i}`, `${p}.${i + 1}`);
+    }
+    fs.renameSync(p, `${p}.1`);
+  } catch {
+    /* rotation is best-effort */
+  }
+}
+
 /** Core log primitive. Honors DXCRM_LOG_LEVEL; mirrors to stderr unless off. */
 export function log(
   level: LogLevel,
@@ -56,7 +99,9 @@ export function log(
   try {
     const p = logsPath(resolveDataDir(opts.dataDir));
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.appendFileSync(p, JSON.stringify(entry) + "\n", "utf-8");
+    const line = JSON.stringify(entry) + "\n";
+    rotateIfNeeded(p, Buffer.byteLength(line));
+    fs.appendFileSync(p, line, "utf-8");
   } catch {
     /* logging must not break the caller */
   }
@@ -104,12 +149,32 @@ export interface LogQuery {
   limit?: number; // return only the last N matches
 }
 
-/** Read the log ledger, skipping malformed lines, and apply the filter. */
-export function queryLogs(dataDir: string, query: LogQuery = {}): LogEntry[] {
-  const p = logsPath(dataDir);
-  if (!fs.existsSync(p)) return [];
+/** Read the active ledger plus rotated archives, oldest first. */
+function readLedgerText(p: string): string {
+  const parts: string[] = [];
+  for (let i = maxFiles(); i >= 1; i--) {
+    const archive = `${p}.${i}`;
+    if (fs.existsSync(archive)) {
+      try {
+        parts.push(fs.readFileSync(archive, "utf-8") as string);
+      } catch {
+        /* skip unreadable archive */
+      }
+    }
+  }
+  if (fs.existsSync(p)) {
+    try {
+      parts.push(fs.readFileSync(p, "utf-8") as string);
+    } catch {
+      /* skip */
+    }
+  }
+  return parts.join("");
+}
 
-  const entries = (fs.readFileSync(p, "utf-8") as string)
+/** Read the log ledger (incl. rotated archives), skipping malformed lines, and filter. */
+export function queryLogs(dataDir: string, query: LogQuery = {}): LogEntry[] {
+  const entries = readLedgerText(logsPath(dataDir))
     .split("\n")
     .filter(Boolean)
     .flatMap((line) => {

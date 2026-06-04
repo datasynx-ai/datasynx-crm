@@ -73,6 +73,7 @@ import { registerListBackups } from "./tools/list-backups.js";
 import { registerTriggerSync } from "./tools/trigger-sync.js";
 import { registerGetAuditLog } from "./tools/get-audit-log.js";
 import { registerGetLogs } from "./tools/get-logs.js";
+import { logger } from "../core/logger.js";
 import { registerPrompts } from "./prompts.js";
 import { registerResources } from "./resources.js";
 import { registerCustomObjectTools } from "./tools/custom-objects.js";
@@ -169,8 +170,9 @@ export async function startStdio(): Promise<void> {
   const server = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // IMPORTANT: console.log would corrupt the MCP stdio protocol — always use console.error
-  console.error("DatasynxOpenCRM MCP Server running via stdio");
+  // IMPORTANT: stdout would corrupt the MCP stdio protocol — the logger writes
+  // only to stderr (and the persistent ledger), never stdout.
+  logger.info("mcp-server", "running via stdio");
 }
 
 export async function startHttp(port = 3847): Promise<void> {
@@ -373,7 +375,7 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
   });
 
   app.listen(port, () => {
-    console.error(`DatasynxOpenCRM MCP Server running on http://0.0.0.0:${port}/mcp`);
+    logger.info("mcp-server", "running over http", { url: `http://0.0.0.0:${port}/mcp` });
   });
 }
 
@@ -382,12 +384,12 @@ const mode = process.env["DXCRM_MCP_MODE"] ?? "stdio";
 if (mode === "http") {
   const port = parseInt(process.env["DXCRM_MCP_PORT"] ?? "3847", 10);
   startHttp(port).catch((err: unknown) => {
-    console.error("MCP Server fatal error:", (err as Error).message);
+    logger.error("mcp-server", "fatal error", { error: (err as Error).message });
     process.exit(1);
   });
 } else {
   startStdio().catch((err: unknown) => {
-    console.error("MCP Server fatal error:", (err as Error).message);
+    logger.error("mcp-server", "fatal error", { error: (err as Error).message });
     process.exit(1);
   });
 }
