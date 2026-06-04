@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.1.0...v1.2.0) (2026-06-04)
+
+
+### Features
+
+* **mcp:** get_diagnostics tool — agents can self-check workspace health ([259033c](https://github.com/datasynx-ai/datasynx-crm/commit/259033c4572bf99f93f514e91f3fabe7f2e9f586))
+
 # [1.1.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.0.0...v1.1.0) (2026-06-04)
 
 
