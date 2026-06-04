@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
-import fs from "fs";
 import path from "path";
 import { validateCustomFields, type FieldDefinition } from "./custom-fields.js";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Custom objects — runtime-defined entity types with their own fields, stored
@@ -36,16 +36,7 @@ function recordsPath(dataDir: string, name: string): string {
 }
 
 export function loadCustomObjects(dataDir: string): ObjectDefinition[] {
-  const p = objectsSchemaPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as {
-      objects?: ObjectDefinition[];
-    };
-    return Array.isArray(data.objects) ? data.objects : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<ObjectDefinition>(objectsSchemaPath(dataDir), "objects");
 }
 
 export function getObjectDefinition(dataDir: string, name: string): ObjectDefinition | undefined {
@@ -58,27 +49,16 @@ export function defineCustomObject(dataDir: string, def: ObjectDefinition): Obje
   const idx = objs.findIndex((o) => o.name === def.name);
   if (idx >= 0) objs[idx] = def;
   else objs.push(def);
-  const p = objectsSchemaPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ objects: objs }, null, 2), "utf-8");
+  writeJsonArray(objectsSchemaPath(dataDir), "objects", objs);
   return objs;
 }
 
 export function listRecords(dataDir: string, name: string): ObjectRecord[] {
-  const p = recordsPath(dataDir, name);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { records?: ObjectRecord[] };
-    return Array.isArray(data.records) ? data.records : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<ObjectRecord>(recordsPath(dataDir, name), "records");
 }
 
 function writeRecords(dataDir: string, name: string, records: ObjectRecord[]): void {
-  const p = recordsPath(dataDir, name);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ records }, null, 2), "utf-8");
+  writeJsonArray(recordsPath(dataDir, name), "records", records);
 }
 
 export function getRecord(dataDir: string, name: string, id: string): ObjectRecord | undefined {

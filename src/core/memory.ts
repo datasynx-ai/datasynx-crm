@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
-import fs from "fs";
 import path from "path";
 import { hybridSearch } from "./hybrid-search.js";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Agent memory (domino D6 / F4): persistent, typed memories per customer and
@@ -28,17 +28,10 @@ function customerPath(dataDir: string, slug: string): string {
 }
 
 function readFile(p: string): MemoryEntry[] {
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { memories?: MemoryEntry[] };
-    return Array.isArray(data.memories) ? data.memories : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<MemoryEntry>(p, "memories");
 }
 function writeFile(p: string, memories: MemoryEntry[]): void {
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ memories }, null, 2), "utf-8");
+  writeJsonArray(p, "memories", memories);
 }
 
 export function addMemory(

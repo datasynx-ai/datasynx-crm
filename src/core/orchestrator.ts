@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Multi-agent orchestration (N6-2 v1): a registry of specialist subagents and
@@ -39,37 +39,19 @@ function handoffsPath(dataDir: string): string {
 }
 
 export function loadSubagents(dataDir: string): Subagent[] {
-  const p = subagentsPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { subagents?: Subagent[] };
-    return Array.isArray(data.subagents) ? data.subagents : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<Subagent>(subagentsPath(dataDir), "subagents");
 }
 
 export function saveSubagents(dataDir: string, subagents: Subagent[]): void {
-  const p = subagentsPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ subagents }, null, 2), "utf-8");
+  writeJsonArray(subagentsPath(dataDir), "subagents", subagents);
 }
 
 export function loadHandoffs(dataDir: string): Handoff[] {
-  const p = handoffsPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { handoffs?: Handoff[] };
-    return Array.isArray(data.handoffs) ? data.handoffs : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<Handoff>(handoffsPath(dataDir), "handoffs");
 }
 
 export function recordHandoff(dataDir: string, handoff: Handoff): void {
   const log = loadHandoffs(dataDir);
   log.push({ ...handoff, at: handoff.at ?? new Date().toISOString() });
-  const p = handoffsPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ handoffs: log }, null, 2), "utf-8");
+  writeJsonArray(handoffsPath(dataDir), "handoffs", log);
 }

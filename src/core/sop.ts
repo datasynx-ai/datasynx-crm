@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
-import fs from "fs";
 import path from "path";
 import { hybridSearch } from "./hybrid-search.js";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * SOP module (domino D7 / F5): Standard Operating Procedures — procedural
@@ -27,17 +27,10 @@ function customerPath(dataDir: string, slug: string): string {
 }
 
 function readFile(p: string): Sop[] {
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { sops?: Sop[] };
-    return Array.isArray(data.sops) ? data.sops : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<Sop>(p, "sops");
 }
 function writeFile(p: string, sops: Sop[]): void {
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ sops }, null, 2), "utf-8");
+  writeJsonArray(p, "sops", sops);
 }
 
 export function addSop(

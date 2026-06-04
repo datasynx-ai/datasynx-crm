@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonFile, writeJsonFile } from "../fs/json-store.js";
 
 /**
  * Customer tonality (domino D8 / F2): per-customer (and global) tone profiles
@@ -23,19 +23,12 @@ function customerPath(dataDir: string, slug: string): string {
 }
 
 function readProfile(p: string): ToneProfile {
-  if (!fs.existsSync(p)) return {};
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8") as string) as ToneProfile;
-  } catch {
-    return {};
-  }
+  return readJsonFile<ToneProfile>(p, {});
 }
 
 export function setTone(dataDir: string, profile: ToneProfile, slug?: string): void {
   const p = slug ? customerPath(dataDir, slug) : globalPath(dataDir);
-  const merged = { ...readProfile(p), ...profile };
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(merged, null, 2), "utf-8");
+  writeJsonFile(p, { ...readProfile(p), ...profile });
 }
 
 /** Effective profile: global as base, customer fields override. */

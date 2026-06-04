@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
-import fs from "fs";
 import path from "path";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 export type McpRole = "admin" | "manager" | "rep";
 
@@ -28,14 +28,7 @@ export function hashToken(token: string): string {
 }
 
 export function loadMcpTokens(dataDir: string): McpTokenRecord[] {
-  const p = tokensPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { tokens?: McpTokenRecord[] };
-    return Array.isArray(data.tokens) ? data.tokens : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<McpTokenRecord>(tokensPath(dataDir), "tokens");
 }
 
 /**
@@ -94,9 +87,7 @@ export function createMcpToken(
     ...(label ? { label } : {}),
     createdAt: new Date().toISOString(),
   });
-  const p = tokensPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ tokens: records }, null, 2), "utf-8");
+  writeJsonArray(tokensPath(dataDir), "tokens", records);
   return token;
 }
 

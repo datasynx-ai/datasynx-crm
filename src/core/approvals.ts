@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
-import fs from "fs";
 import path from "path";
+import { readJsonFile, writeJsonFile, readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Human-in-the-loop / approval gate (domino D4 / F3). A per-tool, per-customer
@@ -34,13 +34,7 @@ function approvalsPath(dataDir: string): string {
 }
 
 function loadPolicyConfig(dataDir: string): PolicyConfig {
-  const p = policyPath(dataDir);
-  if (!fs.existsSync(p)) return {};
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8") as string) as PolicyConfig;
-  } catch {
-    return {};
-  }
+  return readJsonFile<PolicyConfig>(policyPath(dataDir), {});
 }
 
 /** Resolve the effective policy: customer-specific → global tool → default (auto). */
@@ -59,28 +53,16 @@ export function setPolicy(dataDir: string, tool: string, policy: Policy, slug?: 
   } else {
     cfg.tools = { ...(cfg.tools ?? {}), [tool]: policy };
   }
-  const p = policyPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(cfg, null, 2), "utf-8");
+  writeJsonFile(policyPath(dataDir), cfg);
 }
 
 export function listApprovals(dataDir: string, status?: Approval["status"]): Approval[] {
-  const p = approvalsPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const all = (JSON.parse(fs.readFileSync(p, "utf-8") as string) as { approvals?: Approval[] })
-      .approvals;
-    const list = Array.isArray(all) ? all : [];
-    return status ? list.filter((a) => a.status === status) : list;
-  } catch {
-    return [];
-  }
+  const list = readJsonArray<Approval>(approvalsPath(dataDir), "approvals");
+  return status ? list.filter((a) => a.status === status) : list;
 }
 
 function writeApprovals(dataDir: string, approvals: Approval[]): void {
-  const p = approvalsPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ approvals }, null, 2), "utf-8");
+  writeJsonArray(approvalsPath(dataDir), "approvals", approvals);
 }
 
 export function requestApproval(

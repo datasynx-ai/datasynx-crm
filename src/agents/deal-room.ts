@@ -1,7 +1,7 @@
 import { buildStakeholderMap, type StakeholderMap } from "../core/org-intelligence.js";
 import { readHealth } from "../core/relationship-health.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
-import { scoreDeal } from "../core/deal-health.js";
+import { scoreDealForToday } from "../core/deal-health.js";
 import {
   buildSimulationInput,
   runSimulation,
@@ -66,19 +66,7 @@ export async function buildDealRoom(
   const dealHealth: DealHealthEntry[] = pipelineDeals
     .filter((d) => d.stage !== "won" && d.stage !== "lost")
     .map((deal) => {
-      const updatedDate = deal.updated ? new Date(deal.updated) : todayDate;
-      const daysSinceLastActivity = Math.floor(
-        (todayDate.getTime() - updatedDate.getTime()) / 86_400_000
-      );
-      const daysToClose = deal.close_date
-        ? Math.floor((new Date(deal.close_date).getTime() - todayDate.getTime()) / 86_400_000)
-        : undefined;
-      const scored: DealHealthScore = scoreDeal(deal, {
-        daysSinceLastActivity,
-        daysInCurrentStage: daysSinceLastActivity,
-        ...(daysToClose !== undefined ? { daysToClose } : {}),
-        ...(deal.probability !== undefined ? { probability: deal.probability } : {}),
-      });
+      const scored: DealHealthScore = scoreDealForToday(deal, todayDate);
       return {
         deal: deal.name,
         stage: deal.stage,

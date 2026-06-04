@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { readPipeline } from "../fs/pipeline-writer.js";
-import { scoreDeal } from "../core/deal-health.js";
+import { deriveDealTiming, scoreDealForToday } from "../core/deal-health.js";
 import { computeCustomerHealth, readHealth } from "../core/relationship-health.js";
 import type { InteractionEntry } from "../schemas/interaction.js";
 import { readGraph, getStakeholders } from "../core/graph.js";
@@ -201,23 +201,11 @@ export async function observeDeal(
   if (!deal) return null;
 
   const todayDate = new Date(today);
-  const updatedDate = deal.updated ? new Date(deal.updated) : todayDate;
-  const daysSinceLastActivity = Math.floor(
-    (todayDate.getTime() - updatedDate.getTime()) / 86_400_000
+  const { daysSinceLastActivity, daysInCurrentStage, daysToClose } = deriveDealTiming(
+    deal,
+    todayDate
   );
-  const daysInCurrentStage = daysSinceLastActivity;
-
-  const daysToClose =
-    deal.close_date && deal.close_date.trim() !== ""
-      ? Math.floor((new Date(deal.close_date).getTime() - todayDate.getTime()) / 86_400_000)
-      : undefined;
-
-  const dealHealthScore = scoreDeal(deal, {
-    daysSinceLastActivity,
-    daysInCurrentStage,
-    ...(daysToClose !== undefined ? { daysToClose } : {}),
-    ...(deal.probability !== undefined ? { probability: deal.probability } : {}),
-  });
+  const dealHealthScore = scoreDealForToday(deal, todayDate);
 
   // Prefer the cached health snapshot (written on each interaction); only
   // recompute — re-reading and parsing the full interactions file — when none

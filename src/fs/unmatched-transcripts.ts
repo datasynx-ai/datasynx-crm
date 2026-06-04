@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonFile, writeJsonFile } from "./json-store.js";
 
 export interface UnmatchedTranscript {
   filePath: string;
@@ -12,25 +12,13 @@ function getUnmatchedPath(dataDir: string): string {
 }
 
 export function readUnmatched(dataDir: string): UnmatchedTranscript[] {
-  const filePath = getUnmatchedPath(dataDir);
-  if (!fs.existsSync(filePath)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8") as string) as UnmatchedTranscript[];
-  } catch {
-    return [];
-  }
+  return readJsonFile<UnmatchedTranscript[]>(getUnmatchedPath(dataDir), []);
 }
 
 export function appendUnmatched(dataDir: string, entry: UnmatchedTranscript): void {
-  const filePath = getUnmatchedPath(dataDir);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  const existing = readUnmatched(dataDir);
-  existing.push(entry);
-  fs.writeFileSync(filePath, JSON.stringify(existing, null, 2), "utf-8");
+  writeJsonFile(getUnmatchedPath(dataDir), [...readUnmatched(dataDir), entry]);
 }
 
 export function clearUnmatched(dataDir: string): void {
-  const filePath = getUnmatchedPath(dataDir);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, "[]", "utf-8");
+  writeJsonFile(getUnmatchedPath(dataDir), []);
 }

@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Journeys (N4-2 v1): branching marketing automation — a decision graph over
@@ -65,14 +65,7 @@ function journeysPath(dataDir: string): string {
 }
 
 export function loadJourneys(dataDir: string): Journey[] {
-  const p = journeysPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { journeys?: Journey[] };
-    return Array.isArray(data.journeys) ? data.journeys : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<Journey>(journeysPath(dataDir), "journeys");
 }
 
 export function defineJourney(dataDir: string, journey: Journey): Journey[] {
@@ -80,8 +73,6 @@ export function defineJourney(dataDir: string, journey: Journey): Journey[] {
   const idx = all.findIndex((j) => j.id === journey.id);
   if (idx >= 0) all[idx] = journey;
   else all.push(journey);
-  const p = journeysPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ journeys: all }, null, 2), "utf-8");
+  writeJsonArray(journeysPath(dataDir), "journeys", all);
   return all;
 }

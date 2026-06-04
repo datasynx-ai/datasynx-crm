@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Omni-channel routing (N3-1 v1): assign work (tickets) to agents by skill,
@@ -31,18 +31,9 @@ function agentsPath(dataDir: string): string {
 }
 
 export function loadRoutingAgents(dataDir: string): RoutingAgent[] {
-  const p = agentsPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as { agents?: RoutingAgent[] };
-    return Array.isArray(data.agents) ? data.agents : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<RoutingAgent>(agentsPath(dataDir), "agents");
 }
 
 export function saveRoutingAgents(dataDir: string, agents: RoutingAgent[]): void {
-  const p = agentsPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ agents }, null, 2), "utf-8");
+  writeJsonArray(agentsPath(dataDir), "agents", agents);
 }

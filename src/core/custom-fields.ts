@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Metadata-driven custom fields — the first increment of the metadata model
@@ -21,16 +21,7 @@ function schemaPath(dataDir: string): string {
 }
 
 export function loadFieldDefinitions(dataDir: string): FieldDefinition[] {
-  const p = schemaPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as {
-      fields?: FieldDefinition[];
-    };
-    return Array.isArray(data.fields) ? data.fields : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<FieldDefinition>(schemaPath(dataDir), "fields");
 }
 
 /** Add or update (by name) a custom field definition. */
@@ -39,9 +30,7 @@ export function defineCustomField(dataDir: string, def: FieldDefinition): FieldD
   const idx = defs.findIndex((d) => d.name === def.name);
   if (idx >= 0) defs[idx] = def;
   else defs.push(def);
-  const p = schemaPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ fields: defs }, null, 2), "utf-8");
+  writeJsonArray(schemaPath(dataDir), "fields", defs);
   return defs;
 }
 

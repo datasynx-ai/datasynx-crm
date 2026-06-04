@@ -1,6 +1,6 @@
-import fs from "fs";
 import path from "path";
 import { readMainFacts, listCustomerSlugs } from "../fs/customer-dir.js";
+import { readJsonArray, writeJsonArray } from "../fs/json-store.js";
 
 /**
  * Customer segments (marketing lists, N4-1): named filter criteria over
@@ -23,16 +23,7 @@ function segmentsPath(dataDir: string): string {
 }
 
 export function loadSegments(dataDir: string): SegmentDefinition[] {
-  const p = segmentsPath(dataDir);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as {
-      segments?: SegmentDefinition[];
-    };
-    return Array.isArray(data.segments) ? data.segments : [];
-  } catch {
-    return [];
-  }
+  return readJsonArray<SegmentDefinition>(segmentsPath(dataDir), "segments");
 }
 
 export function defineSegment(
@@ -45,9 +36,7 @@ export function defineSegment(
   const def: SegmentDefinition = { name, criteria };
   if (idx >= 0) segs[idx] = def;
   else segs.push(def);
-  const p = segmentsPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ segments: segs }, null, 2), "utf-8");
+  writeJsonArray(segmentsPath(dataDir), "segments", segs);
   return segs;
 }
 
@@ -55,7 +44,7 @@ export function removeSegment(dataDir: string, name: string): boolean {
   const segs = loadSegments(dataDir);
   const next = segs.filter((s) => s.name !== name);
   if (next.length === segs.length) return false;
-  fs.writeFileSync(segmentsPath(dataDir), JSON.stringify({ segments: next }, null, 2), "utf-8");
+  writeJsonArray(segmentsPath(dataDir), "segments", next);
   return true;
 }
 

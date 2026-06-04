@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from "crypto";
-import fs from "fs";
 import path from "path";
+import { readJsonArray as readJson, writeJsonArray as writeJson } from "../fs/json-store.js";
 
 /**
  * Outbound webhooks (event-driven architecture, N5-2). Subscriptions live in
@@ -33,20 +33,6 @@ function subsPath(dataDir: string): string {
 }
 function failuresPath(dataDir: string): string {
   return path.join(dataDir, ".agentic", "webhook-failures.json");
-}
-
-function readJson<T>(p: string, key: string): T[] {
-  if (!fs.existsSync(p)) return [];
-  try {
-    const data = JSON.parse(fs.readFileSync(p, "utf-8") as string) as Record<string, T[]>;
-    return Array.isArray(data[key]) ? data[key]! : [];
-  } catch {
-    return [];
-  }
-}
-function writeJson<T>(p: string, key: string, items: T[]): void {
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ [key]: items }, null, 2), "utf-8");
 }
 
 export function loadWebhooks(dataDir: string): WebhookSubscription[] {

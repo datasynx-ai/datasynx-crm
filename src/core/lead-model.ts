@@ -1,7 +1,7 @@
-import fs from "fs";
 import path from "path";
 import { readPipelineSync } from "../fs/pipeline-writer.js";
 import { listCustomerSlugs } from "../fs/customer-dir.js";
+import { readJsonFile, writeJsonFile } from "../fs/json-store.js";
 import { scoreOpportunity } from "./opportunity-score.js";
 import type { PipelineDeal } from "../schemas/pipeline.js";
 
@@ -113,17 +113,9 @@ export function predictWin(model: LeadModel, deal: PipelineDeal): number {
 }
 
 export function saveLeadModel(dataDir: string, model: LeadModel): void {
-  const p = modelPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify(model, null, 2), "utf-8");
+  writeJsonFile(modelPath(dataDir), model);
 }
 
 export function loadLeadModel(dataDir: string): LeadModel | null {
-  const p = modelPath(dataDir);
-  if (!fs.existsSync(p)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8") as string) as LeadModel;
-  } catch {
-    return null;
-  }
+  return readJsonFile<LeadModel | null>(modelPath(dataDir), null);
 }

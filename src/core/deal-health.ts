@@ -68,3 +68,44 @@ export function scoreDeal(deal: PipelineDeal, signals: DealHealthSignals): DealH
   score = Math.max(0, score);
   return { score, grade: grade(score), signals, warnings };
 }
+
+export interface DealTiming {
+  daysSinceLastActivity: number;
+  daysInCurrentStage: number;
+  daysToClose?: number;
+}
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Derive activity/close timing for a deal relative to `todayDate`. Centralizes
+ * the day-diff math that deal-room and deal-agent each computed identically.
+ * A blank/whitespace close_date yields `undefined` (not a NaN day count).
+ */
+export function deriveDealTiming(deal: PipelineDeal, todayDate: Date): DealTiming {
+  const updatedDate = deal.updated ? new Date(deal.updated) : todayDate;
+  const daysSinceLastActivity = Math.floor(
+    (todayDate.getTime() - updatedDate.getTime()) / MS_PER_DAY
+  );
+  const timing: DealTiming = {
+    daysSinceLastActivity,
+    daysInCurrentStage: daysSinceLastActivity,
+  };
+  if (deal.close_date && deal.close_date.trim() !== "") {
+    timing.daysToClose = Math.floor(
+      (new Date(deal.close_date).getTime() - todayDate.getTime()) / MS_PER_DAY
+    );
+  }
+  return timing;
+}
+
+/** Score a deal using timing derived from `todayDate` plus the deal's probability. */
+export function scoreDealForToday(deal: PipelineDeal, todayDate: Date): DealHealthScore {
+  const timing = deriveDealTiming(deal, todayDate);
+  return scoreDeal(deal, {
+    daysSinceLastActivity: timing.daysSinceLastActivity,
+    daysInCurrentStage: timing.daysInCurrentStage,
+    ...(timing.daysToClose !== undefined ? { daysToClose: timing.daysToClose } : {}),
+    ...(deal.probability !== undefined ? { probability: deal.probability } : {}),
+  });
+}
