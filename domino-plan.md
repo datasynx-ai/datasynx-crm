@@ -66,7 +66,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 - **Hängt ab von:** D2.
 - **Schaltet frei:** Kontext-Qualität für D9, D10, D11, D12.
 
-### D7 · SOP-Modul + Trigger-Search — *Aufgaben werden konsistent nach Vorgaben erledigt* · F5 · M
+### D7 ✅ · SOP-Modul + Trigger-Search — *Aufgaben werden konsistent nach Vorgaben erledigt* · F5 · M
 - **Warum hier:** Prozedurales Wissen (global/je Kunde), per D2 auffindbar → liefert „wie machen wir X"
   an D9 (Autofill-Regeln), D11 (NBA), Human-Work.
 - **Hängt ab von:** D2.
