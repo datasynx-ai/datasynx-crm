@@ -163,6 +163,19 @@ dxcrm fields add tier select --options gold,silver,bronze
 ```
 
 Definitions are stored in `.agentic/schema/custom-fields.json`.
+
+## dxcrm object
+
+Custom objects — runtime-defined entities with their own fields, no migrations.
+
+```bash
+dxcrm object define contract --label "Contract" --field value:number --field stage:select:draft|signed
+dxcrm object add contract --set value=5000 --set stage=signed
+dxcrm object list contract
+```
+
+Definitions live in `.agentic/schema/custom-objects.json`; records in
+`.agentic/objects/<name>.json` (validated against the object's fields).
 Set `DXCRM_MCP_MODE=http` + `DXCRM_MCP_PORT=3847` env vars to configure
 when using the server as a subprocess.
 

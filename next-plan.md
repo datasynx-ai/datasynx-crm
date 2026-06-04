@@ -180,7 +180,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N4-1 | Segmente/Listen | Marketing | M | 🔲 |
 | N4-2 | Journeys (mehrstufig, multichannel) | Marketing | L | 🔲 |
 | N4-3 | CDP: Identity Resolution + Unified Profiles + Calculated Insights | Data | L | 🔲 |
-| N5-1 | Custom Objects/Fields via Metadata-API (No-Migration) | Platform | L | 🔲 |
+| N5-1 | Custom Objects/Fields via Metadata-API (No-Migration) | Platform | L | ✅ (`dxcrm object define/add/list` + CRUD; MCP-Tool-Exposition offen) |
 | N5-2 | Webhook-CRUD-Events (Backoff + Replay-Store) | Platform | M | 🔲 |
 | N5-3 | Sharing-Rules / Field-/Row-Level-Security | Platform | M | 🔲 |
 | N6-1 | Bi-temporaler Wissensgraph (4 Zeitstempel/Edge) | Memory | L | 🟡 (Primitive ✅: validFrom/To+recordedAt/invalidatedAt, invalidateEdge/activeEdges; Auto-Invalidation widersprüchlicher Fakten + Kùzu offen) |
