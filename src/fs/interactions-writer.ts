@@ -30,6 +30,32 @@ export async function readInteractions(dataDir: string, slug: string): Promise<s
   return fs.readFileSync(filePath, "utf-8");
 }
 
+/**
+ * Per-run source-ref deduplication index for bulk imports. Loads each slug's
+ * interactions file once (not once per row) and tracks freshly-appended refs
+ * in memory, so a 5k-row import stays linear instead of re-reading a growing
+ * file on every row (the previous O(rows²) behavior).
+ */
+export class InteractionDedup {
+  private readonly cache = new Map<string, string>();
+  constructor(private readonly dataDir: string) {}
+
+  /** True if `sourceRef` already exists for `slug` (on disk or appended this run). */
+  async seen(slug: string, sourceRef: string): Promise<boolean> {
+    let content = this.cache.get(slug);
+    if (content === undefined) {
+      content = await readInteractions(this.dataDir, slug).catch(() => "");
+      this.cache.set(slug, content);
+    }
+    return content.includes(sourceRef);
+  }
+
+  /** Record that `sourceRef` was just appended, so later rows dedupe against it. */
+  markAppended(slug: string, sourceRef: string): void {
+    this.cache.set(slug, (this.cache.get(slug) ?? "") + sourceRef);
+  }
+}
+
 export async function appendInteraction(
   dataDir: string,
   slug: string,

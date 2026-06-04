@@ -2,10 +2,28 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { vol } from "memfs";
 import type { MockInstance } from "vitest";
 
-vi.mock("../../src/fs/interactions-writer.js", () => ({
-  appendInteraction: vi.fn(),
-  readInteractions: vi.fn(),
-}));
+vi.mock("../../src/fs/interactions-writer.js", () => {
+  const readInteractions = vi.fn();
+  const appendInteraction = vi.fn();
+  // Mirror the real InteractionDedup, delegating to the mocked readInteractions
+  // so tests can still drive dedup via readInteractions.mockResolvedValue(...).
+  class InteractionDedup {
+    private cache = new Map<string, string>();
+    constructor(private dataDir: string) {}
+    async seen(slug: string, ref: string): Promise<boolean> {
+      let c = this.cache.get(slug);
+      if (c === undefined) {
+        c = await (readInteractions(this.dataDir, slug) as Promise<string>).catch(() => "");
+        this.cache.set(slug, c);
+      }
+      return c.includes(ref);
+    }
+    markAppended(slug: string, ref: string): void {
+      this.cache.set(slug, (this.cache.get(slug) ?? "") + ref);
+    }
+  }
+  return { appendInteraction, readInteractions, InteractionDedup };
+});
 
 let appendInteraction: MockInstance;
 let readInteractions: MockInstance;

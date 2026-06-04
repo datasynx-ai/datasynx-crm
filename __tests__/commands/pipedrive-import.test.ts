@@ -1,10 +1,26 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { vol } from "memfs";
 
-vi.mock("../../src/fs/interactions-writer.js", () => ({
-  appendInteraction: vi.fn().mockResolvedValue(undefined),
-  readInteractions: vi.fn().mockResolvedValue(""),
-}));
+vi.mock("../../src/fs/interactions-writer.js", () => {
+  const readInteractions = vi.fn().mockResolvedValue("");
+  const appendInteraction = vi.fn().mockResolvedValue(undefined);
+  class InteractionDedup {
+    private cache = new Map<string, string>();
+    constructor(private dataDir: string) {}
+    async seen(slug: string, ref: string): Promise<boolean> {
+      let c = this.cache.get(slug);
+      if (c === undefined) {
+        c = await (readInteractions(this.dataDir, slug) as Promise<string>).catch(() => "");
+        this.cache.set(slug, c);
+      }
+      return c.includes(ref);
+    }
+    markAppended(slug: string, ref: string): void {
+      this.cache.set(slug, (this.cache.get(slug) ?? "") + ref);
+    }
+  }
+  return { appendInteraction, readInteractions, InteractionDedup };
+});
 
 vi.mock("../../src/fs/customer-dir.js", () => ({
   ensureCustomerDir: vi.fn().mockResolvedValue(undefined),

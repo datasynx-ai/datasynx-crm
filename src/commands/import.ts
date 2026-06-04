@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { createHash } from "crypto";
 import { success, error, info, bold } from "../ui/colors.js";
-import { appendInteraction } from "../fs/interactions-writer.js";
+import { appendInteraction, InteractionDedup } from "../fs/interactions-writer.js";
 
 interface ImportResult {
   customersCreated: number;
@@ -240,6 +240,7 @@ async function runSalesforceFileImport(
     }
   }
 
+  const dedup = new InteractionDedup(dir);
   for (const row of activities) {
     const accountId = row["AccountId"] ?? row["WhatId"] ?? "";
     const slug = accountId ? slugMap.get(accountId) : undefined;
@@ -247,9 +248,7 @@ async function runSalesforceFileImport(
 
     const id = row["Id"] ?? hashRow(row);
     const sourceRef = `salesforce://row/${id}`;
-    const { readInteractions } = await import("../fs/interactions-writer.js");
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -275,6 +274,7 @@ async function runSalesforceFileImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.interactionsImported++;
     } catch (err) {
       result.errors.push(`Activity ${id}: ${(err as Error).message}`);
@@ -351,6 +351,7 @@ async function runPipedriveFileImport(
     }
   }
 
+  const dedup = new InteractionDedup(dir);
   for (const row of activities) {
     const orgId = row["org_id"] ?? row["organization_id"] ?? "";
     const slug = orgId ? slugMap.get(orgId) : undefined;
@@ -358,9 +359,7 @@ async function runPipedriveFileImport(
 
     const id = row["id"] ?? hashRow(row);
     const sourceRef = `pipedrive://row/${id}`;
-    const { readInteractions } = await import("../fs/interactions-writer.js");
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -388,6 +387,7 @@ async function runPipedriveFileImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.interactionsImported++;
     } catch (err) {
       result.errors.push(`Activity ${id}: ${(err as Error).message}`);
@@ -510,6 +510,7 @@ export async function runImport(
   }
 
   // Pass 2: Import activities/notes
+  const dedup = new InteractionDedup(dir);
   for (const row of rows) {
     const activityType = (row[mapping["activityType"] ?? ""] ?? "").trim();
     const notes = (row[mapping["notes"] ?? ""] ?? "").trim();
@@ -548,9 +549,7 @@ export async function runImport(
     })();
 
     try {
-      const { readInteractions } = await import("../fs/interactions-writer.js");
-      const existing = await readInteractions(dir, slug);
-      if (existing.includes(sourceRef)) {
+      if (await dedup.seen(slug, sourceRef)) {
         result.skipped++;
         continue;
       }
@@ -564,6 +563,7 @@ export async function runImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
 
       result.interactionsImported++;
     } catch (err) {
@@ -658,14 +658,13 @@ async function runSalesforceApiImport(
   }
 
   // Pass 2: tasks → interactions
+  const dedup = new InteractionDedup(dir);
   for (const task of tasks) {
     const slug = task.WhoId ? slugMap.get(task.WhoId) : undefined;
     if (!slug) continue;
 
     const sourceRef = `salesforce://task/${task.Id}`;
-    const { readInteractions } = await import("../fs/interactions-writer.js");
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -691,6 +690,7 @@ async function runSalesforceApiImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.interactionsImported++;
     } catch (err) {
       result.errors.push(`Task ${task.Id}: ${(err as Error).message}`);
@@ -738,7 +738,6 @@ async function runSalesforceApiImport(
   }
 
   // Pass 4: leads → customers (+ a lead interaction capturing status/title)
-  const { readInteractions } = await import("../fs/interactions-writer.js");
   for (const lead of leads) {
     const name = lead.Company?.trim() || lead.Name?.trim();
     if (!name) continue;
@@ -756,8 +755,7 @@ async function runSalesforceApiImport(
     }
 
     const sourceRef = `salesforce://lead/${lead.Id}`;
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -773,6 +771,7 @@ async function runSalesforceApiImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.leadsImported = (result.leadsImported ?? 0) + 1;
     } catch (err) {
       result.errors.push(`Lead ${lead.Id}: ${(err as Error).message}`);
@@ -792,8 +791,7 @@ async function runSalesforceApiImport(
     }
 
     const sourceRef = `salesforce://event/${event.Id}`;
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -813,6 +811,7 @@ async function runSalesforceApiImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.eventsImported = (result.eventsImported ?? 0) + 1;
     } catch (err) {
       result.errors.push(`Event ${event.Id}: ${(err as Error).message}`);
@@ -926,8 +925,7 @@ async function runSalesforceApiImport(
       continue;
     }
     const sourceRef = `salesforce://note/${note.Id}`;
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -944,6 +942,7 @@ async function runSalesforceApiImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.notesImported = (result.notesImported ?? 0) + 1;
     } catch (err) {
       result.errors.push(`Note ${note.Id}: ${(err as Error).message}`);
@@ -962,8 +961,7 @@ async function runSalesforceApiImport(
       continue;
     }
     const sourceRef = `salesforce://campaignmember/${cm.Id}`;
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -979,6 +977,7 @@ async function runSalesforceApiImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.campaignsImported = (result.campaignsImported ?? 0) + 1;
     } catch (err) {
       result.errors.push(`CampaignMember ${cm.Id}: ${(err as Error).message}`);
@@ -1050,6 +1049,7 @@ export async function runPipedriveApiImport(
   }
 
   // Pass 2: activities → interactions
+  const dedup = new InteractionDedup(dir);
   for (const activity of activities) {
     const slug =
       (activity.person_id && slugByPersonId.get(activity.person_id)) ??
@@ -1058,9 +1058,7 @@ export async function runPipedriveApiImport(
     if (!slug) continue;
 
     const sourceRef = `pipedrive://activity/${activity.id}`;
-    const { readInteractions } = await import("../fs/interactions-writer.js");
-    const existing = await readInteractions(dir, slug).catch(() => "");
-    if (existing.includes(sourceRef)) {
+    if (await dedup.seen(slug, sourceRef)) {
       result.skipped++;
       continue;
     }
@@ -1087,6 +1085,7 @@ export async function runPipedriveApiImport(
         sourceRef,
         synced: new Date().toISOString(),
       });
+      dedup.markAppended(slug, sourceRef);
       result.interactionsImported++;
     } catch (err) {
       result.errors.push(`Activity ${activity.id}: ${(err as Error).message}`);
