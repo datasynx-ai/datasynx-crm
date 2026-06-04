@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeFileAtomic } from "./atomic-write.js";
 import matter from "gray-matter";
 import { EmailTemplateSchema, type EmailTemplate } from "../schemas/email-template.js";
 
@@ -76,7 +77,7 @@ export function writeTemplate(dataDir: string, tmpl: EmailTemplate): void {
   const dir = path.join(templatesDir(dataDir), category);
   fs.mkdirSync(dir, { recursive: true });
   const content = matter.stringify(body, { ...meta, updatedAt: new Date().toISOString() });
-  fs.writeFileSync(path.join(dir, `${tmpl.id}.md`), content, "utf-8");
+  writeFileAtomic(path.join(dir, `${tmpl.id}.md`), content);
 }
 
 export function deleteTemplate(dataDir: string, id: string): boolean {

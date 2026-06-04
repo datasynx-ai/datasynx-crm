@@ -167,18 +167,17 @@ describe("watchTranscripts — add event fires onFile", () => {
     const chokidar = await import("chokidar");
     vi.mocked(chokidar.default.watch).mockReturnValue(mockWatcher as never);
 
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const onFile = vi.fn().mockRejectedValue(new Error("parse error"));
     const { watchTranscripts } = await import("../../src/sync/transcript-watcher.js");
     watchTranscripts({ paths: ["/t"], extensions: [".txt"], dataDir: "/crm", onFile });
 
     addHandler!("/t/bad.txt");
     await new Promise((r) => setTimeout(r, 10));
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Error processing"),
-      "parse error"
-    );
-    errorSpy.mockRestore();
+    // Routed through the unified logger → "[transcript-watcher] error processing file {...}"
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("error processing file"));
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("parse error"));
+    stderrSpy.mockRestore();
   });
 });
 
@@ -230,7 +229,7 @@ describe("processTranscriptFileAutoMatch", () => {
     const { processTranscriptFileAutoMatch } = await import("../../src/sync/transcript-watcher.js");
     await processTranscriptFileAutoMatch("/transcripts/random.txt", "/crm");
 
-    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("Unmatched"));
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("unmatched transcript"));
     stderrSpy.mockRestore();
   });
 
@@ -369,7 +368,7 @@ describe("processTranscriptFileAutoMatch — LLM customer recognition", () => {
     const { processTranscriptFileAutoMatch } = await import("../../src/sync/transcript-watcher.js");
     await processTranscriptFileAutoMatch("/transcripts/random.txt", "/crm");
 
-    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("Unmatched"));
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("unmatched transcript"));
     stderrSpy.mockRestore();
   });
 });

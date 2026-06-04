@@ -4,6 +4,7 @@
 import { CronJob } from "cron";
 import fs from "fs";
 import path from "path";
+import { logger } from "../core/logger.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -18,7 +19,7 @@ async function syncWithBackoff(fn: () => Promise<void>, maxRetries = 3): Promise
       const msg = (err as Error).message;
       if (msg.includes("429") || msg.includes("rateLimitExceeded")) {
         const delay = Math.pow(2, attempt) * 2000; // 2s, 4s, 8s
-        process.stderr.write(`[daemon] Rate limit, retrying in ${delay}ms\n`);
+        logger.warn("daemon", "rate limit, retrying", { delayMs: delay });
         await new Promise((r) => setTimeout(r, delay));
       } else {
         throw err;
@@ -67,7 +68,7 @@ async function syncAllCustomers(): Promise<void> {
               since: new Date(Date.now() - 30 * 60 * 1000), // last 30 min
             });
             if (result.synced > 0) {
-              process.stderr.write(`[daemon] ${slug}: synced ${result.synced} emails\n`);
+              logger.info("daemon", "synced emails", { slug, synced: result.synced });
             }
             // Update sync state after each successful customer sync
             const { updateSlugSyncState } = await import("../fs/sync-state.js");
@@ -76,7 +77,7 @@ async function syncAllCustomers(): Promise<void> {
         }
       }
     } catch (err) {
-      process.stderr.write(`[daemon] Error syncing ${slug}: ${(err as Error).message}\n`);
+      logger.error("daemon", "error syncing customer", { slug, error: (err as Error).message });
     }
   }
 }
@@ -100,10 +101,10 @@ async function startWatcher(): Promise<void> {
         dataDir: DATA_DIR,
         onFile: (filePath) => processTranscriptFileAutoMatch(filePath, DATA_DIR),
       });
-      process.stderr.write(`[daemon] Watching transcripts (LLM auto-match)\n`);
+      logger.info("daemon", "watching transcripts (LLM auto-match)");
     }
   } catch (err) {
-    process.stderr.write(`[daemon] Watcher error: ${(err as Error).message}\n`);
+    logger.error("daemon", "watcher error", { error: (err as Error).message });
   }
 }
 
@@ -133,7 +134,7 @@ async function checkAgentWakeTriggers(): Promise<void> {
       if (lastWake && lastSync <= lastWake) continue;
 
       // New email since last wake — build context and send notification
-      process.stderr.write(`[daemon] Wake trigger: ${config.slug}\n`);
+      logger.info("daemon", "wake trigger", { slug: config.slug });
 
       const { buildContext } = await import("../core/context-builder.js");
       const context = await buildContext(DATA_DIR, config.slug).catch(() => null);
@@ -170,9 +171,9 @@ async function checkAgentWakeTriggers(): Promise<void> {
             req.write(body);
             req.end();
           });
-          process.stderr.write(`[daemon] Telegram sent for ${config.slug}\n`);
+          logger.info("daemon", "telegram sent", { slug: config.slug });
         } catch (err) {
-          process.stderr.write(`[daemon] Telegram failed: ${(err as Error).message}\n`);
+          logger.error("daemon", "telegram failed", { error: (err as Error).message });
         }
       }
 
@@ -180,7 +181,7 @@ async function checkAgentWakeTriggers(): Promise<void> {
       config.lastWake = new Date().toISOString();
       fs.writeFileSync(path.join(agentsDir, file), JSON.stringify(config, null, 2), "utf-8");
     } catch (err) {
-      process.stderr.write(`[daemon] Agent check error ${file}: ${(err as Error).message}\n`);
+      logger.error("daemon", "agent check error", { file, error: (err as Error).message });
     }
   }
 }
@@ -195,7 +196,7 @@ new CronJob(
   async () => {
     await syncAllCustomers();
     await checkAgentWakeTriggers().catch((err: unknown) => {
-      process.stderr.write(`[daemon] Wake trigger check failed: ${(err as Error).message}\n`);
+      logger.error("daemon", "wake trigger check failed", { error: (err as Error).message });
     });
   },
   null,
@@ -216,7 +217,7 @@ new CronJob(
       const { runScheduledBackupIfDue } = await import("../commands/backup.js");
       await runScheduledBackupIfDue(DATA_DIR);
     } catch (err) {
-      process.stderr.write(`[daemon] Backup check error: ${(err as Error).message}\n`);
+      logger.error("daemon", "backup check error", { error: (err as Error).message });
     }
   },
   null,
@@ -248,13 +249,13 @@ new CronJob(
       const token = (auth.credentials?.access_token as string | undefined) ?? "";
       const result = await renewExpiringSubscriptions(DATA_DIR, buildGmailRenewFn(token, ""), 24);
       if (result.renewed.length > 0) {
-        process.stderr.write(`[push] Renewed ${result.renewed.length} subscription(s)\n`);
+        logger.info("push", "renewed subscriptions", { count: result.renewed.length });
       }
       if (result.errors.length > 0) {
-        process.stderr.write(`[push] Renewal errors: ${result.errors.join(", ")}\n`);
+        logger.warn("push", "renewal errors", { errors: result.errors });
       }
     } catch (err) {
-      process.stderr.write(`[push] Renewal failed: ${(err as Error).message}\n`);
+      logger.error("push", "renewal failed", { error: (err as Error).message });
     }
   },
   null,
@@ -274,24 +275,23 @@ new CronJob(
     try {
       const { runDailyProactiveChecks } = await import("../daemon/proactive-worker.js");
       const result = await runDailyProactiveChecks(DATA_DIR);
-      process.stderr.write(
-        `[proactive] Daily check: ${result.customersChecked} customers, ${result.tasksEnqueued} tasks enqueued\n`
-      );
+      logger.info("proactive", "daily check", {
+        customersChecked: result.customersChecked,
+        tasksEnqueued: result.tasksEnqueued,
+      });
       if (result.errors.length > 0) {
-        process.stderr.write(`[proactive] Errors: ${result.errors.join(", ")}\n`);
+        logger.warn("proactive", "errors during daily check", { errors: result.errors });
       }
       const { drainProactiveQueue } = await import("../core/notification-dispatcher.js");
       const drain = await drainProactiveQueue(DATA_DIR);
-      process.stderr.write(
-        `[proactive] Dispatched ${drain.sent} task(s), ${drain.failed} failed\n`
-      );
+      logger.info("proactive", "dispatched tasks", { sent: drain.sent, failed: drain.failed });
       const { syncGoalProgressFromPipeline } = await import("../core/goal-engine.js");
       const goalSync = await syncGoalProgressFromPipeline(DATA_DIR);
       if (goalSync.updated.length > 0) {
-        process.stderr.write(`[goals] Progress synced: ${goalSync.updated.join(", ")}\n`);
+        logger.info("goals", "progress synced", { updated: goalSync.updated });
       }
     } catch (err) {
-      process.stderr.write(`[proactive] Daily check failed: ${(err as Error).message}\n`);
+      logger.error("proactive", "daily check failed", { error: (err as Error).message });
     }
   },
   null,
@@ -313,15 +313,18 @@ new CronJob(
       const today = new Date().toISOString().slice(0, 10);
       const breaches = await checkSlaBreaches(DATA_DIR, today);
       if (breaches.length > 0) {
-        process.stderr.write(`[tickets] ${breaches.length} SLA breach(es) found\n`);
+        logger.warn("tickets", "SLA breaches found", { count: breaches.length });
         for (const { slug, ticket } of breaches) {
-          process.stderr.write(
-            `[tickets] SLA breach: ${slug}/${ticket.id} "${ticket.title}" due ${ticket.slaDue}\n`
-          );
+          logger.warn("tickets", "SLA breach", {
+            slug,
+            ticketId: ticket.id,
+            title: ticket.title,
+            due: ticket.slaDue,
+          });
         }
       }
     } catch (err) {
-      process.stderr.write(`[tickets] SLA check failed: ${(err as Error).message}\n`);
+      logger.error("tickets", "SLA check failed", { error: (err as Error).message });
     }
   },
   null,
@@ -342,11 +345,13 @@ new CronJob(
       const { runSequenceCycle } = await import("../core/sequence-engine.js");
       const today = new Date().toISOString().slice(0, 10);
       const result = await runSequenceCycle(DATA_DIR, today);
-      process.stderr.write(
-        `[sequences] ${result.sent} sent, ${result.completed} completed, ${result.errors.length} errors\n`
-      );
+      logger.info("sequences", "cycle complete", {
+        sent: result.sent,
+        completed: result.completed,
+        errors: result.errors.length,
+      });
     } catch (err) {
-      process.stderr.write(`[sequences] cycle failed: ${(err as Error).message}\n`);
+      logger.error("sequences", "cycle failed", { error: (err as Error).message });
     }
   },
   null,
@@ -363,4 +368,4 @@ await startWatcher();
 
 // Signal ready
 if (process.send) process.send("ready");
-process.stderr.write("[daemon] DatasynxOpenCRM daemon started\n");
+logger.info("daemon", "daemon started");

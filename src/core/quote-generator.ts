@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeFileAtomic } from "../fs/atomic-write.js";
 import yaml from "js-yaml";
 import type { Quote, QuoteLineItem } from "../schemas/quote.js";
 
@@ -141,10 +142,9 @@ export function updateQuoteStatus(
   const updated: Quote = { ...q, status };
   if (status === "viewed" && !q.viewedAt) updated.viewedAt = new Date().toISOString();
   if (status === "accepted" && !q.acceptedAt) updated.acceptedAt = new Date().toISOString();
-  fs.writeFileSync(
+  writeFileAtomic(
     path.join(quotesDir(dataDir), `${quoteNumber}.json`),
-    JSON.stringify(updated, null, 2),
-    "utf-8"
+    JSON.stringify(updated, null, 2)
   );
 }
 
@@ -191,11 +191,11 @@ export async function generateQuote(dataDir: string, input: GenerateQuoteInput):
     htmlPath,
   };
 
-  fs.writeFileSync(path.join(dir, `${quoteNumber}.json`), JSON.stringify(quote, null, 2), "utf-8");
+  writeFileAtomic(path.join(dir, `${quoteNumber}.json`), JSON.stringify(quote, null, 2));
 
   const customerName = readCustomerName(dataDir, input.slug);
   const html = buildHtml(quote, config, customerName);
-  fs.writeFileSync(htmlPath, html, "utf-8");
+  writeFileAtomic(htmlPath, html);
 
   return quote;
 }

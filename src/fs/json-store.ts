@@ -1,11 +1,16 @@
 import fs from "fs";
-import path from "path";
+import { writeFileAtomic } from "./atomic-write.js";
 
 /**
  * Small shared JSON persistence helpers. Many modules independently reimplemented
  * the same "read a JSON file, fall back to a default on missing/parse-error" and
  * "write a `{ key: items }` array store" logic — this centralizes both so the
  * behavior (and the silent-fallback semantics) is defined in exactly one place.
+ *
+ * Writes go through writeFileAtomic, so a crash mid-write can never leave a
+ * half-written (corrupt) JSON file — readers always see either the old or the
+ * new complete document. This matters for the config, audit, and state files
+ * the whole product depends on.
  */
 
 /** Read and parse a JSON file, returning `fallback` if it is missing or invalid. */
@@ -18,10 +23,9 @@ export function readJsonFile<T>(filePath: string, fallback: T): T {
   }
 }
 
-/** Write `value` as pretty-printed JSON, creating parent directories as needed. */
+/** Atomically write `value` as pretty-printed JSON, creating parent dirs as needed. */
 export function writeJsonFile(filePath: string, value: unknown): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), "utf-8");
+  writeFileAtomic(filePath, JSON.stringify(value, null, 2));
 }
 
 /**

@@ -82,14 +82,18 @@ export function recordUsage(
 export function loadUsage(dataDir: string): UsageEntry[] {
   const p = ledgerPath(dataDir);
   if (!fs.existsSync(p)) return [];
-  try {
-    return (fs.readFileSync(p, "utf-8") as string)
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line) as UsageEntry);
-  } catch {
-    return [];
-  }
+  // Parse line-by-line and skip any malformed line (e.g. a torn final append
+  // from a crash) rather than discarding the entire ledger.
+  return (fs.readFileSync(p, "utf-8") as string)
+    .split("\n")
+    .filter(Boolean)
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as UsageEntry];
+      } catch {
+        return [];
+      }
+    });
 }
 
 export interface UsageAggregate {

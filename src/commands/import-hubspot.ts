@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { createHash } from "crypto";
 import { streamCSV } from "../core/csv-stream.js";
+import { escapeRegExp } from "../core/regex.js";
 import { upsertContact } from "../fs/contacts-writer.js";
 import type { PipelineDeal } from "../schemas/pipeline.js";
 import type { InteractionEntry } from "../schemas/interaction.js";
@@ -222,7 +223,7 @@ function updateMainFactsFields(
   if (!fs.existsSync(p)) return;
   let content = fs.readFileSync(p, "utf-8") as string;
   for (const [field, value] of entries) {
-    const regex = new RegExp(`^${field}:.*$`, "m");
+    const regex = new RegExp(`^${escapeRegExp(field)}:.*$`, "m");
     if (regex.test(content)) {
       content = content.replace(regex, `${field}: ${value}`);
     } else {

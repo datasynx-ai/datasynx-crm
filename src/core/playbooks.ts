@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeFileAtomic } from "../fs/atomic-write.js";
 import matter from "gray-matter";
 import { callLlm } from "./llm.js";
 import { withFileQueue } from "../fs/write-queue.js";
@@ -104,7 +105,7 @@ export async function writePlaybook(
   await withFileQueue(filePath, async () => {
     fs.mkdirSync(dir, { recursive: true });
     const raw = matter.stringify(playbook.content, playbook.frontmatter);
-    fs.writeFileSync(filePath, raw, "utf-8");
+    writeFileAtomic(filePath, raw);
   });
 }
 

@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import type { InteractionEntry } from "../schemas/interaction.js";
 import { withFileQueue } from "./write-queue.js";
+import { writeFileAtomic } from "./atomic-write.js";
+import { assertSafeSlug } from "./customer-dir.js";
 
 const INTERACTION_SEPARATOR = "---";
 
@@ -61,6 +63,7 @@ export async function appendInteraction(
   slug: string,
   entry: InteractionEntry
 ): Promise<void> {
+  assertSafeSlug(slug);
   const filePath = path.join(dataDir, "customers", slug, "interactions.md");
   return withFileQueue(filePath, async () => {
     const existing = fs.existsSync(filePath) ? (fs.readFileSync(filePath, "utf-8") as string) : "";
@@ -81,6 +84,6 @@ export async function appendInteraction(
       }
     }
 
-    fs.writeFileSync(filePath, newContent, "utf-8");
+    writeFileAtomic(filePath, newContent);
   });
 }

@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeFileAtomic } from "../fs/atomic-write.js";
 import { createHmac } from "crypto";
 import yaml from "js-yaml";
 import {
@@ -34,7 +35,7 @@ export function getSurvey(dataDir: string, surveyId: string): SurveyDefinition |
 export function writeSurvey(dataDir: string, survey: SurveyDefinition): void {
   const dir = surveysDir(dataDir);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `${survey.id}.yaml`), yaml.dump(survey), "utf-8");
+  writeFileAtomic(path.join(dir, `${survey.id}.yaml`), yaml.dump(survey));
 }
 
 export function listSurveys(dataDir: string): SurveyDefinition[] {
@@ -120,7 +121,7 @@ export async function recordSurveyResponse(
       const dir = responsesDir(dataDir, pending.surveyId);
       fs.mkdirSync(dir, { recursive: true });
       const filename = `${pending.slug}_${pending.contactEmail.replace("@", "_at_")}_${Date.now()}.json`;
-      fs.writeFileSync(path.join(dir, filename), JSON.stringify(response, null, 2), "utf-8");
+      writeFileAtomic(path.join(dir, filename), JSON.stringify(response, null, 2));
 
       // Delete pending entry
       fs.unlinkSync(path.join(pendingDir, file));
@@ -173,5 +174,5 @@ export async function savePendingSurvey(
   fs.mkdirSync(pendingDir, { recursive: true });
   const filename = `${token}.json`;
   const pending = { token, surveyId, slug, contactEmail, sentAt: new Date().toISOString() };
-  fs.writeFileSync(path.join(pendingDir, filename), JSON.stringify(pending, null, 2), "utf-8");
+  writeFileAtomic(path.join(pendingDir, filename), JSON.stringify(pending, null, 2));
 }

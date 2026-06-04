@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { readJsonFile } from "../fs/json-store.js";
+import { readJsonFile, writeJsonFile } from "../fs/json-store.js";
 
 export type Role = "admin" | "manager" | "rep";
 
@@ -36,11 +36,9 @@ export function getRbacConfig(dataDir: string): RbacConfig {
 }
 
 export function setActorRole(dataDir: string, actor: string, role: Role): void {
-  const p = rbacPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
   const config = getRbacConfig(dataDir);
   config.actors[actor] = role;
-  fs.writeFileSync(p, JSON.stringify(config, null, 2), "utf-8");
+  writeJsonFile(rbacPath(dataDir), config);
 }
 
 export function getRole(dataDir: string, actor: string): Role {

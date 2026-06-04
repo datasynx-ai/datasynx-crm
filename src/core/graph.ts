@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { withJsonFile } from "./file-lock.js";
+import { logger } from "./logger.js";
 
 export type NodeType = "person" | "company" | "deal" | "product" | "event";
 
@@ -97,7 +98,7 @@ export function readGraph(dataDir: string, slug: string): CustomerGraph {
   try {
     return JSON.parse(fs.readFileSync(p, "utf-8")) as CustomerGraph;
   } catch {
-    process.stderr.write(`[graph] failed to parse ${p} — returning empty graph\n`);
+    logger.warn("graph", "failed to parse graph file — returning empty graph", { path: p });
     return emptyGraph(slug);
   }
 }

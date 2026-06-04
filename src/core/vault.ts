@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { encryptFieldStr, decryptFieldStr } from "./encryption.js";
+import { writeFileAtomic } from "../fs/atomic-write.js";
 
 /**
  * Local credential vault (domino D12 / F6): a dependency-free, AES-256-GCM
@@ -34,9 +35,7 @@ export function loadVault(dataDir: string, key: string): VaultData {
 
 /** Encrypt + write the vault atomically (overwrites the single blob). */
 export function saveVault(dataDir: string, key: string, data: VaultData): void {
-  const p = vaultPath(dataDir);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, encryptFieldStr(JSON.stringify(data), key), "utf-8");
+  writeFileAtomic(vaultPath(dataDir), encryptFieldStr(JSON.stringify(data), key));
 }
 
 /** Store (or overwrite) a secret under `name`. */

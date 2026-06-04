@@ -1,5 +1,5 @@
-import fs from "fs";
 import path from "path";
+import { readJsonFile, writeJsonFile } from "../fs/json-store.js";
 
 export interface PipelineStage {
   id: string;
@@ -24,13 +24,7 @@ function stagesPath(dataDir: string): string {
 }
 
 export function getPipelineStages(dataDir: string): PipelineStage[] {
-  const p = stagesPath(dataDir);
-  if (!fs.existsSync(p)) return DEFAULT_STAGES;
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8") as string) as PipelineStage[];
-  } catch {
-    return DEFAULT_STAGES;
-  }
+  return readJsonFile<PipelineStage[]>(stagesPath(dataDir), DEFAULT_STAGES);
 }
 
 export function setPipelineStage(dataDir: string, stage: PipelineStage): void {
@@ -39,17 +33,16 @@ export function setPipelineStage(dataDir: string, stage: PipelineStage): void {
   if (idx >= 0) stages[idx] = stage;
   else stages.push(stage);
   stages.sort((a, b) => a.order - b.order);
-  fs.mkdirSync(path.dirname(stagesPath(dataDir)), { recursive: true });
-  fs.writeFileSync(stagesPath(dataDir), JSON.stringify(stages, null, 2));
+  writeJsonFile(stagesPath(dataDir), stages);
 }
 
 export function deletePipelineStage(dataDir: string, id: string): void {
-  const stages = getPipelineStages(dataDir).filter((s) => s.id !== id);
-  fs.mkdirSync(path.dirname(stagesPath(dataDir)), { recursive: true });
-  fs.writeFileSync(stagesPath(dataDir), JSON.stringify(stages, null, 2));
+  writeJsonFile(
+    stagesPath(dataDir),
+    getPipelineStages(dataDir).filter((s) => s.id !== id)
+  );
 }
 
 export function resetToDefaults(dataDir: string): void {
-  fs.mkdirSync(path.dirname(stagesPath(dataDir)), { recursive: true });
-  fs.writeFileSync(stagesPath(dataDir), JSON.stringify(DEFAULT_STAGES, null, 2));
+  writeJsonFile(stagesPath(dataDir), DEFAULT_STAGES);
 }

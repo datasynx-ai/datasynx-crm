@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeFileAtomic } from "./atomic-write.js";
 import yaml from "js-yaml";
 import { withJsonFile } from "../core/file-lock.js";
 import {
@@ -49,7 +50,7 @@ export function writeSequence(dataDir: string, seq: Sequence): void {
   const dir = sequencesDir(dataDir);
   fs.mkdirSync(dir, { recursive: true });
   const content = yaml.dump(seq);
-  fs.writeFileSync(path.join(dir, `${seq.id}.yaml`), content, "utf-8");
+  writeFileAtomic(path.join(dir, `${seq.id}.yaml`), content);
 }
 
 export function readEnrollments(dataDir: string): SequenceEnrollment[] {

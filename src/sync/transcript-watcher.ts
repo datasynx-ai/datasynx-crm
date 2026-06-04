@@ -4,6 +4,8 @@ import chokidar, { type FSWatcher } from "chokidar";
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
+import { escapeRegExp } from "../core/regex.js";
+import { logger } from "../core/logger.js";
 
 interface WatchOptions {
   paths: string[];
@@ -28,7 +30,10 @@ export function watchTranscripts(opts: WatchOptions): FSWatcher {
 
   watcher.on("add", (filePath) => {
     onFile(filePath).catch((err: unknown) => {
-      console.error(`[transcript-watcher] Error processing ${filePath}:`, (err as Error).message);
+      logger.error("transcript-watcher", "error processing file", {
+        filePath,
+        error: (err as Error).message,
+      });
     });
   });
 
@@ -66,7 +71,7 @@ export async function processTranscriptFile(
     date,
     type: "Meeting",
   }).catch((err: unknown) => {
-    process.stderr.write(`[transcript-watcher] LanceDB index failed: ${(err as Error).message}\n`);
+    logger.error("transcript-watcher", "LanceDB index failed", { error: (err as Error).message });
   });
 }
 
@@ -102,8 +107,7 @@ function fuzzyMatchCustomer(
     }
 
     // Count name occurrences in content
-    const escaped = nameLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    score += contentPreview.match(new RegExp(escaped, "g"))?.length ?? 0;
+    score += contentPreview.match(new RegExp(escapeRegExp(nameLower), "g"))?.length ?? 0;
 
     if (score > 0 && (!best || score > best.score)) {
       best = { slug, score };
@@ -169,9 +173,9 @@ async function matchCustomer(
       return llm.slug;
     }
   } catch (err: unknown) {
-    process.stderr.write(
-      `[transcript-watcher] LLM recognition failed, using heuristic: ${(err as Error).message}\n`
-    );
+    logger.warn("transcript-watcher", "LLM recognition failed, using heuristic", {
+      error: (err as Error).message,
+    });
   }
 
   return fuzzyMatchCustomer(filePath, content, candidates)?.slug ?? null;
@@ -184,5 +188,5 @@ async function recordUnmatched(
 ): Promise<void> {
   const { appendUnmatched } = await import("../fs/unmatched-transcripts.js");
   appendUnmatched(dataDir, { filePath, addedAt: new Date().toISOString(), reason });
-  process.stderr.write(`[transcript-watcher] Unmatched: ${filePath} (${reason})\n`);
+  logger.info("transcript-watcher", "unmatched transcript", { filePath, reason });
 }
