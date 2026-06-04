@@ -151,7 +151,11 @@ export interface ContextBlock {
  * a markdown string, for callers that need fields programmatically (e.g. MCP
  * responses, SDK consumers). buildContext remains the token-budgeted string form.
  */
-export async function buildContextBlock(dataDir: string, slug: string): Promise<ContextBlock> {
+export async function buildContextBlock(
+  dataDir: string,
+  slug: string,
+  role?: "admin" | "manager" | "rep"
+): Promise<ContextBlock> {
   const customerDir = path.join(dataDir, "customers", slug);
   if (!fs.existsSync(customerDir)) {
     throw new Error(`Customer '${slug}' not found`);
@@ -167,6 +171,12 @@ export async function buildContextBlock(dataDir: string, slug: string): Promise<
     const raw = matter(fs.readFileSync(mainFactsPath, "utf-8") as string);
     mainContent = raw.content ?? "";
     metadata = raw.data as Record<string, unknown>;
+  }
+
+  // Field-level security: redact metadata fields the role may not see.
+  if (role) {
+    const { loadFieldAcl, redactFields } = await import("./rbac.js");
+    metadata = redactFields(metadata, role, loadFieldAcl(dataDir));
   }
 
   return {

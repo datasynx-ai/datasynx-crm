@@ -7,6 +7,8 @@ export interface RbacConfig {
   actors: Record<string, Role>;
   default?: Role;
   owned_customers?: Record<string, string[]>;
+  /** Field-level ACL: field name → roles allowed to see it. Others get it redacted. */
+  field_acl?: Record<string, Role[]>;
 }
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
@@ -79,4 +81,29 @@ export function canSeeCustomer(dataDir: string, actor: string, slug: string): bo
   const owned = config.owned_customers;
   if (!owned) return false;
   return (owned[actor] ?? []).includes(slug);
+}
+
+/** Load the field-level ACL (field → allowed roles) from rbac.json. */
+export function loadFieldAcl(dataDir: string): Record<string, Role[]> {
+  return getRbacConfig(dataDir).field_acl ?? {};
+}
+
+/** Whether a role may see a field given the ACL (fields not in the ACL are public). */
+export function canSeeField(field: string, role: Role, acl: Record<string, Role[]>): boolean {
+  const allowed = acl[field];
+  if (!allowed) return true;
+  return allowed.includes(role);
+}
+
+/** Return a copy of `values` with fields the role may not see removed. */
+export function redactFields<T extends Record<string, unknown>>(
+  values: T,
+  role: Role,
+  acl: Record<string, Role[]>
+): Partial<T> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(values)) {
+    if (canSeeField(k, role, acl)) out[k] = v;
+  }
+  return out as Partial<T>;
 }

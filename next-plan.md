@@ -182,13 +182,13 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N4-3 | CDP: Identity Resolution + Unified Profiles + Calculated Insights | Data | L | 🔲 |
 | N5-1 | Custom Objects/Fields via Metadata-API (No-Migration) | Platform | L | ✅ (CRUD + `dxcrm object` CLI + 4 MCP-Tools) |
 | N5-2 | Webhook-CRUD-Events (Backoff + Replay-Store) | Platform | M | ✅ (`dxcrm webhook` + emitEvent/retryFailures; create_record emittiert) |
-| N5-3 | Sharing-Rules / Field-/Row-Level-Security | Platform | M | 🔲 |
+| N5-3 | Sharing-Rules / Field-/Row-Level-Security | Platform | M | 🟡 (Field-ACL `redactFields` + buildContextBlock-Redaction; weitere Read-Pfade offen) |
 | N6-1 | Bi-temporaler Wissensgraph (4 Zeitstempel/Edge) | Memory | L | 🟡 (Primitive ✅: validFrom/To+recordedAt/invalidatedAt, invalidateEdge/activeEdges; Auto-Invalidation widersprüchlicher Fakten + Kùzu offen) |
 | N6-2 | Multi-Agent-Orchestrierung (Subagents/Handoffs) | Agentic | L | 🔲 |
 | N6-3 | Command-Center-Observability (Containment/Accuracy) | Agentic | M | 🔲 |
 | X-1 | PII-Masking vor LLM-Call | Compliance | M | ✅ (opt-in `DXCRM_PII_MASKING=on`) |
 | X-2 | Guardrails (Prompt-Injection / Indirect-Injection) | Compliance | M | ✅ (opt-in `DXCRM_GUARDRAILS=on`) |
-| REF-1 | Spark-Framework-Adapter (Stub fertigstellen/entfernen) | Refinement | S | 🔲 |
+| REF-1 | Spark-Framework-Adapter | Refinement | S | ✅ (kein Stub im aktuellen Code) |
 | REF-2 | Structured `ContextBlock` (neben string) | Refinement | S | ✅ |
 | REF-3 | Coverage-Top-ups (`mcp/server.ts`, `sync/index.ts`) | Quality | S | 🔲 |
 | OPS-1 | Go-Live npm (Repo public, Secrets, Pages, Release) | Ops | — | ⏸ user |
