@@ -877,3 +877,16 @@ dxcrm leadscore predict acme   # win-probability for acme's open deals
 ```
 
 The model is stored at `.agentic/lead-model.json`.
+
+## dxcrm enrich (enrichment layer)
+
+Fills missing customer facts (domain, industry, contact info). Ships an offline
+built-in (derive company domain from a contact email) plus a provider interface
+so external data providers can be added as plugins. Provider API keys come from
+the local vault (D12) / env via the enrichment context — never the markdown.
+Enrichment only fills gaps; it never overwrites human-entered facts.
+
+```bash
+dxcrm enrich acme            # preview derivable fields
+dxcrm enrich acme --write    # apply newly-derived fields to main_facts.md
+```

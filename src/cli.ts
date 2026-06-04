@@ -45,6 +45,7 @@ import { nbaCommand } from "./commands/nba.js";
 import { vaultCommand } from "./commands/vault.js";
 import { churnCommand } from "./commands/churn.js";
 import { leadscoreCommand } from "./commands/leadscore.js";
+import { enrichCommand } from "./commands/enrich.js";
 
 const program = new Command();
 program
@@ -102,5 +103,6 @@ program.addCommand(nbaCommand);
 program.addCommand(vaultCommand);
 program.addCommand(churnCommand);
 program.addCommand(leadscoreCommand);
+program.addCommand(enrichCommand);
 
 await program.parseAsync(process.argv);

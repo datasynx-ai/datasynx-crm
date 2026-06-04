@@ -118,7 +118,12 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
   Workspace. `buildLeadModel`/`predictWin`/`saveLeadModel`/`loadLeadModel`, persistiert `.agentic/lead-model.json`.
   Erklärbar, ohne externes ML-Runtime (das gehört ins Agent-Framework); Fallback auf die deterministische
   Heuristik bei zu wenig Historie (<4 closed mit beiden Outcomes). CLI `dxcrm leadscore train|predict <slug>`.
-### D15 · Enrichment-Layer — C6 · M — Hängt ab von **D12** (Vault für API-Keys); pluginbar.
+### D15 ✅ · Enrichment-Layer — C6 · M — Hängt ab von **D12** (Vault für API-Keys); pluginbar.
+- **Umgesetzt:** `src/core/enrichment.ts` — pluginbares `EnrichmentProvider`-Interface + `runEnrichment`/
+  `mergeEnrichment` (füllt nur Lücken, überschreibt nie menschliche Eingaben). Offline-Built-in
+  `domainFromEmailProvider` (Domain aus Kontakt-E-Mail). Provider-Credentials kommen über den
+  `EnrichmentContext.getSecret` aus dem D12-Vault (`DXCRM_VAULT_KEY`) bzw. env — nie aus dem Markdown.
+  `enrichCustomer(dataDir, slug, {write})` schreibt neu abgeleitete Felder optional zurück. CLI `dxcrm enrich <slug> [--write]`.
 ### D16 · Conversation-Intelligence-Lite — C7 · M — Talk-Ratio/Objections/Coaching aus Transkripten (D9-Pipeline).
 ### D17 · Compliance-Härtung + lokale-LLM-Option — §3 · M
 - EU-AI-Act-Art.-50-Kennzeichnung über alle generierten Inhalte, `callLlm` provider-agnostisch
