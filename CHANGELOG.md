@@ -3,6 +3,27 @@
 All notable changes to `@datasynx/opencrm` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## [Unreleased]
+
+### Changed — Optimization pass
+
+- **Dependencies:** replaced the `googleapis` mega-package (~112 MB installed,
+  pulls every Google API) with the scoped `@googleapis/gmail`,
+  `@googleapis/calendar` and `google-auth-library` — cutting roughly 110 MB
+  from the transitive install. Gmail/Calendar sync behavior is unchanged.
+- **Dependencies:** dropped three declared-but-unused packages (`@iarna/toml`,
+  `@topcli/spinner`, `which`).
+
+### Fixed
+
+- `dxcrm backup` / `dxcrm restore` now honor `DXCRM_DATA_DIR` (previously fell
+  back to the current working directory).
+- `dxcrm vault get|list` with a wrong master key now prints a clear error and
+  exits 1 instead of crashing with an uncaught crypto exception.
+- Consolidated the customer-slug listing duplicated across ~13 files into a
+  single `listCustomerSlugs` helper; several copies used an unguarded
+  `statSync` that could throw on a file-race — the shared helper guards it.
+
 ## [0.1.0] — 2026-06-02
 
 ### Added — Core Loop (Phase 1)
