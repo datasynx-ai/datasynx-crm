@@ -3,7 +3,7 @@
 ## Local (Single User)
 
 ```bash
-npm install -g @datasynx/opencrm
+npm install -g @datasynx/agentic-crm
 dxcrm init
 ```
 
@@ -24,7 +24,7 @@ Hetzner CX21 (2 vCPU, 4GB RAM, €6/mo) is sufficient for up to 10 users.
 # On the VM (Ubuntu 22.04 LTS):
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
-npm install -g @datasynx/opencrm
+npm install -g @datasynx/agentic-crm
 
 # Create data directory with shared volume:
 mkdir -p /mnt/crm-data
@@ -47,7 +47,7 @@ dxcrm audit --limit 50
 ### 3 — Team Member Setup (each laptop)
 
 ```bash
-npm install -g @datasynx/opencrm
+npm install -g @datasynx/agentic-crm
 
 # Configure all detected AI frameworks to use the shared server:
 dxcrm init --team http://vm-ip:3847/mcp
@@ -96,7 +96,7 @@ WorkingDirectory=/mnt/crm-data
 Environment=DXCRM_DATA_DIR=/mnt/crm-data
 Environment=DXCRM_MCP_MODE=http
 Environment=DXCRM_MCP_PORT=3847
-ExecStart=/usr/local/bin/node /usr/local/lib/node_modules/@datasynx/opencrm/dist/mcp.js
+ExecStart=/usr/local/bin/node /usr/local/lib/node_modules/@datasynx/agentic-crm/dist/mcp.js
 Restart=on-failure
 RestartSec=5
 StandardError=journal
@@ -170,7 +170,7 @@ dxcrm backup schedule --status
 ## Upgrading
 
 ```bash
-npm update -g @datasynx/opencrm
+npm update -g @datasynx/agentic-crm
 
 # Re-run init to update harness files and MCP configs:
 dxcrm init

@@ -22,21 +22,21 @@ Folgende Test-Commits wurden gepusht (alle auf dem Remote-Branch):
 
 **Nicht auf GitHub (Push blockiert, lokal resetted):**
 - `runVerify`-Tests (3 Tests) — Inhalt siehe unten
-- README-Fixes (`@datasynx/opencrm` Installbefehl)
+- README-Fixes (`@datasynx/agentic-crm` Installbefehl)
 - `.npmrc` Scope-Registry
 - CI-Workflow Kommentar über Required Secrets
 
-### 2. npm-Package-Setup (@datasynx/opencrm)
+### 2. npm-Package-Setup (@datasynx/agentic-crm)
 
 **Bereits auf `main` vorhanden** (Commit `0bcd6fb` vom 30. Mai):
-- Package-Name: `@datasynx/opencrm` ✅
+- Package-Name: `@datasynx/agentic-crm` ✅
 - `publishConfig: { access: "public", provenance: true }` ✅
 - CI/CD Pipeline mit semantic-release ✅
 - `.releaserc.json` mit main/beta/alpha Channels ✅
 
 **Auf `main` noch falsch/fehlend:**
-- README: `npm install -g datasynx-opencrm` (muss `@datasynx/opencrm` sein)
-- README: `node_modules/datasynx-opencrm/dist/mcp.js` (3× — muss `@datasynx/opencrm` sein)
+- README: `npm install -g datasynx-opencrm` (muss `@datasynx/agentic-crm` sein)
+- README: `node_modules/datasynx-opencrm/dist/mcp.js` (3× — muss `@datasynx/agentic-crm` sein)
 - `.npmrc`: fehlt `@datasynx:registry=https://registry.npmjs.org`
 - Keine npm-Badges in der README
 
@@ -132,11 +132,11 @@ describe("runVerify", () => {
 Commit-Message: `test(backup): cover runVerify all three paths`
 
 #### 2b. README fixen
-- Zeile mit `npm install -g datasynx-opencrm` → `npm install -g @datasynx/opencrm`
-- Alle 3 Zeilen mit `node_modules/datasynx-opencrm/dist/mcp.js` → `node_modules/@datasynx/opencrm/dist/mcp.js`
+- Zeile mit `npm install -g datasynx-opencrm` → `npm install -g @datasynx/agentic-crm`
+- Alle 3 Zeilen mit `node_modules/datasynx-opencrm/dist/mcp.js` → `node_modules/@datasynx/agentic-crm/dist/mcp.js`
 - Badges nach Zeile 1 einfügen:
 ```markdown
-[![npm](https://img.shields.io/npm/v/%40datasynx%2Fopencrm?style=flat-square)](https://www.npmjs.com/package/@datasynx/opencrm)
+[![npm](https://img.shields.io/npm/v/%40datasynx%2Fopencrm?style=flat-square)](https://www.npmjs.com/package/@datasynx/agentic-crm)
 [![CI](https://github.com/datasynx/datasynx-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/datasynx/datasynx-crm/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 ```
@@ -182,7 +182,7 @@ Manuell unter `Settings → Secrets and variables → Actions`:
 | `NPM_TOKEN` | npm Automation Token — du hast ihn, nicht hier eintragen |
 | `RELEASE_TOKEN` | Neues GitHub PAT mit Scopes: `repo`, `workflow` — unter `github.com/settings/tokens` erstellen |
 
-Nach dem ersten Merge auf `main` läuft CI automatisch durch und published `@datasynx/opencrm@0.1.0` auf npmjs.
+Nach dem ersten Merge auf `main` läuft CI automatisch durch und published `@datasynx/agentic-crm@0.1.0` auf npmjs.
 
 ---
 
@@ -193,7 +193,7 @@ Nach dem ersten Merge auf `main` läuft CI automatisch durch und published `@dat
 feature/claude/* branches
         │  Pull Request
         ▼
-      main  ──── semantic-release ──── npm publish @datasynx/opencrm
+      main  ──── semantic-release ──── npm publish @datasynx/agentic-crm
 ```
 
 ### Semantic Release Channels

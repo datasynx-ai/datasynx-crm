@@ -13,7 +13,7 @@ This guide gets you from zero to a working CRM that auto-syncs your Gmail.
 ## Step 1 — Install
 
 ```bash
-npm install -g @datasynx/opencrm
+npm install -g @datasynx/agentic-crm
 dxcrm --version
 ```
 

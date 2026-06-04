@@ -29,7 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure Pages
+        # enablement:true self-provisions the Pages site on first run, so the
+        # deploy no longer depends on a manual Settings → Pages toggle.
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Upload docs/ as Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

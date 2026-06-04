@@ -9,7 +9,7 @@
 
 | Bereich                  | Ist                              | Soll                              | Prio |
 |--------------------------|----------------------------------|-----------------------------------|------|
-| Package-Scope            | `datasynx-opencrm` (kein Scope)  | `@datasynx/opencrm`               | P0   |
+| Package-Scope            | `datasynx-opencrm` (kein Scope)  | `@datasynx/agentic-crm`               | P0   |
 | publishConfig + Provenance | fehlt komplett                 | `provenance: true` in CI          | P0   |
 | CI/CD Pipeline           | **keine** GitHub Actions         | 4-Stage-Pipeline (lint→test→build→release) | P0 |
 | Semantic Release          | manuelle Version (0.1.0)         | `semantic-release` oder Changesets | P1  |
@@ -42,7 +42,7 @@
 ```json
 // package.json
 {
-  "name": "@datasynx/opencrm",
+  "name": "@datasynx/agentic-crm",
   "publishConfig": {
     "access": "public",
     "provenance": true
@@ -596,7 +596,7 @@ jobs:
 
 ```
 Woche 1 (P0):
-  □ P0-A: Package in @datasynx/opencrm umbenennen
+  □ P0-A: Package in @datasynx/agentic-crm umbenennen
   □ P0-B: publishConfig + provenance in package.json
   □ P0-C: .github/workflows/ci.yml anlegen (Grundgerüst)
 
@@ -630,7 +630,7 @@ Mittelfristig (P3):
 ### Große Runtime Dependencies
 `@lancedb/lancedb`, `@huggingface/transformers`, `googleapis`, `@anthropic-ai/sdk` — alle sehr groß. Für das CLI-Binary unkritisch, aber für Library-Consumer problematisch.
 
-**Empfehlung:** Schwere Deps (`lancedb`, `huggingface`) als optionale `peerDependencies` deklarieren oder in ein separates `@datasynx/opencrm-ai` Package auslagern (wenn Monorepo-Strategie gewählt).
+**Empfehlung:** Schwere Deps (`lancedb`, `huggingface`) als optionale `peerDependencies` deklarieren oder in ein separates `@datasynx/agentic-crm-ai` Package auslagern (wenn Monorepo-Strategie gewählt).
 
 ### `js-yaml` fehlt in dependencies
 `@types/js-yaml` ist in devDependencies, aber `js-yaml` selbst taucht nicht in `dependencies` auf — vermutlich als transitive Dep von einer anderen Library. **Explizit deklarieren** (niemals auf transitive Deps verlassen, die sich ändern können).

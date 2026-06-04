@@ -8,7 +8,7 @@ DatasynxOpenCRM supports shared team access via a central HTTP MCP server on a V
 
 - A Linux VM (e.g., Hetzner CX21: 2 vCPU, 4 GB RAM) — see [deployment.md](./deployment.md)
 - Node.js 18+ on the VM
-- `@datasynx/opencrm` installed globally: `npm install -g @datasynx/opencrm`
+- `@datasynx/agentic-crm` installed globally: `npm install -g @datasynx/agentic-crm`
 
 ---
 

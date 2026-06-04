@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
-  "name": "io.github.datasynx-ai/opencrm",
+  "name": "io.github.datasynx-ai/agentic-crm",
   "description": "Local-first, MCP-native CRM. One agent per customer. npm install.",
   "repository": {
     "url": "https://github.com/datasynx-ai/datasynx-crm",
@@ -11,7 +11,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "@datasynx/opencrm",
+      "identifier": "@datasynx/agentic-crm",
       "version": "0.1.0",
       "transport": { "type": "stdio" },
       "environmentVariables": [

@@ -4,13 +4,14 @@
 
 **Local-first, MCP-native CRM. One agent per customer. `npm install`.**
 
-[![npm version](https://img.shields.io/npm/v/@datasynx/opencrm.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@datasynx/opencrm)
-[![npm downloads](https://img.shields.io/npm/dm/@datasynx/opencrm.svg?color=cb3837)](https://www.npmjs.com/package/@datasynx/opencrm)
+[![npm version](https://img.shields.io/npm/v/@datasynx/agentic-crm.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@datasynx/agentic-crm)
+[![npm downloads](https://img.shields.io/npm/dm/@datasynx/agentic-crm.svg?color=cb3837)](https://www.npmjs.com/package/@datasynx/agentic-crm)
 [![CI](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/ci.yml)
-[![license](https://img.shields.io/npm/l/@datasynx/opencrm.svg?color=3fb950)](./LICENSE)
-[![node](https://img.shields.io/node/v/@datasynx/opencrm.svg)](https://nodejs.org)
+[![Docs](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/pages.yml/badge.svg)](https://datasynx-ai.github.io/datasynx-crm/)
+[![license](https://img.shields.io/npm/l/@datasynx/agentic-crm.svg?color=3fb950)](./LICENSE)
+[![node](https://img.shields.io/node/v/@datasynx/agentic-crm.svg)](https://nodejs.org)
 
-[**📖 Documentation**](https://datasynx-ai.github.io/datasynx-crm/) · [**📦 npm**](https://www.npmjs.com/package/@datasynx/opencrm) · [**💻 GitHub**](https://github.com/datasynx-ai/datasynx-crm) · [**💼 LinkedIn**](https://de.linkedin.com/company/datasynx-ai)
+[**📖 Documentation**](https://datasynx-ai.github.io/datasynx-crm/) · [**📦 npm**](https://www.npmjs.com/package/@datasynx/agentic-crm) · [**💻 GitHub**](https://github.com/datasynx-ai/datasynx-crm) · [**💼 LinkedIn**](https://de.linkedin.com/company/datasynx-ai)
 
 </div>
 
@@ -23,7 +24,7 @@ DatasynxOpenCRM stores every customer as structured Markdown — no database, no
 ## 5-Minute Quickstart
 
 ```bash
-npm install -g @datasynx/opencrm
+npm install -g @datasynx/agentic-crm
 
 # 1. Initialize (detects Claude Code, Codex, Cursor, Claude Desktop, ...)
 dxcrm init
@@ -661,7 +662,7 @@ export DXCRM_ACTOR=alice
     "datasynx-opencrm": {
       "type": "stdio",
       "command": "node",
-      "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"]
+      "args": ["/path/to/node_modules/@datasynx/agentic-crm/dist/mcp.js"]
     }
   }
 }
@@ -679,7 +680,7 @@ export DXCRM_ACTOR=alice
       "transport": {
         "type": "stdio",
         "command": "node",
-        "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"],
+        "args": ["/path/to/node_modules/@datasynx/agentic-crm/dist/mcp.js"],
         "env": { "DXCRM_DATA_DIR": "/path/to/your/.dxcrm" }
       }
     }
@@ -699,7 +700,7 @@ Run `grok inspect` to verify the server is discovered. Grok Build reads `AGENTS.
   "mcpServers": {
     "datasynx-opencrm": {
       "command": "node",
-      "args": ["/path/to/node_modules/@datasynx/opencrm/dist/mcp.js"]
+      "args": ["/path/to/node_modules/@datasynx/agentic-crm/dist/mcp.js"]
     }
   }
 }
@@ -753,7 +754,7 @@ npm test -- --reporter verbose     # Verbose output
 
 ## Community & Links
 
-- 📦 **npm:** [@datasynx/opencrm](https://www.npmjs.com/package/@datasynx/opencrm)
+- 📦 **npm:** [@datasynx/agentic-crm](https://www.npmjs.com/package/@datasynx/agentic-crm)
 - 💻 **GitHub:** [datasynx-ai/datasynx-crm](https://github.com/datasynx-ai/datasynx-crm)
 - 🐛 **Issues:** [Report a bug or request a feature](https://github.com/datasynx-ai/datasynx-crm/issues)
 - 💼 **LinkedIn:** [Datasynx AI](https://de.linkedin.com/company/datasynx-ai)

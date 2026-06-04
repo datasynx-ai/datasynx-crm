@@ -1,5 +1,5 @@
 {
-  "name": "@datasynx/opencrm",
+  "name": "@datasynx/agentic-crm",
   "version": "0.1.0",
   "description": "Local-first, MCP-native CRM. One agent per customer. npm install.",
   "type": "module",
