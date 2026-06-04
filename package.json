@@ -82,10 +82,8 @@
     "@googleapis/calendar": "15.0.0",
     "@googleapis/gmail": "17.0.0",
     "@huggingface/transformers": "^3.8.1",
-    "@iarna/toml": "^2.2.5",
     "@lancedb/lancedb": "^0.29.0",
     "@modelcontextprotocol/sdk": "^1.10.0",
-    "@topcli/spinner": "^2.0.0",
     "adm-zip": "^0.5.17",
     "ansis": "^3.0.0",
     "apache-arrow": "^17.0.0",
@@ -97,7 +95,6 @@
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
     "slug": "^9.0.0",
-    "which": "^4.0.0",
     "zod": "^3.25.0",
     "zod-validation-error": "^3.0.0"
   },
