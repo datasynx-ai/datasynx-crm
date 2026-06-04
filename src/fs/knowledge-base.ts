@@ -7,23 +7,26 @@ export function kbDir(dataDir: string): string {
   return path.join(dataDir, ".agentic", "knowledge-base");
 }
 
-export function listKbArticles(
-  dataDir: string,
-  opts?: { category?: string; publicOnly?: boolean }
-): KbArticle[] {
-  const dir = kbDir(dataDir);
+/** Category subdirectories of the knowledge base. */
+function kbCategories(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
-
-  const results: KbArticle[] = [];
-  const categories = fs.readdirSync(dir).filter((f) => {
+  return fs.readdirSync(dir).filter((f) => {
     try {
       return fs.statSync(path.join(dir, f)).isDirectory();
     } catch {
       return false;
     }
   });
+}
 
-  for (const cat of categories) {
+export function listKbArticles(
+  dataDir: string,
+  opts?: { category?: string; publicOnly?: boolean }
+): KbArticle[] {
+  const dir = kbDir(dataDir);
+  const results: KbArticle[] = [];
+
+  for (const cat of kbCategories(dir)) {
     const catDir = path.join(dir, cat);
     const files = fs.readdirSync(catDir).filter((f) => f.endsWith(".md"));
     for (const file of files) {
@@ -45,8 +48,22 @@ export function listKbArticles(
 }
 
 export function getKbArticle(dataDir: string, id: string): KbArticle | null {
-  const all = listKbArticles(dataDir);
-  return all.find((a) => a.id === id) ?? null;
+  // Articles are stored as <category>/<id>.md, so locate the file directly
+  // instead of parsing the whole knowledge base to find one by id.
+  const dir = kbDir(dataDir);
+  for (const cat of kbCategories(dir)) {
+    const filePath = path.join(dir, cat, `${id}.md`);
+    if (!fs.existsSync(filePath)) continue;
+    try {
+      const parsed = matter(fs.readFileSync(filePath, "utf-8") as string);
+      const meta = KbArticleSchema.safeParse(parsed.data);
+      if (!meta.success) return null;
+      return { ...meta.data, body: parsed.content.trim() };
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export function writeKbArticle(dataDir: string, article: KbArticle): void {
@@ -58,13 +75,16 @@ export function writeKbArticle(dataDir: string, article: KbArticle): void {
 }
 
 export function deleteKbArticle(dataDir: string, id: string): boolean {
-  const all = listKbArticles(dataDir);
-  const article = all.find((a) => a.id === id);
-  if (!article) return false;
-  const p = path.join(kbDir(dataDir), article.category, `${id}.md`);
-  if (!fs.existsSync(p)) return false;
-  fs.unlinkSync(p);
-  return true;
+  // Locate <category>/<id>.md directly rather than parsing every article.
+  const dir = kbDir(dataDir);
+  for (const cat of kbCategories(dir)) {
+    const p = path.join(dir, cat, `${id}.md`);
+    if (fs.existsSync(p)) {
+      fs.unlinkSync(p);
+      return true;
+    }
+  }
+  return false;
 }
 
 export function searchKbSimple(
