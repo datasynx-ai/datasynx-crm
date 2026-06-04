@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { readJsonFile } from "../fs/json-store.js";
 
 export type Role = "admin" | "manager" | "rep";
 
@@ -31,13 +32,7 @@ function rbacPath(dataDir: string): string {
 }
 
 export function getRbacConfig(dataDir: string): RbacConfig {
-  const p = rbacPath(dataDir);
-  if (!fs.existsSync(p)) return { actors: {} };
-  try {
-    return JSON.parse(fs.readFileSync(p, "utf-8") as string) as RbacConfig;
-  } catch {
-    return { actors: {} };
-  }
+  return readJsonFile<RbacConfig>(rbacPath(dataDir), { actors: {} });
 }
 
 export function setActorRole(dataDir: string, actor: string, role: Role): void {
