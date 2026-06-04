@@ -161,7 +161,7 @@ Record a call, email, meeting, or note.
   "slug": "acme-corp",
   "type": "Call",            // Email|Call|Meeting|Note|Demo|Proposal|Contract|Other
   "summary": "Discussed Q3 renewal. Budget confirmed at €50k.",
-  "with": "Max Müller",
+  "with": "Max Miller",
   "nextSteps": ["Send proposal by Friday", "Schedule follow-up"],
   "direction": "outbound",   // optional: inbound|outbound
   "source": "manual"         // optional
@@ -414,7 +414,7 @@ communication cadence breaks — no manual input required.
   "contacts": [
     {
       "contactId": "person:max@acme.com",
-      "name": "Max Müller",
+      "name": "Max Miller",
       "email": "max@acme.com",
       "score": 72,
       "grade": "B",
@@ -425,7 +425,7 @@ communication cadence breaks — no manual input required.
       "riskFlags": [],
       "lastContact": "2026-05-22",
       "interactionCount30d": 4,
-      "recommendation": "Max Müller — grade B. Next contact due in ~2 days."
+      "recommendation": "Max Miller — grade B. Next contact due in ~2 days."
     },
     {
       "contactId": "person:cfo@acme.com",
@@ -475,14 +475,14 @@ Auto-populated from every `log_interaction` call — no setup required.
   "updatedAt": "2026-05-27T14:00:00.000Z",
   "stakeholders": {
     "champions": [
-      { "id": "person:alice@acme.com", "name": "Alice Müller", "email": "alice@acme.com" }
+      { "id": "person:alice@acme.com", "name": "Alice Miller", "email": "alice@acme.com" }
     ],
     "blockers": [],
     "economicBuyers": [
       { "id": "person:cfo@acme.com", "name": "Thomas Berger", "email": "cfo@acme.com" }
     ],
     "allContacts": [
-      { "id": "person:alice@acme.com", "name": "Alice Müller", "email": "alice@acme.com" },
+      { "id": "person:alice@acme.com", "name": "Alice Miller", "email": "alice@acme.com" },
       { "id": "person:cfo@acme.com",   "name": "Thomas Berger", "email": "cfo@acme.com" }
     ],
     "missingRoles": []
@@ -540,7 +540,7 @@ Analyze a specific deal and generate a prioritized action plan. Supports three a
     {
       "actionId": "da_1748346900000_a3f7x2",
       "type": "log_interaction",
-      "payload": { "slug": "acme-corp", "type": "Note", "summary": "...", "with": "Max Müller" },
+      "payload": { "slug": "acme-corp", "type": "Note", "summary": "...", "with": "Max Miller" },
       "confidence": 0.85,
       "reasoning": "Champion identified, close date approaching",
       "requiresHumanApproval": true,
@@ -968,7 +968,7 @@ Build a stakeholder map combining the relationship graph, contact health scores,
   "updatedAt": "2026-05-28T00:00:00.000Z",
   "people": [
     {
-      "name": "Max Müller",
+      "name": "Max Miller",
       "email": "max@acme.com",
       "role": "champion",
       "healthScore": 85,

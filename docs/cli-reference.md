@@ -287,11 +287,11 @@ dxcrm status --unmatched      # List unmatched transcript queue
  Datasynx Agentic CRM Status
 ─────────────────────────────────────
  Daemon:     running (PID 12345)
- Kunden:     3 aktiv
+ Customers:  3 active
  Syncs:
-   acme-corp:   Gmail vor 12 Min
-   beta-gmbh:   Gmail vor 2 Std
-   startup-ag:  noch kein Sync
+   acme-corp:   Gmail 12 min ago
+   beta-gmbh:   Gmail 2 h ago
+   startup-ag:  never synced
  Unmatched:   2 Transcripts (dxcrm status --unmatched)
 ─────────────────────────────────────
 ```

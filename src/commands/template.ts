@@ -67,7 +67,7 @@ templateCommand
       variables: [],
       language: "de",
       createdAt: new Date().toISOString(),
-      body: `Hi {{firstName}},\n\n[your message here]\n\nMit freundlichen Grüßen,\n{{senderName}}`,
+      body: `Hi {{firstName}},\n\n[your message here]\n\nBest regards,\n{{senderName}}`,
     };
     writeTemplate(dataDir, tmpl);
     console.log(success(`✓ Template '${id}' created in category '${opts.category}'`));
