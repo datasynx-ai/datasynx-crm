@@ -184,7 +184,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N5-2 | Webhook-CRUD-Events (Backoff + Replay-Store) | Platform | M | ✅ (`dxcrm webhook` + emitEvent/retryFailures; create_record emittiert) |
 | N5-3 | Sharing-Rules / Field-/Row-Level-Security | Platform | M | 🟡 (Field-ACL `redactFields` + buildContextBlock-Redaction; weitere Read-Pfade offen) |
 | N6-1 | Bi-temporaler Wissensgraph (4 Zeitstempel/Edge) | Memory | L | 🟡 (Primitive ✅: validFrom/To+recordedAt/invalidatedAt, invalidateEdge/activeEdges; Auto-Invalidation widersprüchlicher Fakten + Kùzu offen) |
-| N6-2 | Multi-Agent-Orchestrierung (Subagents/Handoffs) | Agentic | L | 🔲 |
+| N6-2 | Multi-Agent-Orchestrierung (Subagents/Handoffs) | Agentic | 🟡 (routeToSubagent + Handoff-Log + Store; Live-SDK-Integration follow-up) |
 | N6-3 | Command-Center-Observability | Agentic | M | 🟡 (computeAuditMetrics + `dxcrm metrics`: ops/tool/actor/automation-rate) |
 | X-1 | PII-Masking vor LLM-Call | Compliance | M | ✅ (opt-in `DXCRM_PII_MASKING=on`) |
 | X-2 | Guardrails (Prompt-Injection / Indirect-Injection) | Compliance | M | ✅ (opt-in `DXCRM_GUARDRAILS=on`) |
