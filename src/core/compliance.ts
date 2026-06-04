@@ -21,7 +21,7 @@ const DISCLOSURES: Record<DisclosureLang, string> = {
 };
 
 /** Localized Art. 50 disclosure string. */
-export function aiDisclosure(lang: DisclosureLang = "de"): string {
+export function aiDisclosure(lang: DisclosureLang = "en"): string {
   return DISCLOSURES[lang] ?? DISCLOSURES.en;
 }
 
@@ -37,7 +37,7 @@ export function labelAiContent(
 ): string {
   const enabled = opts.enabled ?? aiDisclosureEnabled();
   if (!enabled) return text;
-  const lang = opts.lang ?? ((process.env["DXCRM_AI_DISCLOSURE_LANG"] as DisclosureLang) || "de");
+  const lang = opts.lang ?? ((process.env["DXCRM_AI_DISCLOSURE_LANG"] as DisclosureLang) || "en");
   return `${aiDisclosure(lang)}\n\n${text}`;
 }
 

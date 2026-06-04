@@ -81,7 +81,7 @@ function buildHtml(quote: Quote, config: QuoteConfig, customerName: string): str
 <p><strong>${config.companyName ?? ""}</strong><br>${config.companyAddress ?? ""}<br>${config.vatId ? `USt-IdNr.: ${config.vatId}` : ""}</p>
 <hr>
 <p><strong>An:</strong> ${customerName}</p>
-<p><strong>Datum:</strong> ${quote.createdAt.slice(0, 10)} &nbsp;&nbsp; <strong>Gültig bis:</strong> ${quote.validUntil}</p>
+<p><strong>Date:</strong> ${quote.createdAt.slice(0, 10)} &nbsp;&nbsp; <strong>Valid until:</strong> ${quote.validUntil}</p>
 <h2>Leistungen</h2>
 <table>
 <thead><tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th style="text-align:right">Einzelpreis</th><th style="text-align:right">Gesamt</th></tr></thead>

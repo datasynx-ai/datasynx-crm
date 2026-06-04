@@ -21,7 +21,7 @@ industry: "SaaS"                        # optional
 relationship_stage: "active"            # required — prospect | active | churned | paused
 deal_value: 50000                       # optional, number
 currency: "EUR"                         # default: "EUR"
-primary_contact: "Max Müller"           # optional
+primary_contact: "Max Miller"           # optional
 timezone: "Europe/Berlin"               # optional — IANA tz identifier
 tags: ["enterprise", "strategic"]       # default: []
 created: "2026-01-15"                   # required — YYYY-MM-DD
@@ -34,7 +34,7 @@ updated: "2026-05-26"                   # required — YYYY-MM-DD (auto-set on u
 Key facts in 2-3 bullet points.
 
 ## Contacts
-- Max Müller (CEO) — max@acme.com
+- Max Miller (CEO) — max@acme.com
 
 ## Critical Context
 Any blocking facts the agent must know before every conversation.
@@ -62,7 +62,7 @@ Each interaction is a fenced Markdown section (newest entry first):
 
 ```markdown
 ## 2026-05-25 · Call · outbound
-**With:** Max Müller
+**With:** Max Miller
 **Subject:** Q3 Renewal Follow-up           ← optional
 **Summary:** Discussed Q3 renewal. Budget confirmed at €50k. Decision expected by end of June.
 **Next Steps:**
