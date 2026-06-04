@@ -177,7 +177,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N2-1 | LLM-Opportunity-Scoring | Sales | M | 🔲 |
 | N3-1 | Omni-Channel-Routing (skill/priority) | Service | M | 🔲 |
 | N3-2 | Vektorisierte KB + Eskalation (transfer-to-human Action) | Service | M | 🔲 |
-| N4-1 | Segmente/Listen | Marketing | M | 🔲 |
+| N4-1 | Segmente/Listen | Marketing | M | ✅ (`dxcrm segment` + evaluateSegment) |
 | N4-2 | Journeys (mehrstufig, multichannel) | Marketing | L | 🔲 |
 | N4-3 | CDP: Identity Resolution + Unified Profiles + Calculated Insights | Data | L | 🔲 |
 | N5-1 | Custom Objects/Fields via Metadata-API (No-Migration) | Platform | L | ✅ (CRUD + `dxcrm object` CLI + 4 MCP-Tools) |

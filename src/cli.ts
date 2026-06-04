@@ -30,6 +30,7 @@ import { surveyCommand } from "./commands/survey.js";
 import { kbCommand } from "./commands/kb.js";
 import { fieldsCommand, objectCommand } from "./commands/fields.js";
 import { webhookCommand } from "./commands/webhook.js";
+import { segmentCommand } from "./commands/segment.js";
 
 const program = new Command();
 program
@@ -71,5 +72,6 @@ program.addCommand(kbCommand);
 program.addCommand(fieldsCommand);
 program.addCommand(objectCommand);
 program.addCommand(webhookCommand);
+program.addCommand(segmentCommand);
 
 await program.parseAsync(process.argv);

@@ -740,3 +740,16 @@ dxcrm webhook list
 dxcrm webhook retry          # re-attempt failed deliveries
 dxcrm webhook remove <id>
 ```
+
+## dxcrm segment
+
+Customer segments (marketing lists) — named filter criteria, evaluated on demand.
+
+```bash
+dxcrm segment define hot --stage active --min-deal-value 1000 --tags enterprise
+dxcrm segment define stale --stale-days 30
+dxcrm segment list
+dxcrm segment members hot
+```
+
+Definitions live in `.agentic/segments.json`.
