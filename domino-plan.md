@@ -90,7 +90,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 ### D10 ✅ · „Ask your CRM" (RAG-Chat / NL-Q&A) — *alle Daten konversationell zugänglich* · C2 · M
 - **Hängt ab von:** D2 (+ D6 Memories, D7 SOPs). Macht Pipeline-/Win-Rate-/Kundenfragen sofort beantwortbar.
 
-### D11 · Next-Best-Action-Engine — *macht jeden Deal-Schritt besser* · C3 · M
+### D11 ✅ · Next-Best-Action-Engine — *macht jeden Deal-Schritt besser* · C3 · M
 - **Hängt ab von:** D2 (ähnliche Deals), D6 (Memory), D7 (SOP), D4 (Approval).
 
 ### D12 · Vault + GUI (Credentials) — *macht Integrationen & Team-Deployments sicher* · F6 · L

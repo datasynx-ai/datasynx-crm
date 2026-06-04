@@ -41,6 +41,7 @@ import { sopCommand } from "./commands/sop.js";
 import { toneCommand } from "./commands/tone.js";
 import { autofillCommand } from "./commands/autofill.js";
 import { askCommand } from "./commands/ask.js";
+import { nbaCommand } from "./commands/nba.js";
 
 const program = new Command();
 program
@@ -94,5 +95,6 @@ program.addCommand(sopCommand);
 program.addCommand(toneCommand);
 program.addCommand(autofillCommand);
 program.addCommand(askCommand);
+program.addCommand(nbaCommand);
 
 await program.parseAsync(process.argv);
