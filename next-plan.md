@@ -169,7 +169,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | SF-8 | Campaigns (✅) / Custom Fields (file-mode) / Owner / Hierarchie (deferred) | Migration | L | ✅ |
 | N1-1 | MCP **Resources** (read-only Entities) | Core/MCP | M | ✅ |
 | N1-2 | MCP **Prompts** (Playbooks) | Core/MCP | S | ✅ |
-| N1-3 | **Elicitation** bei Pflichtfeldern | Core/MCP | S | 🔲 |
+| N1-3 | **Elicitation** bei Pflichtfeldern | Core/MCP | S | 🟡 (missingFields + buildElicitation; Tool-Wiring follow-up) |
 | N1-4 | **OAuth 2.1 Resource Server** (HTTP, token auth) | Security | L | ✅ |
 | N1-5 | **Tool-Search / Lazy-Loading** | Core/MCP | M | 🟡 (searchTools-Relevanzsuche über Katalog; MCP-Tool-Exposition optional) |
 | N1-6 | **Registry-Listing** (`server.json`) | GTM | S | ✅ (Publish via OIDC = OPS) |
