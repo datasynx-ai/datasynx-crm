@@ -150,4 +150,4 @@ export const statusCommand = new Command("status")
   .description("Show CRM status: daemon, sync state, customer counts")
   .option("--unmatched", "Show unmatched transcript queue")
   .option("--team <url>", "Show team sessions from HTTP server (or set DXCRM_SERVER_URL)")
-  .action((opts) => runStatus(opts));
+  .action((opts) => runStatus(opts, process.env["DXCRM_DATA_DIR"] ?? process.cwd()));

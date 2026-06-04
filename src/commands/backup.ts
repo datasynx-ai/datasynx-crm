@@ -622,7 +622,7 @@ const scheduleSubCommand = new Command("schedule")
   .option("--remote <url>", "Remote destination (s3://, rsync://, or local path)")
   .option("--status", "Show current schedule")
   .option("--clear", "Remove backup schedule")
-  .action((opts) => runBackupSchedule(opts));
+  .action((opts) => runBackupSchedule(opts, process.env["DXCRM_DATA_DIR"] ?? process.cwd()));
 
 const verifySubCommand = new Command("verify")
   .argument("<path>", "Path to backup zip")

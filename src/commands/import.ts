@@ -1177,15 +1177,19 @@ export const importCommand = new Command("import")
         console.log(info(`Importing from ${bold(opts.from)}: ${sourcePath}`));
       }
 
-      const result = await runImport(sourcePath, {
-        from: opts.from,
-        ...(dryRun ? { dryRun: true } : {}),
-        ...(opts.mode ? { mode: opts.mode } : {}),
-        ...(opts.token ? { token: opts.token } : {}),
-        ...(opts.url ? { url: opts.url } : {}),
-        ...(opts.resume ? { resume: true } : {}),
-        ownerMap,
-      });
+      const result = await runImport(
+        sourcePath,
+        {
+          from: opts.from,
+          ...(dryRun ? { dryRun: true } : {}),
+          ...(opts.mode ? { mode: opts.mode } : {}),
+          ...(opts.token ? { token: opts.token } : {}),
+          ...(opts.url ? { url: opts.url } : {}),
+          ...(opts.resume ? { resume: true } : {}),
+          ownerMap,
+        },
+        process.env["DXCRM_DATA_DIR"]
+      );
 
       if (!dryRun) {
         console.log(success(`✓ Import complete:`));

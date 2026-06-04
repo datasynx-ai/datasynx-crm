@@ -114,15 +114,15 @@ agentCommand
   .option("--wake-on-email", "Wake agent on new email (default: on)")
   .option("--chat-id <chatId>", "Telegram chat ID override")
   .action((slug: string, opts: { channel?: string; wakeOnEmail?: boolean; chatId?: string }) =>
-    runAgentSpawn(slug, opts)
+    runAgentSpawn(slug, opts, process.env["DXCRM_DATA_DIR"])
   );
 
 agentCommand
   .command("status")
   .description("Show all configured agents")
-  .action(() => runAgentStatus());
+  .action(() => runAgentStatus(process.env["DXCRM_DATA_DIR"]));
 
 agentCommand
   .command("remove <slug>")
   .description("Remove agent config for a customer")
-  .action((slug: string) => runAgentRemove(slug));
+  .action((slug: string) => runAgentRemove(slug, process.env["DXCRM_DATA_DIR"]));
