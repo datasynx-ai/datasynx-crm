@@ -36,6 +36,7 @@ import { metricsCommand } from "./commands/metrics.js";
 import { usageCommand } from "./commands/usage.js";
 import { approvalsCommand, policyCommand } from "./commands/approvals.js";
 import { hygieneCommand } from "./commands/hygiene.js";
+import { memoryCommand } from "./commands/memory.js";
 
 const program = new Command();
 program
@@ -84,5 +85,6 @@ program.addCommand(usageCommand);
 program.addCommand(approvalsCommand);
 program.addCommand(policyCommand);
 program.addCommand(hygieneCommand);
+program.addCommand(memoryCommand);
 
 await program.parseAsync(process.argv);

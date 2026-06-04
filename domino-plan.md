@@ -60,7 +60,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 - **Hängt ab von:** D2, D4; vorhandenes `identity`-Dedup v1.
 - **Schaltet frei:** verlässliche Grundlage für D9–D14.
 
-### D6 · Memories je Kunde + global — *der Agent wird über alle Features hinweg dauerhaft klüger* · F4 · M
+### D6 ✅ · Memories je Kunde + global — *der Agent wird über alle Features hinweg dauerhaft klüger* · F4 · M
 - **Warum hier:** Auf D2 gebaut; in `get_customer_context` injiziert → **jede** spätere Agenten-Interaktion
   (Autofill, NBA, Ask-CRM) profitiert automatisch von persistentem Wissen.
 - **Hängt ab von:** D2.
