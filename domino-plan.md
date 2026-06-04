@@ -124,7 +124,11 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
   `domainFromEmailProvider` (Domain aus Kontakt-E-Mail). Provider-Credentials kommen über den
   `EnrichmentContext.getSecret` aus dem D12-Vault (`DXCRM_VAULT_KEY`) bzw. env — nie aus dem Markdown.
   `enrichCustomer(dataDir, slug, {write})` schreibt neu abgeleitete Felder optional zurück. CLI `dxcrm enrich <slug> [--write]`.
-### D16 · Conversation-Intelligence-Lite — C7 · M — Talk-Ratio/Objections/Coaching aus Transkripten (D9-Pipeline).
+### D16 ✅ · Conversation-Intelligence-Lite — C7 · M — Talk-Ratio/Objections/Coaching aus Transkripten (D9-Pipeline).
+- **Umgesetzt:** `src/core/conversation-intel.ts` — `parseTurns` (Speaker-Labels) + `analyzeConversation`
+  liefert Talk-Ratio, Discovery-Question-Count, längsten Monolog, Objection-Erkennung (D9-Heuristik) und
+  regelbasierte Coaching-Tipps — deterministisch & offline. ASR/Diarization/Realtime bleiben im Agent/Voice-
+  Framework. CLI `dxcrm coach <file> [--rep labels]`.
 ### D17 · Compliance-Härtung + lokale-LLM-Option — §3 · M
 - EU-AI-Act-Art.-50-Kennzeichnung über alle generierten Inhalte, `callLlm` provider-agnostisch
   (Anthropic | lokal/Ollama) als Datenschutz-Moat, DSGVO-Doku (DPIA/FRIA). Als **Querschnitts-Härtung am

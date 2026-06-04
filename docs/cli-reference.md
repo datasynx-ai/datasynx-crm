@@ -890,3 +890,17 @@ Enrichment only fills gaps; it never overwrites human-entered facts.
 dxcrm enrich acme            # preview derivable fields
 dxcrm enrich acme --write    # apply newly-derived fields to main_facts.md
 ```
+
+## dxcrm coach (conversation intelligence)
+
+Deterministic, offline analysis of a speaker-labelled call transcript:
+talk-ratio, discovery-question count, longest monologue, objection detection and
+rule-based coaching tips. The heavy lifting (ASR/diarization/realtime) lives in
+the agent/voice framework — this turns an existing transcript into structured signal.
+
+```bash
+dxcrm coach ./transcript.txt
+dxcrm coach ./transcript.txt --rep "rep,ae,me"   # which speaker labels are the rep
+```
+
+Transcript format: one `Speaker: text` per line, e.g. `Rep: ...` / `Customer: ...`.
