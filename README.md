@@ -5,10 +5,10 @@
 **Local-first, MCP-native CRM. One agent per customer. `npm install`.**
 
 [![npm version](https://img.shields.io/npm/v/@datasynx/agentic-crm.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@datasynx/agentic-crm)
-[![npm downloads](https://img.shields.io/npm/dm/@datasynx/agentic-crm.svg?color=cb3837)](https://www.npmjs.com/package/@datasynx/agentic-crm)
+[![npm downloads](https://img.shields.io/npm/dw/@datasynx/agentic-crm.svg?color=cb3837&label=downloads%2Fweek)](https://www.npmjs.com/package/@datasynx/agentic-crm)
 [![CI](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/ci.yml)
 [![Docs](https://github.com/datasynx-ai/datasynx-crm/actions/workflows/pages.yml/badge.svg)](https://datasynx-ai.github.io/datasynx-crm/)
-[![license](https://img.shields.io/npm/l/@datasynx/agentic-crm.svg?color=3fb950)](./LICENSE)
+[![license](https://img.shields.io/github/license/datasynx-ai/datasynx-crm.svg?color=3fb950)](./LICENSE)
 [![node](https://img.shields.io/node/v/@datasynx/agentic-crm.svg)](https://nodejs.org)
 
 [**📖 Documentation**](https://datasynx-ai.github.io/datasynx-crm/) · [**📦 npm**](https://www.npmjs.com/package/@datasynx/agentic-crm) · [**💻 GitHub**](https://github.com/datasynx-ai/datasynx-crm) · [**💼 LinkedIn**](https://de.linkedin.com/company/datasynx-ai)
