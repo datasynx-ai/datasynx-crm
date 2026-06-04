@@ -143,6 +143,7 @@ dxcrm sync --provider google-meet         # Google Meet transcripts
 - `--no-attachments` — Skip downloading, converting and indexing email attachments
 - `--provider <provider>` — Sync provider: `gmail` | `microsoft` | `google-drive` | `teams-transcripts` | `google-meet`
 - OCR language for image attachments defaults to English; override with the `DXCRM_OCR_LANG` env var (e.g. `deu`).
+- Scanned PDFs (no text layer) are flagged but not OCR'd by default. To OCR them, set `DXCRM_PDF_OCR=1` and install the optional `@napi-rs/canvas` peer dependency (`npm install @napi-rs/canvas`). Page count is capped via `DXCRM_PDF_OCR_MAX_PAGES` (default 20).
 
 **Prerequisites for Gmail:**
 - `.agentic/gmail-credentials.json` — OAuth2 credentials

@@ -7,6 +7,7 @@ const shared = {
     "apache-arrow",
     "@huggingface/transformers",
     "googleapis",
+    "@napi-rs/canvas",
   ],
 } as const;
 
