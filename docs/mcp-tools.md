@@ -221,18 +221,22 @@ Update fields in a customer's `main_facts.md` profile. Merges patch into existin
 
 ## export_customer
 
-Export customer data.
+Export customer data. Set `includeAttachmentContent: true` to inline every
+attachment's converted Markdown — a single self-contained bundle of all
+conversations and documents for the customer.
 
 ```json
 // Input
-{ "slug": "acme-corp", "format": "json" }  // json|markdown
+{ "slug": "acme-corp", "format": "json", "includeAttachmentContent": false }  // format: json|markdown
 
 // Output (json)
 {
   "slug": "acme-corp",
-  "facts": { ... },
+  "mainFacts": { ... },
   "interactionsCount": 42,
   "pipeline": [ ... ],
+  "attachments": ["msg1__order.csv", "msg1__order.csv.md"],
+  "attachmentContents": { "msg1__order.csv.md": "# order.csv\n\n| item | qty |\n..." },  // only when includeAttachmentContent=true
   "exportedAt": "2026-05-25T..."
 }
 ```

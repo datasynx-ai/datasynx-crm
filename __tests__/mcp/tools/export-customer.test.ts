@@ -73,6 +73,47 @@ describe("export_customer tool", () => {
     expect(text).not.toMatch(/^{/); // Not raw JSON object start
   });
 
+  it("inlines attachment Markdown when includeAttachmentContent=true (markdown)", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/main_facts.md": makeMainFacts("Acme Corp"),
+      "/data/customers/acme-corp/interactions.md": makeInteractions(),
+      "/data/customers/acme-corp/attachments/msg1__order.csv": "item,qty\nWidget,3",
+      "/data/customers/acme-corp/attachments/msg1__order.csv.md":
+        "# order.csv\n\n| item | qty |\n| --- | --- |\n| Widget | 3 |",
+    });
+
+    const result = await handleExportCustomer(
+      { slug: "acme-corp", format: "markdown", includeAttachmentContent: true },
+      "/data"
+    );
+    const text = (result.content[0] as { type: string; text: string }).text;
+    expect(text).toContain("## Attachment Contents (1)");
+    expect(text).toContain("### msg1__order.csv.md");
+    expect(text).toContain("| Widget | 3 |");
+  });
+
+  it("includes attachmentContents in JSON when requested, omits it otherwise", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/main_facts.md": makeMainFacts("Acme Corp"),
+      "/data/customers/acme-corp/attachments/msg1__note.txt.md": "# note.txt\n\nhello",
+    });
+
+    const withContent = await handleExportCustomer(
+      { slug: "acme-corp", includeAttachmentContent: true },
+      "/data"
+    );
+    const parsed = JSON.parse(
+      (withContent.content[0] as { text: string }).text
+    ) as { attachmentContents?: Record<string, string> };
+    expect(parsed.attachmentContents?.["msg1__note.txt.md"]).toContain("hello");
+
+    const without = await handleExportCustomer({ slug: "acme-corp" }, "/data");
+    const parsed2 = JSON.parse((without.content[0] as { text: string }).text) as {
+      attachmentContents?: unknown;
+    };
+    expect(parsed2.attachmentContents).toBeUndefined();
+  });
+
   it("returns error for non-existent customer", async () => {
     vol.fromJSON({});
 

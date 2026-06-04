@@ -53,7 +53,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | log_interaction | Write a new interaction entry (call, email, meeting, note) — immediately searchable | rep+ |
 | update_deal | Create or update a deal in pipeline.md — upserts by deal name | rep+ |
 | update_customer_facts | Update fields in customer profile (domain, contact, stage, tags) | admin |
-| export_customer | Export all customer data as JSON or Markdown | admin |
+| export_customer | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
 | get_deal_health | Score deal health 0–100 (A–F grade) based on activity, velocity, close date, probability | any |
 | get_pipeline_forecast | Aggregate weighted pipeline revenue across all customers grouped by stage | any |
 | get_pipeline_stages | List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost) | any |
@@ -186,12 +186,14 @@ RBAC: admin
 - Input: slug (required) + any combination of the optional fields
 - Returns: { success: boolean, facts: object }
 
-### export_customer({ slug, format? })
-Export all customer data (main_facts + interactions count + pipeline + attachments list).
+### export_customer({ slug, format?, includeAttachmentContent? })
+Export all customer data (main_facts + interactions + pipeline + attachments).
+Set includeAttachmentContent to inline every attachment's converted Markdown —
+a single sendable bundle of all conversations and documents for the customer.
 RBAC: admin
-- Input: { slug: string, format?: "json" | "markdown" (default "json") }
-- Returns (JSON): { slug, exportedAt, mainFacts, interactionsCount, pipeline, attachments }
-- Returns (Markdown): Formatted document with all sections
+- Input: { slug: string, format?: "json" | "markdown" (default "json"), includeAttachmentContent?: boolean (default false) }
+- Returns (JSON): { slug, exportedAt, mainFacts, interactionsCount, pipeline, attachments[, attachmentContents] }
+- Returns (Markdown): Formatted document with all sections (and attachment contents when requested)
 
 ### get_deal_health({ slug })
 Score the health of all deals for a customer based on activity recency, stage velocity,

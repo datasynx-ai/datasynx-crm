@@ -128,7 +128,7 @@ Email templates, multi-step sequences, HTML quotes, tickets with SLAs, and NPS/C
 </td>
 <td align="center">
 <h3>🔎 Hybrid memory</h3>
-Vector + full-text search across every synced email and call transcript (LanceDB, on-device).
+Vector + full-text search across every synced email, call transcript, and email attachment — PDFs, Office docs and images converted to Markdown and indexed on-device (LanceDB).
 </td>
 </tr>
 <tr>
@@ -229,6 +229,13 @@ Migrating? Bring your existing data with you:
 dxcrm import ./hubspot-export/ --from hubspot   # also: salesforce · pipedrive · csv
 dxcrm sync acme-corp                            # pull Gmail threads + transcripts
 ```
+
+Syncing Gmail also downloads every attachment, converts it to Markdown
+(PDF, DOCX, XLSX, PPTX, CSV, HTML, and images via on-device OCR), stores it under
+`customers/<slug>/attachments/`, links it from `interactions.md`, and indexes the
+text into LanceDB so it's semantically searchable. Export a complete, sendable
+bundle of all conversations and documents for a customer with the
+`export_customer` MCP tool (`includeAttachmentContent: true`).
 
 <br/>
 

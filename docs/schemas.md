@@ -93,6 +93,7 @@ Each interaction is a fenced Markdown section (newest entry first):
 | `subject` | string | No | Email subject or meeting title |
 | `summary` | string | Yes | Free-text summary |
 | `nextSteps` | string[] | No | Checkbox list (default: []) |
+| `attachments` | string[] | No | Relative links to converted attachment Markdown under `attachments/` |
 | `sourceRef` | string | Yes | URI identifying the source record |
 | `synced` | string | Yes | ISO 8601 timestamp |
 

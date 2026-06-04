@@ -10,10 +10,17 @@ export const syncCommand = new Command("sync")
   .option("--gmail", "Sync Gmail only")
   .option("--transcripts", "Sync transcripts only")
   .option("--provider <provider>", "Sync provider: gmail | microsoft | transcripts")
+  .option("--no-attachments", "Skip downloading/converting/indexing email attachments")
   .action(
     async (
       slug: string,
-      opts: { since?: string; gmail?: boolean; transcripts?: boolean; provider?: string }
+      opts: {
+        since?: string;
+        gmail?: boolean;
+        transcripts?: boolean;
+        provider?: string;
+        attachments?: boolean;
+      }
     ) => {
       const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
       const customerDir = path.join(dataDir, "customers", slug);
@@ -73,6 +80,7 @@ export const syncCommand = new Command("sync")
               auth,
               query: sources.gmail.query,
               since,
+              includeAttachments: opts.attachments !== false,
             });
             totalSynced += result.synced;
             console.log(success(`  ✓ Gmail: +${result.synced} synced, ${result.skipped} skipped`));

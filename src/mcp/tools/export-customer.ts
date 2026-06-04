@@ -15,7 +15,7 @@ function countInteractions(content: string): number {
 }
 
 export async function handleExportCustomer(
-  input: { slug: string; format?: "json" | "markdown" },
+  input: { slug: string; format?: "json" | "markdown"; includeAttachmentContent?: boolean },
   dataDir: string = DATA_DIR
 ): Promise<{
   content: Array<{ type: "text"; text: string }>;
@@ -61,15 +61,21 @@ export async function handleExportCustomer(
   // Read pipeline
   const pipeline = await readPipeline(dataDir, input.slug);
 
-  // Read attachments list
+  // Read attachments list, separating converted Markdown from raw files.
+  const includeAttachmentContent = input.includeAttachmentContent ?? false;
   const attachmentsDir = path.join(customerDir, "attachments");
   const attachments: string[] = [];
+  const attachmentContents: Record<string, string> = {};
   if (fs.existsSync(attachmentsDir)) {
     try {
       const files = fs.readdirSync(attachmentsDir) as string[];
       for (const f of files) {
         try {
-          if (fs.statSync(path.join(attachmentsDir, f)).isFile()) attachments.push(f);
+          if (!fs.statSync(path.join(attachmentsDir, f)).isFile()) continue;
+          attachments.push(f);
+          if (includeAttachmentContent && f.endsWith(".md")) {
+            attachmentContents[f] = fs.readFileSync(path.join(attachmentsDir, f), "utf-8") as string;
+          }
         } catch {
           /* skip */
         }
@@ -78,6 +84,15 @@ export async function handleExportCustomer(
       /* skip */
     }
   }
+  const attachmentContentSection = (): string[] => {
+    const entries = Object.entries(attachmentContents);
+    if (!includeAttachmentContent || entries.length === 0) return [];
+    return [
+      "",
+      `## Attachment Contents (${entries.length})`,
+      ...entries.map(([name, content]) => `\n### ${name}\n\n${content.trim()}`),
+    ];
+  };
 
   if (format === "markdown") {
     const markdown = [
@@ -106,6 +121,7 @@ export async function handleExportCustomer(
       "",
       `## Attachments (${attachments.length})`,
       attachments.length > 0 ? attachments.map((f) => `- ${f}`).join("\n") : "(none)",
+      ...attachmentContentSection(),
     ].join("\n");
 
     return {
@@ -121,6 +137,7 @@ export async function handleExportCustomer(
     interactionsCount,
     pipeline,
     attachments,
+    ...(includeAttachmentContent ? { attachmentContents } : {}),
   };
 
   return {
@@ -133,25 +150,36 @@ export function registerExportCustomer(server: McpServer): void {
     "export_customer",
     {
       title: "Export Customer",
-      description: `Export all customer data (main_facts + interactions count + pipeline deals).
-Useful for reporting, audits, or creating backups.
+      description: `Export all customer data (main_facts + interactions + pipeline deals + attachments).
+Useful for reporting, audits, handoffs, or creating a complete sendable bundle
+of every conversation and document for a customer.
 
 Args:
   slug: Customer ID (e.g. "acme-corp")
   format: Output format — "json" (default) or "markdown"
+  includeAttachmentContent: Inline the converted Markdown of every attachment
+    (default false). Use this to produce a single self-contained bundle.
 
 Returns:
-  JSON: { slug, exportedAt, mainFacts, interactionsCount, pipeline }
-  Markdown: Formatted document with all sections`,
+  JSON: { slug, exportedAt, mainFacts, interactionsCount, pipeline, attachments[, attachmentContents] }
+  Markdown: Formatted document with all sections (and attachment contents when requested)`,
       inputSchema: z.object({
         slug: z.string().describe("Customer slug (e.g. 'acme-corp')"),
         format: z
           .enum(["json", "markdown"])
           .optional()
           .describe("Output format: 'json' (default) or 'markdown'"),
+        includeAttachmentContent: z
+          .boolean()
+          .optional()
+          .describe("Inline converted attachment Markdown into the export (default false)"),
       }),
     },
-    async ({ slug, format }) =>
-      handleExportCustomer({ slug, ...(format !== undefined ? { format } : {}) })
+    async ({ slug, format, includeAttachmentContent }) =>
+      handleExportCustomer({
+        slug,
+        ...(format !== undefined ? { format } : {}),
+        ...(includeAttachmentContent !== undefined ? { includeAttachmentContent } : {}),
+      })
   );
 }
