@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { logger } from "./logger.js";
 
 export interface IncomingWebhookRequest {
   headers: Record<string, string>;
@@ -60,9 +61,10 @@ export class WebhookQueue {
       try {
         await item.handler.handle(item.payload);
       } catch (err) {
-        process.stderr.write(
-          `[webhook] ${item.handler.provider} error: ${(err as Error).message}\n`
-        );
+        logger.error("webhook", "handler error", {
+          provider: item.handler.provider,
+          error: (err as Error).message,
+        });
       }
     }
     this.processing = false;

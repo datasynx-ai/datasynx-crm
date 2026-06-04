@@ -3,6 +3,7 @@ import path from "path";
 import { getSequence, readEnrollments, updateEnrollment } from "../fs/sequence-store.js";
 import { getTemplate } from "../fs/template-store.js";
 import { interpolate, buildVariablesFromCustomer } from "./template-engine.js";
+import { logger } from "./logger.js";
 import type { SequenceEnrollment } from "../schemas/sequence.js";
 
 /**
@@ -23,7 +24,7 @@ export async function processSequenceStep(
 ): Promise<"sent" | "skipped_replied" | "completed" | "no_step_due"> {
   const sequence = getSequence(dataDir, enrollment.sequenceId);
   if (!sequence) {
-    process.stderr.write(`[sequences] Sequence not found: ${enrollment.sequenceId}\n`);
+    logger.warn("sequences", "sequence not found", { sequenceId: enrollment.sequenceId });
     return "no_step_due";
   }
 
@@ -55,7 +56,7 @@ export async function processSequenceStep(
   // Load template
   const template = getTemplate(dataDir, step.templateId);
   if (!template) {
-    process.stderr.write(`[sequences] Template not found: ${step.templateId}, skipping step\n`);
+    logger.warn("sequences", "template not found, skipping step", { templateId: step.templateId });
     await updateEnrollment(dataDir, enrollment.id, {
       currentStep: enrollment.currentStep + 1,
       lastSentAt: new Date().toISOString(),
@@ -87,16 +88,17 @@ export async function processSequenceStep(
         body,
         isHtml: false,
       });
-      process.stderr.write(
-        `[sequences] Sent step ${enrollment.currentStep} to ${enrollment.contactEmail}\n`
-      );
+      logger.info("sequences", "sent step", {
+        step: enrollment.currentStep,
+        to: enrollment.contactEmail,
+      });
     } catch (err) {
-      process.stderr.write(`[sequences] Send failed: ${(err as Error).message}\n`);
+      logger.error("sequences", "send failed", { error: (err as Error).message });
     }
   } else {
-    process.stderr.write(
-      `[sequences] Gmail not configured, advancing step for ${enrollment.contactEmail}\n`
-    );
+    logger.warn("sequences", "gmail not configured, advancing step", {
+      to: enrollment.contactEmail,
+    });
   }
 
   // Update enrollment
@@ -128,9 +130,10 @@ export async function runSequenceCycle(
     } catch (err) {
       const msg = `${enrollment.id}: ${(err as Error).message}`;
       errors.push(msg);
-      process.stderr.write(
-        `[sequences] Error processing ${enrollment.id}: ${(err as Error).message}\n`
-      );
+      logger.error("sequences", "error processing enrollment", {
+        enrollment: enrollment.id,
+        error: (err as Error).message,
+      });
     }
   }
 
