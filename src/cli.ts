@@ -43,6 +43,7 @@ import { autofillCommand } from "./commands/autofill.js";
 import { askCommand } from "./commands/ask.js";
 import { nbaCommand } from "./commands/nba.js";
 import { vaultCommand } from "./commands/vault.js";
+import { churnCommand } from "./commands/churn.js";
 
 const program = new Command();
 program
@@ -98,5 +99,6 @@ program.addCommand(autofillCommand);
 program.addCommand(askCommand);
 program.addCommand(nbaCommand);
 program.addCommand(vaultCommand);
+program.addCommand(churnCommand);
 
 await program.parseAsync(process.argv);

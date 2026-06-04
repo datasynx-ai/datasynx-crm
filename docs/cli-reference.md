@@ -853,3 +853,13 @@ dxcrm vault get stripe_api_key
 dxcrm vault list           # names only; values stay encrypted
 dxcrm vault rm acme/portal_pw
 ```
+
+## dxcrm churn (early-warning)
+
+Turns relationship-health signals (recency, cadence, momentum, silent champions)
+into an account-level churn-risk read so at-risk customers surface before they lapse.
+
+```bash
+dxcrm churn assess acme     # one customer, with explanatory signals
+dxcrm churn scan            # all customers ranked by risk (highest first)
+```

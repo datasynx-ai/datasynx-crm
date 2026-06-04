@@ -107,7 +107,11 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
 
 ## Welle 3 — Tiefe & Härtung (Wettbewerbstiefe, mit Governance)
 
-### D13 · Churn-Frühwarnung — C4 · M — Hängt ab von D5 (saubere Signale), vorhandener relationship-health.
+### D13 ✅ · Churn-Frühwarnung — C4 · M — Hängt ab von D5 (saubere Signale), vorhandener relationship-health.
+- **Umgesetzt:** `src/core/churn.ts` — `assessChurn(dataDir, slug, today?)` invertiert die relationship-health
+  Overall-Score und verstärkt sie mit Risk-Flags (NO_CONTACT_14D/30D, CHAMPION_SILENT) + cold/declining-Trends
+  zu `{riskScore 0–100, level low|medium|high, signals[]}`; `scanChurn` rankt alle Kunden. Keine neuen Daten
+  nötig (baut auf bestehender relationship-health-Engine). CLI `dxcrm churn assess <slug>` / `dxcrm churn scan`.
 ### D14 · Prädiktives ML-Lead-Scoring — C8 · M — Hängt ab von **D5** (saubere Trainingsdaten) + genügend Historie.
 ### D15 · Enrichment-Layer — C6 · M — Hängt ab von **D12** (Vault für API-Keys); pluginbar.
 ### D16 · Conversation-Intelligence-Lite — C7 · M — Talk-Ratio/Objections/Coaching aus Transkripten (D9-Pipeline).
