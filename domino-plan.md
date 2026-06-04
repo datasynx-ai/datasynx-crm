@@ -87,7 +87,7 @@ Jeder Stein: **Was er freischaltet/verbessert · hängt ab von · Quelle · Aufw
   D6 (Memory), D7 (SOP-Regeln) — alles bereits da, daher de-risked und schnell.
 - **Hängt ab von:** D2, D3, D4, D6, D7; vorhandener Transcript-Watcher/`summarize_meeting`.
 
-### D10 · „Ask your CRM" (RAG-Chat / NL-Q&A) — *alle Daten konversationell zugänglich* · C2 · M
+### D10 ✅ · „Ask your CRM" (RAG-Chat / NL-Q&A) — *alle Daten konversationell zugänglich* · C2 · M
 - **Hängt ab von:** D2 (+ D6 Memories, D7 SOPs). Macht Pipeline-/Win-Rate-/Kundenfragen sofort beantwortbar.
 
 ### D11 · Next-Best-Action-Engine — *macht jeden Deal-Schritt besser* · C3 · M

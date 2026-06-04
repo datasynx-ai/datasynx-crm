@@ -40,6 +40,7 @@ import { memoryCommand } from "./commands/memory.js";
 import { sopCommand } from "./commands/sop.js";
 import { toneCommand } from "./commands/tone.js";
 import { autofillCommand } from "./commands/autofill.js";
+import { askCommand } from "./commands/ask.js";
 
 const program = new Command();
 program
@@ -92,5 +93,6 @@ program.addCommand(memoryCommand);
 program.addCommand(sopCommand);
 program.addCommand(toneCommand);
 program.addCommand(autofillCommand);
+program.addCommand(askCommand);
 
 await program.parseAsync(process.argv);
