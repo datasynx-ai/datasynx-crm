@@ -8,7 +8,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR/branch runs to save CI, but never cancel a release
+  # branch mid-run — otherwise a fresh push could abort an in-flight publish.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/beta' && github.ref != 'refs/heads/alpha' }}
 
 jobs:
   # ── Stage 1: Quality Gates ────────────────────────────────────────────────
