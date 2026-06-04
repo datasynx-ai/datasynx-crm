@@ -175,7 +175,7 @@ optimize → document → commit*. Status-Legende: ✅ fertig · 🟡 in Arbeit 
 | N1-6 | **Registry-Listing** (`server.json`) | GTM | S | ✅ (Publish via OIDC = OPS) |
 | N1-7 | **Metadaten-Datenmodell** (object/fieldMetadata, Runtime-Zod) | Core | L | 🟡 (Custom-Fields-Registry + `dxcrm fields` ✅; Runtime-Zod-Merge/Custom-Objects offen) |
 | N2-1 | LLM-Opportunity-Scoring | Sales | M | 🔲 |
-| N3-1 | Omni-Channel-Routing (skill/priority) | Service | M | 🔲 |
+| N3-1 | Omni-Channel-Routing (skill/load) | Service | M | 🟡 (routeTicket + Agent-Store; Ticket-Auto-Assign-Wiring offen) |
 | N3-2 | Vektorisierte KB + Eskalation (transfer-to-human Action) | Service | M | 🔲 |
 | N4-1 | Segmente/Listen | Marketing | M | ✅ (`dxcrm segment` + evaluateSegment) |
 | N4-2 | Journeys (Branching) | Marketing | L | 🟡 (Engine: advance/branch + Storage; Enrollment-Runner/CLI offen) |
