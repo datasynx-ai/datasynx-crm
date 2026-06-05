@@ -80,15 +80,15 @@ dxcrm init
 **What it does:**
 1. Detects all installed AI frameworks (Claude Code, Codex, Cursor, Claude Desktop, ...)
 2. Registers the MCP server in each detected framework
-3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 61 MCP tools and proactive usage patterns
+3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 62 MCP tools and proactive usage patterns
 4. Creates `.agentic/` directory with `config.json` + `sources.json`
 5. Starts background daemon for automatic sync
 
 **Harness files written (v2):**
-- `CLAUDE.md` — all 61 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
+- `CLAUDE.md` — all 62 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)
 - `AGENTS.md` — for Codex / OpenClaw / Antigravity
 - `SOUL.md` — identity + v2 autonomy boundaries for Hermes / OpenClaw
-- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 61 tools
+- `.cursor/rules/datasynx-crm.mdc` — Cursor rules with all 62 tools
 - `.grok/settings.json` — Grok Build MCP config
 
 ---
@@ -1058,6 +1058,25 @@ dxcrm vault get stripe_api_key
 dxcrm vault list           # names only; values stay encrypted
 dxcrm vault rm acme/portal_pw
 ```
+
+### Browser GUI — secrets without the CLI (and without the LLM)
+
+So credentials never have to be pasted into a chat (where they'd flow through the
+LLM), the vault also has a **token-gated browser GUI**, served by the HTTP MCP server
+at `/vault`. Values are entered directly in the browser, encrypted with AES-256-GCM
+into `.agentic/vault.enc`, and can be revealed/removed from there.
+
+```bash
+dxcrm server start                 # serves the GUI at http://localhost:3847/vault
+export DXCRM_VAULT_KEY="…"          # master key (server environment only)
+dxcrm vault link                   # → http://localhost:3847/vault?t=…  (15-min token)
+dxcrm vault link --ttl 60          # longer-lived link (max 240 min)
+```
+
+Agents get the same link via the **`get_vault_link`** MCP tool — they hand you the
+link, never the secret. The link carries a short-lived session token
+(`.agentic/vault-sessions.json`, stored only as a SHA-256 hash). Override the base URL
+with `DXCRM_PUBLIC_URL` when the server runs behind a hostname/proxy.
 
 ## dxcrm churn (early-warning)
 

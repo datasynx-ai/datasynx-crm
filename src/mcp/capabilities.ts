@@ -102,6 +102,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | get_pipeline_changes | Pipeline time-travel: what changed (won/lost/moved/value) since a date | any |
 | get_pipeline_velocity | Stage dwell times, sales cycle, and stalled deals from snapshot history | any |
 | get_pipeline_funnel | Conversion funnel & win rate: where deals leak out of the pipeline | any |
+| get_vault_link | Get a browser link to the local credential-vault GUI — enter/manage secrets without sending them through the LLM | admin |
 | define_custom_object | Define a runtime custom object type with typed fields (no migration) | admin |
 | create_record | Create a record of a custom object (validated against its schema) | rep+ |
 | list_records | List records of a custom object | any |
@@ -938,4 +939,22 @@ get_audit_log({ slug: "acme-corp" })           // filtered by customer
 get_audit_log({ actor: "alice", limit: 20 })   // filtered by actor
 \`\`\`
 Returns: { total, returned, entries: [{ timestamp, actor, tool, slug, summary }] }
+
+## Credential Vault GUI (issue #21)
+
+### get_vault_link (MCP)
+Get a one-time browser link to the local, encrypted credential vault. Use this
+instead of asking the user to paste an API key / password into the chat — the
+operator enters secrets directly in the browser, where they are encrypted with
+AES-256-GCM into \`.agentic/vault.enc\` and **never pass through the LLM**.
+\`\`\`
+get_vault_link({})                 // 15-minute link to the vault GUI
+get_vault_link({ ttlMinutes: 60 }) // longer-lived link (max 240)
+\`\`\`
+Returns: { url, expiresAt, expiresInMinutes, serverRunning, vaultKeyConfigured, instructions }
+
+The link is served by the HTTP MCP server (\`dxcrm server start\`) at \`/vault\`,
+gated by a short-lived session token, and needs \`DXCRM_VAULT_KEY\` set in the
+server's environment. The same store is reachable from the terminal via
+\`dxcrm vault set|get|list|rm\` and \`dxcrm vault link\`.
 `.trim();

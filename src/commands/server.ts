@@ -37,11 +37,16 @@ export async function runServerStart(
     }
   }
 
-  // Spawn the MCP HTTP server process
-  const serverEntry = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../../dist/mcp/server.js"
-  );
+  // Spawn the MCP HTTP server process. The bundled server entry is dist/mcp.js
+  // (tsdown bundles src/mcp/server.ts → dist/mcp.js). Resolve it across both the
+  // built layout (dist/cli.js sibling) and dev (tsx running src/commands).
+  const here = path.dirname(new URL(import.meta.url).pathname);
+  const serverEntry =
+    [
+      path.resolve(here, "mcp.js"), // prod: dist/cli.js → dist/mcp.js
+      path.resolve(here, "../../dist/mcp.js"), // dev: src/commands → dist/mcp.js
+      path.resolve(here, "../mcp.js"),
+    ].find((p) => fs.existsSync(p)) ?? path.resolve(here, "mcp.js");
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,

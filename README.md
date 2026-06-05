@@ -27,7 +27,7 @@ Your pipeline lives as plain Markdown on your machine — and your AI agents rea
 
 > **You don't open a CRM to find your customer. Your customer's agent finds _you_ — briefed, current, and ready to act.**
 
-Your AI agents are brilliant — and forgetful. **Datasynx Agentic CRM is the long-term memory and the hands** they use to run your customer relationships. Every customer is a folder of human-readable Markdown on your own disk; **61 purpose-built [Model Context Protocol](https://modelcontextprotocol.io) tools** let any agent load full context, score deals, forecast revenue, draft the follow-up, and log what happened — without you copy-pasting a thing.
+Your AI agents are brilliant — and forgetful. **Datasynx Agentic CRM is the long-term memory and the hands** they use to run your customer relationships. Every customer is a folder of human-readable Markdown on your own disk; **62 purpose-built [Model Context Protocol](https://modelcontextprotocol.io) tools** let any agent load full context, score deals, forecast revenue, draft the follow-up, and log what happened — without you copy-pasting a thing.
 
 **No database. No cloud lock-in. No per-seat pricing. Zero telemetry.**
 
@@ -64,7 +64,7 @@ flowchart LR
     Agent["🤖 Claude Code · Codex · Cursor"] <-->|Model Context Protocol| MCP
 
     subgraph local["🔒 Your machine"]
-        MCP["⚙️ dxcrm MCP server<br/>61 typed tools · RBAC · audit"]
+        MCP["⚙️ dxcrm MCP server<br/>62 typed tools · RBAC · audit"]
         Files["📁 customers/&lt;name&gt;/<br/>main_facts · interactions · pipeline"]
         MCP <--> Files
     end
@@ -109,7 +109,7 @@ flowchart LR
 Every customer is a folder of <code>main_facts</code>, <code>interactions</code>, and <code>pipeline</code> files. Git-friendly, grep-able, yours forever.
 </td>
 <td align="center" width="33%">
-<h3>🔌 61 MCP tools</h3>
+<h3>🔌 62 MCP tools</h3>
 Typed tools for context, deals, comms, and intelligence — discoverable by agents via <code>get_capabilities</code>.
 </td>
 <td align="center" width="33%">
@@ -181,7 +181,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                   dxcrm MCP server  ·  61 tools                    │
+│                   dxcrm MCP server  ·  62 tools                    │
 │                                                                    │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐  │
 │  │  Customer  │ │  Pipeline  │ │Relationship│ │   Forecasting   │  │
@@ -206,7 +206,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
   Import:   HubSpot · Salesforce · Pipedrive · CSV
 ```
 
-→ Full reference: **[56 CLI commands](https://datasynx-ai.github.io/datasynx-crm/#full-cli-reference)** · **[61 MCP tools](https://datasynx-ai.github.io/datasynx-crm/#full-mcp-reference)**
+→ Full reference: **[56 CLI commands](https://datasynx-ai.github.io/datasynx-crm/#full-cli-reference)** · **[62 MCP tools](https://datasynx-ai.github.io/datasynx-crm/#full-mcp-reference)**
 
 <br/>
 
@@ -256,6 +256,38 @@ Tokens are stored locally and auto-refreshed. A password-based IMAP server works
 
 <br/>
 
+## Secrets — entered in your browser, never in the chat
+
+API keys, portal passwords and access tokens should never be pasted into a prompt,
+where they'd flow through the LLM. Instead, your agent hands you a **link to a local,
+browser-based credential vault**:
+
+```text
+You    ▸  I need to connect our Stripe account.
+Agent  ▸  ⟢ get_vault_link
+          → http://localhost:3847/vault?t=…  (expires in 15 min)
+          Open it and paste your key there — it's encrypted locally; I never see it.
+```
+
+You enter the value in the browser; it's encrypted with **AES-256-GCM** straight into
+`.agentic/vault.enc` on your machine and is retrievable from there — the secret never
+passes through the AI. The link is served by the HTTP MCP server, gated by a
+short-lived token, and the master key (`DXCRM_VAULT_KEY`) lives only in the server's
+environment.
+
+```bash
+dxcrm server start                 # serves the vault GUI at /vault
+export DXCRM_VAULT_KEY=…            # master key (server env only)
+dxcrm vault link                   # mint a browser link from the terminal
+# or, headless / scriptable:
+dxcrm vault set stripe_api_key sk_live_…   ·   dxcrm vault list   ·   dxcrm vault get stripe_api_key
+```
+
+Agents reach this via the **`get_vault_link`** MCP tool. They get a link to hand you —
+never the secret itself.
+
+<br/>
+
 ## Pipeline time-travel & analytics
 
 The daemon takes a **daily snapshot** of your whole pipeline, so `dxcrm` can answer
@@ -286,7 +318,7 @@ and `get_pipeline_funnel` MCP tools. No setup — it gets sharper every day the 
 | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | **Not another SaaS tab.**    | It lives inside your AI agent and your filesystem — not a browser dashboard you have to open. |
 | **Not a database.**          | Customers are Markdown folders. Back them up with `cp`, version them with `git`.              |
-| **Not a chatbot wrapper.**   | 61 typed MCP tools with RBAC and audit — not a single prompt pretending to be a product.      |
+| **Not a chatbot wrapper.**   | 62 typed MCP tools with RBAC and audit — not a single prompt pretending to be a product.      |
 | **Not a data grab.**         | Zero telemetry. Your data never leaves your machine unless you wire up an integration.        |
 | **Not lock-in.**             | MIT-licensed, plain files, export anytime. Leaving is a `cp -r` away.                         |
 
@@ -360,7 +392,7 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 
 **Shipped**
 
-- ✅ 61 MCP tools · 56 CLI commands · local-first Markdown store
+- ✅ 62 MCP tools · 56 CLI commands · local-first Markdown store
 - ✅ Hybrid (vector + full-text) search over emails & transcripts
 - ✅ Sync: Gmail, Outlook, Google Drive, Teams, Google Meet
 - ✅ Import: HubSpot, Salesforce, Pipedrive, CSV
