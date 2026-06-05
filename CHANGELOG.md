@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.12.0...v1.13.0) (2026-06-05)
+
+
+### Features
+
+* **cli:** dxcrm archive — move cold interactions out of the hot file ([b139ad9](https://github.com/datasynx-ai/datasynx-crm/commit/b139ad92787b52e2909ed840dd5bb5328399bd83))
+
 # [1.12.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.11.0...v1.12.0) (2026-06-05)
 
 
