@@ -19,9 +19,7 @@ function decodeBody(data: string | null | undefined): string {
  * body parts are considered. The first body of each type wins (the top-level
  * alternative), so signatures appended in nested forwards don't clobber it.
  */
-export function collectBodyParts(
-  payload: gmail_v1.Schema$MessagePart | undefined
-): EmailBodyParts {
+export function collectBodyParts(payload: gmail_v1.Schema$MessagePart | undefined): EmailBodyParts {
   const result: EmailBodyParts = {};
   const walk = (part?: gmail_v1.Schema$MessagePart): void => {
     if (!part) return;

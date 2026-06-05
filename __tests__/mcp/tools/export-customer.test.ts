@@ -102,9 +102,9 @@ describe("export_customer tool", () => {
       { slug: "acme-corp", includeAttachmentContent: true },
       "/data"
     );
-    const parsed = JSON.parse(
-      (withContent.content[0] as { text: string }).text
-    ) as { attachmentContents?: Record<string, string> };
+    const parsed = JSON.parse((withContent.content[0] as { text: string }).text) as {
+      attachmentContents?: Record<string, string>;
+    };
     expect(parsed.attachmentContents?.["msg1__note.txt.md"]).toContain("hello");
 
     const without = await handleExportCustomer({ slug: "acme-corp" }, "/data");

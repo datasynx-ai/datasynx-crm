@@ -72,9 +72,7 @@ describe("extractEmailBodyMarkdown", () => {
   it("returns empty string for an attachment-only message", async () => {
     const payload = {
       mimeType: "multipart/mixed",
-      parts: [
-        { mimeType: "application/pdf", filename: "x.pdf", body: { attachmentId: "a1" } },
-      ],
+      parts: [{ mimeType: "application/pdf", filename: "x.pdf", body: { attachmentId: "a1" } }],
     };
     expect(await extractEmailBodyMarkdown(payload as never)).toBe("");
   });

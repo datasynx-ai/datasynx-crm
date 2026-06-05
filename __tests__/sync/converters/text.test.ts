@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  textConverter,
-  csvToMarkdown,
-  parseCsvLine,
-} from "../../../src/sync/converters/text.js";
+import { textConverter, csvToMarkdown, parseCsvLine } from "../../../src/sync/converters/text.js";
 
 describe("parseCsvLine", () => {
   it("splits simple fields", () => {

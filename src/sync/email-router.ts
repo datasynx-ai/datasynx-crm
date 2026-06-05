@@ -22,7 +22,12 @@ export function extractEmailAddress(headerValue: string): string {
 /** The domain part of an email address, lowercased (empty string if malformed). */
 export function domainOf(email: string): string {
   const at = email.lastIndexOf("@");
-  return at >= 0 ? email.slice(at + 1).trim().toLowerCase() : "";
+  return at >= 0
+    ? email
+        .slice(at + 1)
+        .trim()
+        .toLowerCase()
+    : "";
 }
 
 /**
@@ -41,7 +46,11 @@ export function parseAddressList(headerValue: string | undefined): string[] {
 function readRoutingFields(
   dataDir: string,
   slug: string
-): { domain?: string | undefined; email?: string | undefined; primary_contact?: string | undefined } {
+): {
+  domain?: string | undefined;
+  email?: string | undefined;
+  primary_contact?: string | undefined;
+} {
   const file = path.join(dataDir, "customers", slug, "main_facts.md");
   if (!fs.existsSync(file)) return {};
   try {

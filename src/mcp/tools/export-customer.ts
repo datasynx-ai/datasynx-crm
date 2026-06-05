@@ -74,7 +74,10 @@ export async function handleExportCustomer(
           if (!fs.statSync(path.join(attachmentsDir, f)).isFile()) continue;
           attachments.push(f);
           if (includeAttachmentContent && f.endsWith(".md")) {
-            attachmentContents[f] = fs.readFileSync(path.join(attachmentsDir, f), "utf-8") as string;
+            attachmentContents[f] = fs.readFileSync(
+              path.join(attachmentsDir, f),
+              "utf-8"
+            ) as string;
           }
         } catch {
           /* skip */

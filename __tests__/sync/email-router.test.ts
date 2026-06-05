@@ -44,8 +44,7 @@ describe("buildRoutingTable", () => {
     vol.fromJSON({
       "/data/customers/acme/main_facts.md":
         "---\nname: Acme\ndomain: acme.com\nprimary_contact: ceo@acme.com\n---\n",
-      "/data/customers/globex/main_facts.md":
-        "---\nname: Globex\nemail: hello@globex.io\n---\n",
+      "/data/customers/globex/main_facts.md": "---\nname: Globex\nemail: hello@globex.io\n---\n",
       "/data/customers/empty/main_facts.md": "---\nname: NoIds\n---\n",
     });
     const table = buildRoutingTable("/data");

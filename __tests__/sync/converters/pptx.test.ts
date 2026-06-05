@@ -4,8 +4,7 @@ import { extractSlideText, pptxConverter } from "../../../src/sync/converters/pp
 
 describe("extractSlideText", () => {
   it("joins <a:t> runs and decodes entities", () => {
-    const xml =
-      "<p:sld><a:t>Hello</a:t><a:t>R&amp;D &lt;world&gt;</a:t></p:sld>";
+    const xml = "<p:sld><a:t>Hello</a:t><a:t>R&amp;D &lt;world&gt;</a:t></p:sld>";
     expect(extractSlideText(xml)).toBe("Hello R&D <world>");
   });
 
@@ -18,10 +17,7 @@ describe("pptxConverter", () => {
   function makePptx(slides: string[]): Buffer {
     const zip = new AdmZip();
     slides.forEach((text, i) => {
-      zip.addFile(
-        `ppt/slides/slide${i + 1}.xml`,
-        Buffer.from(`<p:sld><a:t>${text}</a:t></p:sld>`)
-      );
+      zip.addFile(`ppt/slides/slide${i + 1}.xml`, Buffer.from(`<p:sld><a:t>${text}</a:t></p:sld>`));
     });
     // A non-slide entry that must be ignored.
     zip.addFile("ppt/presentation.xml", Buffer.from("<p:presentation/>"));

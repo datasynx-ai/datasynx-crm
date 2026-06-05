@@ -143,9 +143,7 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
           source,
           payload: msgData.payload ?? undefined,
           date,
-          ...(opts.maxAttachmentBytes !== undefined
-            ? { maxBytes: opts.maxAttachmentBytes }
-            : {}),
+          ...(opts.maxAttachmentBytes !== undefined ? { maxBytes: opts.maxAttachmentBytes } : {}),
         });
         attachmentLinks = saved.map((a) => a.markdownName);
       } catch (err) {

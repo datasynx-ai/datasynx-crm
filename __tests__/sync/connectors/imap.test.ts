@@ -31,7 +31,13 @@ function fakeClient(messages: ImapMessage[]): ImapClient {
   };
 }
 
-function eml(opts: { from: string; to: string; subject: string; id: string; body: string }): Buffer {
+function eml(opts: {
+  from: string;
+  to: string;
+  subject: string;
+  id: string;
+  body: string;
+}): Buffer {
   return Buffer.from(
     [
       `From: ${opts.from}`,
@@ -90,7 +96,16 @@ describe("syncImapMailbox", () => {
     });
 
     const messages = [
-      { uid: 1, source: eml({ from: "Buyer <buyer@acme.com>", to: "me@myco.com", subject: "Hi", id: "m1@acme.com", body: "Hello from acme" }) },
+      {
+        uid: 1,
+        source: eml({
+          from: "Buyer <buyer@acme.com>",
+          to: "me@myco.com",
+          subject: "Hi",
+          id: "m1@acme.com",
+          body: "Hello from acme",
+        }),
+      },
     ];
 
     const res = await syncImapMailbox({
@@ -110,7 +125,16 @@ describe("syncImapMailbox", () => {
       "/data/customers/acme/main_facts.md": "---\nname: Acme\ndomain: acme.com\n---\n",
     });
     const messages = [
-      { uid: 2, source: eml({ from: "x@stranger.net", to: "me@myco.com", subject: "Spam", id: "m2@x.net", body: "hi" }) },
+      {
+        uid: 2,
+        source: eml({
+          from: "x@stranger.net",
+          to: "me@myco.com",
+          subject: "Spam",
+          id: "m2@x.net",
+          body: "hi",
+        }),
+      },
     ];
     const res = await syncImapMailbox({
       dataDir: "/data",
@@ -128,7 +152,16 @@ describe("syncImapMailbox", () => {
         "# Interactions\n\n**Source:** imap://me@myco.com@imap.example.com/INBOX/3\n",
     });
     const messages = [
-      { uid: 3, source: eml({ from: "buyer@acme.com", to: "me@myco.com", subject: "Dup", id: "m3@acme.com", body: "again" }) },
+      {
+        uid: 3,
+        source: eml({
+          from: "buyer@acme.com",
+          to: "me@myco.com",
+          subject: "Dup",
+          id: "m3@acme.com",
+          body: "again",
+        }),
+      },
     ];
     const res = await syncImapMailbox({
       dataDir: "/data",
@@ -145,7 +178,16 @@ describe("syncImapMailbox", () => {
       "/data/customers/vip/interactions.md": "# Interactions\n",
     });
     const messages = [
-      { uid: 4, source: eml({ from: "anyone@unknown.org", to: "me@myco.com", subject: "Hi", id: "m4@u.org", body: "to vip" }) },
+      {
+        uid: 4,
+        source: eml({
+          from: "anyone@unknown.org",
+          to: "me@myco.com",
+          subject: "Hi",
+          id: "m4@u.org",
+          body: "to vip",
+        }),
+      },
     ];
     const res = await syncImapMailbox({
       dataDir: "/data",

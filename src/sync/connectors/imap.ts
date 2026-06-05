@@ -22,10 +22,7 @@ export interface ImapMessage {
 export interface ImapClient {
   connect(): Promise<void>;
   getMailboxLock(mailbox: string): Promise<{ release: () => void }>;
-  fetch(
-    range: unknown,
-    query: { uid?: boolean; source?: boolean }
-  ): AsyncIterable<ImapMessage>;
+  fetch(range: unknown, query: { uid?: boolean; source?: boolean }): AsyncIterable<ImapMessage>;
   logout(): Promise<void>;
 }
 

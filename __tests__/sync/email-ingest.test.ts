@@ -49,11 +49,19 @@ describe("ingestEmail", () => {
   it("converts, stores, indexes and links attachments", async () => {
     vol.fromJSON({ "/data/customers/acme/interactions.md": "# Interactions\n" });
 
-    const res = await ingestEmail("/data", "acme", baseMsg({
-      attachments: [
-        { filename: "order.csv", mimeType: "text/csv", content: Buffer.from("item,qty\nWidget,3") },
-      ],
-    }));
+    const res = await ingestEmail(
+      "/data",
+      "acme",
+      baseMsg({
+        attachments: [
+          {
+            filename: "order.csv",
+            mimeType: "text/csv",
+            content: Buffer.from("item,qty\nWidget,3"),
+          },
+        ],
+      })
+    );
 
     expect(res.attachments).toBe(1);
     const json = vol.toJSON();
@@ -71,7 +79,11 @@ describe("ingestEmail", () => {
       "acme",
       baseMsg({
         attachments: [
-          { filename: "big.bin", mimeType: "application/octet-stream", content: Buffer.alloc(2048) },
+          {
+            filename: "big.bin",
+            mimeType: "application/octet-stream",
+            content: Buffer.alloc(2048),
+          },
         ],
       }),
       { maxAttachmentBytes: 1024 }

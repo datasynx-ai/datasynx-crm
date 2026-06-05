@@ -57,9 +57,11 @@ describe("processMessageAttachments", () => {
       users: {
         messages: {
           attachments: {
-            get: vi.fn().mockImplementation(({ id }: { id: string }) =>
-              Promise.resolve({ data: { data: dataByName[id] } })
-            ),
+            get: vi
+              .fn()
+              .mockImplementation(({ id }: { id: string }) =>
+                Promise.resolve({ data: { data: dataByName[id] } })
+              ),
           },
         },
       },
@@ -73,7 +75,13 @@ describe("processMessageAttachments", () => {
 
     const payload = {
       mimeType: "multipart/mixed",
-      parts: [{ filename: "invoice.csv", mimeType: "text/csv", body: { size: csv.length, attachmentId: "att-1" } }],
+      parts: [
+        {
+          filename: "invoice.csv",
+          mimeType: "text/csv",
+          body: { size: csv.length, attachmentId: "att-1" },
+        },
+      ],
     };
 
     const saved = await processMessageAttachments({
@@ -104,7 +112,13 @@ describe("processMessageAttachments", () => {
   it("skips oversized attachments", async () => {
     const gmail = makeGmail({});
     const payload = {
-      parts: [{ filename: "huge.bin", mimeType: "application/octet-stream", body: { size: 999_999_999, attachmentId: "big" } }],
+      parts: [
+        {
+          filename: "huge.bin",
+          mimeType: "application/octet-stream",
+          body: { size: 999_999_999, attachmentId: "big" },
+        },
+      ],
     };
     const saved = await processMessageAttachments({
       gmail,
