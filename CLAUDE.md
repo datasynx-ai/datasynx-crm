@@ -12,8 +12,8 @@ Das bedeutet konkret:
 - **Branch-Strategie**: Ich erstelle, benenne und lösche Branches nach eigenem Ermessen.
 - **Commit-Struktur**: Ich entscheide über Granularität, Timing und Inhalt von Commits.
 - **Refactoring**: Ich refactore Code, wenn ich es für sinnvoll halte — auch ohne explizite Anfrage.
-- **Dependency-Entscheidungen**: Ich wähle und update Packages eigenständig, solange sie mit dem Spec (plan.md) konsistent sind.
-- **Architektur-Entscheidungen**: Ich implementiere nach bestem Urteil innerhalb des in plan.md definierten Rahmens.
+- **Dependency-Entscheidungen**: Ich wähle und update Packages eigenständig, solange sie mit der Produktrichtung konsistent sind.
+- **Architektur-Entscheidungen**: Ich implementiere nach bestem Urteil innerhalb des etablierten Architektur-Rahmens.
 
 ## Entwicklungsregeln — Nicht verhandelbar
 
@@ -73,7 +73,6 @@ Vor jedem Commit prüfe ich automatisch:
 ## Projekt-Kontext
 
 Produkt: DatasynxOpenCRM (`dxcrm`, npm: `datasynx-opencrm`)
-Spec: `plan.md` (kanonisch, v5 — konsolidiert Future-Feat + domino-plan)
 Aktuelle Phase: Phasen 1–5 abgeschlossen · Härtung & erster externer User
 Ziel: Erster externer User nutzt dxcrm 7 Tage täglich ohne HubSpot.
 
