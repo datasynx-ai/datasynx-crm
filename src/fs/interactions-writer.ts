@@ -9,7 +9,11 @@ const INTERACTION_SEPARATOR = "---";
 
 export function formatInteractionEntry(entry: InteractionEntry): string {
   const header = `## ${entry.date} · ${entry.type}${entry.direction ? ` · ${entry.direction}` : ""}`;
-  const withLabel = entry.type === "Email" ? "Subject" : "With";
+  // `with` always means *who* was involved; `subject` (e.g. the email subject)
+  // is a separate field. The previous code overloaded `with` as "Subject" for
+  // emails, which both mislabeled the contact and discarded the real subject
+  // that sync handlers (Gmail/Outlook/Slack) already populate.
+  const subjectLine = entry.subject ? `\n**Subject:** ${entry.subject}` : "";
   const nextStepsBlock =
     entry.nextSteps.length > 0 ? entry.nextSteps.map((s) => `- [ ] ${s}`).join("\n") : "- [ ] —";
 
@@ -21,7 +25,7 @@ export function formatInteractionEntry(entry: InteractionEntry): string {
       : "";
 
   return `${header}
-**${withLabel}:** ${entry.with}
+**With:** ${entry.with}${subjectLine}
 **Summary:** ${entry.summary}
 **Next Steps:**
 ${nextStepsBlock}${attachmentsLine}

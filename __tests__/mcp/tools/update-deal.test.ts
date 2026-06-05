@@ -7,15 +7,56 @@ vi.mock("../../../src/fs/pipeline-writer.js", () => ({
 }));
 
 import { handleUpdateDeal } from "../../../src/mcp/tools/update-deal.js";
-import { upsertDeal } from "../../../src/fs/pipeline-writer.js";
+import { upsertDeal, readPipeline } from "../../../src/fs/pipeline-writer.js";
 
 const mockUpsert = vi.mocked(upsertDeal);
+const mockReadPipeline = vi.mocked(readPipeline);
 
 describe("update_deal tool", () => {
   beforeEach(() => {
     vol.reset();
     vi.clearAllMocks();
     mockUpsert.mockResolvedValue(undefined);
+    mockReadPipeline.mockResolvedValue([]);
+  });
+
+  it("merges a partial update over the existing deal (does not wipe other fields)", async () => {
+    // Existing deal carries value/probability/closeDate/notes.
+    mockReadPipeline.mockResolvedValue([
+      {
+        name: "Enterprise License",
+        stage: "negotiation",
+        currency: "EUR",
+        value: 75000,
+        probability: 60,
+        close_date: "2026-07-15",
+        notes: "CFO pushback",
+        updated: "2026-06-03",
+      },
+    ]);
+
+    // Update only the stage.
+    await handleUpdateDeal(
+      { slug: "acme-corp", dealName: "Enterprise License", stage: "won" },
+      "/data"
+    );
+
+    const [, , calledDeal] = mockUpsert.mock.calls[0] as [
+      string,
+      string,
+      {
+        stage: string;
+        value?: number;
+        probability?: number;
+        close_date?: string;
+        notes?: string;
+      },
+    ];
+    expect(calledDeal.stage).toBe("won");
+    expect(calledDeal.value).toBe(75000);
+    expect(calledDeal.probability).toBe(60);
+    expect(calledDeal.close_date).toBe("2026-07-15");
+    expect(calledDeal.notes).toBe("CFO pushback");
   });
 
   it("returns success with deal object for a valid update", async () => {

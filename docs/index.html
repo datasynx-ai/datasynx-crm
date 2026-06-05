@@ -1349,11 +1349,11 @@ Any free-form notes here are preserved by update_customer_facts.</code></pre>
 
 <section id="schema-pipeline">
 <h2>Schema: pipeline.md</h2>
-<pre><code>## Deals
+<pre><code># Pipeline — Acme Corp
 
-| Name | Stage | Value | Probability | Close | Updated |
-|---|---|---|---|---|---|
-| Enterprise License 2026 | negotiation | €75,000 | 75% | 2026-09-30 | 2026-05-27 |</code></pre>
+| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes |
+|---|---|---|---|---|---|---|---|
+| Enterprise License 2026 | negotiation | 75000 | EUR | 75 | 2026-09-30 | 2026-05-27 | Budget confirmed |</code></pre>
 <p>Stages are configurable via <code>dxcrm stages set</code>. Default stages: <code>lead</code> · <code>qualified</code> · <code>proposal</code> · <code>negotiation</code> · <code>won</code> · <code>lost</code>.</p>
 </section>
 

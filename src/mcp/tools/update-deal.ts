@@ -1,6 +1,6 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { upsertDeal } from "../../fs/pipeline-writer.js";
+import { upsertDeal, readPipeline } from "../../fs/pipeline-writer.js";
 import type { PipelineDeal } from "../../schemas/pipeline.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 import { enforceRbac } from "../../core/rbac.js";
@@ -23,19 +23,30 @@ export async function handleUpdateDeal(
 }> {
   const today = new Date().toISOString().split("T")[0] as string;
 
-  const deal: PipelineDeal = {
-    name: input.dealName,
-    stage: (input.stage as PipelineDeal["stage"]) ?? "lead",
-    currency: "EUR",
-    updated: today,
-    ...(input.value !== undefined ? { value: input.value } : {}),
-    ...(input.probability !== undefined ? { probability: input.probability } : {}),
-    ...(input.closeDate !== undefined ? { close_date: input.closeDate } : {}),
-    ...(input.notes !== undefined ? { notes: input.notes } : {}),
-  };
-
   try {
     enforceRbac(dataDir, "update_deal");
+
+    // Upsert by name: merge the provided fields over the existing deal so a
+    // partial update (e.g. only `stage`) does not wipe value/probability/etc.
+    const existing = (await readPipeline(dataDir, input.slug)).find(
+      (d) => d.name === input.dealName
+    );
+
+    const value = input.value ?? existing?.value;
+    const probability = input.probability ?? existing?.probability;
+    const closeDate = input.closeDate ?? existing?.close_date;
+    const notes = input.notes ?? existing?.notes;
+
+    const deal: PipelineDeal = {
+      name: input.dealName,
+      stage: (input.stage as PipelineDeal["stage"]) ?? existing?.stage ?? "lead",
+      currency: existing?.currency ?? "EUR",
+      updated: today,
+      ...(value !== undefined ? { value } : {}),
+      ...(probability !== undefined ? { probability } : {}),
+      ...(closeDate !== undefined ? { close_date: closeDate } : {}),
+      ...(notes !== undefined ? { notes } : {}),
+    };
 
     await upsertDeal(dataDir, input.slug, deal);
 

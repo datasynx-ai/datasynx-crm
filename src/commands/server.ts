@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { spawn } from "child_process";
+import { resolveMcpServerPath } from "../setup/resolve-mcp-path.js";
 import { success, info } from "../ui/colors.js";
 
 function getPidFile(dataDir: string): string {
@@ -38,15 +39,8 @@ export async function runServerStart(
   }
 
   // Spawn the MCP HTTP server process. The bundled server entry is dist/mcp.js
-  // (tsdown bundles src/mcp/server.ts → dist/mcp.js). Resolve it across both the
-  // built layout (dist/cli.js sibling) and dev (tsx running src/commands).
-  const here = path.dirname(new URL(import.meta.url).pathname);
-  const serverEntry =
-    [
-      path.resolve(here, "mcp.js"), // prod: dist/cli.js → dist/mcp.js
-      path.resolve(here, "../../dist/mcp.js"), // dev: src/commands → dist/mcp.js
-      path.resolve(here, "../mcp.js"),
-    ].find((p) => fs.existsSync(p)) ?? path.resolve(here, "mcp.js");
+  // (tsdown bundles src/mcp/server.ts → dist/mcp.js).
+  const serverEntry = resolveMcpServerPath(import.meta.url);
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,

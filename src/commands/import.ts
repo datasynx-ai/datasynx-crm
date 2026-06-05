@@ -88,18 +88,42 @@ const IMPORT_TARGET_FIELDS = [
   "name",
   "email",
   "domain",
+  "industry",
+  "stage",
   "notes",
   "date",
   "activityType",
   "sourceId",
 ] as const;
 
+/**
+ * Map a free-text CRM stage/lifecycle value onto the four canonical
+ * `relationship_stage` enum values. Returns undefined for unrecognized values
+ * so the caller keeps the safe `prospect` default rather than writing invalid
+ * frontmatter.
+ */
+export function normalizeRelationshipStage(
+  raw: string | undefined
+): "prospect" | "active" | "churned" | "paused" | undefined {
+  const v = (raw ?? "").trim().toLowerCase();
+  if (!v) return undefined;
+  if (["prospect", "active", "churned", "paused"].includes(v)) {
+    return v as "prospect" | "active" | "churned" | "paused";
+  }
+  if (/lead|prospect|new|open|mql|sql|opportunit/.test(v)) return "prospect";
+  if (/customer|client|won|closed.?won|active|live|subscrib/.test(v)) return "active";
+  if (/churn|lost|closed.?lost|cancel|inactive|former/.test(v)) return "churned";
+  if (/paus|hold|dormant|snooz/.test(v)) return "paused";
+  return undefined;
+}
+
 function ensureCustomer(
   dataDir: string,
   name: string,
   domain: string,
   email: string,
-  dryRun: boolean
+  dryRun: boolean,
+  extra?: { stage?: string; industry?: string }
 ): { slug: string; created: boolean } {
   const slug = slugify(name || "unknown");
   const customerDir = path.join(dataDir, "customers", slug);
@@ -111,12 +135,15 @@ function ensureCustomer(
   fs.mkdirSync(customerDir, { recursive: true });
 
   const today = new Date().toISOString().slice(0, 10);
+  const stage = normalizeRelationshipStage(extra?.stage) ?? "prospect";
+  const industry = extra?.industry?.trim();
   const frontmatter = [
     "---",
     `name: ${name}`,
     domain ? `domain: ${domain}` : null,
     email ? `email: ${email}` : null,
-    "relationship_stage: prospect",
+    industry ? `industry: ${industry}` : null,
+    `relationship_stage: ${stage}`,
     `created: ${today}`,
     `updated: ${today}`,
     `last_touchpoint: ${today}`,
@@ -492,9 +519,14 @@ export async function runImport(
 
     const domain = (row[mapping.domain ?? ""] ?? "").trim();
     const email = (row[mapping.email ?? ""] ?? "").trim();
+    const stage = (row[mapping["stage"] ?? ""] ?? "").trim();
+    const industry = (row[mapping["industry"] ?? ""] ?? "").trim();
 
     try {
-      const { slug, created } = ensureCustomer(dir, name, domain, email, opts.dryRun ?? false);
+      const { slug, created } = ensureCustomer(dir, name, domain, email, opts.dryRun ?? false, {
+        stage,
+        industry,
+      });
       slugMap.set(name.toLowerCase(), slug);
       if (created) result.customersCreated++;
     } catch (err) {

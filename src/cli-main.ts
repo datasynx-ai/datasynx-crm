@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { ALL_COMMANDS } from "./commands/registry.js";
+import { VERSION } from "./version.js";
 
 /** Build the `dxcrm` commander program with every registered command. */
 export function buildProgram(): Command {
@@ -7,7 +8,7 @@ export function buildProgram(): Command {
   program
     .name("dxcrm")
     .description("DatasynxOpenCRM — local-first, MCP-native CRM")
-    .version("0.1.0")
+    .version(VERSION)
     .exitOverride(); // throw instead of process.exit so we control exit codes
 
   for (const command of ALL_COMMANDS) {

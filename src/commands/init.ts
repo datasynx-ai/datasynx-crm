@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { installAllDetected } from "../setup/framework-registry.js";
+import { resolveMcpServerPath } from "../setup/resolve-mcp-path.js";
 import { success, error, info, bold } from "../ui/colors.js";
 
 export const initCommand = new Command("init")
@@ -114,11 +115,8 @@ export const initCommand = new Command("init")
     // 6. Install framework adapters
     console.log(info("Detecting AI frameworks..."));
 
-    // Find dist/mcp.js relative to this package
-    const mcpServerPath = path.resolve(
-      path.dirname(new URL(import.meta.url).pathname),
-      "../../dist/mcp.js"
-    );
+    // Resolve dist/mcp.js across the bundled (prod) and tsx (dev) layouts.
+    const mcpServerPath = resolveMcpServerPath(import.meta.url);
 
     if (opts.team) {
       console.log(info(`Team mode: connecting frameworks to ${bold(opts.team)}`));

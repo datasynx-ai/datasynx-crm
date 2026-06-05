@@ -51,14 +51,30 @@ describe("formatInteractionEntry", () => {
     expect(formatted).toContain("## 2024-06-01 · Email · inbound");
   });
 
-  it("uses 'Subject' label for Email type", () => {
+  it("labels the contact as 'With' (not 'Subject') for emails", () => {
     const formatted = formatInteractionEntry(entry1);
-    expect(formatted).toContain("**Subject:** max@acme.com");
+    expect(formatted).toContain("**With:** max@acme.com");
+    expect(formatted).not.toContain("**Subject:** max@acme.com");
   });
 
   it("uses 'With' label for non-Email types", () => {
     const formatted = formatInteractionEntry(entry2);
     expect(formatted).toContain("**With:** Max Mustermann");
+  });
+
+  it("renders the real subject on a separate line when provided", () => {
+    const formatted = formatInteractionEntry({
+      ...entry1,
+      subject: "Re: Enterprise pricing",
+    });
+    // Both the contact and the actual email subject must be present & distinct.
+    expect(formatted).toContain("**With:** max@acme.com");
+    expect(formatted).toContain("**Subject:** Re: Enterprise pricing");
+  });
+
+  it("omits the Subject line when no subject is set", () => {
+    const formatted = formatInteractionEntry(entry2);
+    expect(formatted).not.toContain("**Subject:**");
   });
 
   it("includes summary", () => {

@@ -5,6 +5,7 @@ import { execSync } from "child_process";
 import { createHash } from "crypto";
 import { success, error, info, bold } from "../ui/colors.js";
 import { writeJsonFile } from "../fs/json-store.js";
+import { VERSION } from "../version.js";
 
 export interface BackupManifest {
   version: "1";
@@ -132,7 +133,7 @@ function buildManifest(
   return {
     version: "1",
     createdAt: new Date().toISOString(),
-    dxcrmVersion: "0.1.0",
+    dxcrmVersion: VERSION,
     directories: dirs,
     customerCount: countCustomers(dataDir),
     fileCount: totalFiles,

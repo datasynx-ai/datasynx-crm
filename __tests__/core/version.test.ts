@@ -1,12 +1,20 @@
 import { describe, it, expect } from "vitest";
+import { createRequire } from "node:module";
 import { VERSION } from "../../src/version.js";
+
+const require = createRequire(import.meta.url);
+const pkg = require("../../package.json") as { version: string };
 
 describe("VERSION", () => {
   it("is a semver string", () => {
     expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
   });
 
-  it("starts with 0.1", () => {
-    expect(VERSION.startsWith("0.1")).toBe(true);
+  it("matches the version in package.json (no drift)", () => {
+    expect(VERSION).toBe(pkg.version);
+  });
+
+  it("is not the stale hardcoded 0.1.0", () => {
+    expect(VERSION).not.toBe("0.1.0");
   });
 });

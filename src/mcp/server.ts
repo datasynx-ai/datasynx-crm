@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { initOAuthFromDisk } from "../core/oauth-store.js";
+import { VERSION } from "../version.js";
 import {
   decodeGmailPubSubPayload,
   verifyGmailPubSubSignature,
@@ -113,7 +114,7 @@ h1{font-size:2.5em;margin-bottom:.3em}p{color:#555;font-size:1.1em}</style></hea
 export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "datasynx-opencrm",
-    version: "0.1.0",
+    version: VERSION,
   });
 
   // Register all 62 tools
@@ -246,7 +247,7 @@ export async function startHttp(port = 3847): Promise<void> {
   });
 
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok", server: "datasynx-opencrm", version: "0.1.0" });
+    res.json({ status: "ok", server: "datasynx-opencrm", version: VERSION });
   });
 
   app.get("/sessions", async (_req, res) => {

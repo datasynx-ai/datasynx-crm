@@ -19,6 +19,7 @@ export async function handleLogInteraction(
     type: InteractionEntry["type"];
     summary: string;
     with: string;
+    subject?: string;
     nextSteps?: string[];
     direction?: "inbound" | "outbound";
     source?: string;
@@ -40,6 +41,7 @@ export async function handleLogInteraction(
     nextSteps: input.nextSteps ?? [],
     sourceRef,
     synced: new Date().toISOString(),
+    ...(input.subject !== undefined ? { subject: input.subject } : {}),
     ...(input.direction !== undefined ? { direction: input.direction } : {}),
   };
 
@@ -138,6 +140,7 @@ Args:
   type: Interaction type ("Email" | "Call" | "Meeting" | "Note" | "Demo" | "Proposal" | "Contract" | "Other")
   summary: 2-5 sentences describing what happened (min 1 char)
   with: Who was involved (name or email address)
+  subject: Subject line / topic, e.g. the email subject (optional)
   nextSteps: Array of action items (optional)
   direction: "inbound" or "outbound" (optional)
   source: Source reference string (optional, auto-generated if omitted)
@@ -150,6 +153,7 @@ Returns: { success: boolean, path: string, entry: string }`,
           .describe("Type of interaction"),
         summary: z.string().min(1).describe("2-5 sentence summary of what happened"),
         with: z.string().describe("Who was involved (name or email)"),
+        subject: z.string().optional().describe("Subject line / topic (e.g. the email subject)"),
         nextSteps: z.array(z.string()).optional().describe("Action items for follow-up"),
         direction: z
           .enum(["inbound", "outbound"])
@@ -166,12 +170,13 @@ Returns: { success: boolean, path: string, entry: string }`,
           .describe("Date of interaction (YYYY-MM-DD). Defaults to today."),
       }),
     },
-    async ({ slug, type, summary, with: withStr, nextSteps, direction, source, date }) =>
+    async ({ slug, type, summary, with: withStr, subject, nextSteps, direction, source, date }) =>
       handleLogInteraction({
         slug,
         type,
         summary,
         with: withStr,
+        ...(subject !== undefined ? { subject } : {}),
         ...(nextSteps !== undefined ? { nextSteps } : {}),
         ...(direction !== undefined ? { direction } : {}),
         ...(source !== undefined ? { source } : {}),

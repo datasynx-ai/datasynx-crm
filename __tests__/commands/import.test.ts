@@ -69,6 +69,25 @@ Acme Corp,contact@acme.com,acme.com,Sent proposal,Email,2024-01-16,hs-002
 Beta GmbH,info@beta.de,beta.de,Demo scheduled,Meeting,2024-01-17,hs-003
 `;
 
+describe("normalizeRelationshipStage", () => {
+  it("maps synonyms onto the four canonical enum values", async () => {
+    const { normalizeRelationshipStage } = await import("../../src/commands/import.js");
+    expect(normalizeRelationshipStage("customer")).toBe("active");
+    expect(normalizeRelationshipStage("Client")).toBe("active");
+    expect(normalizeRelationshipStage("lead")).toBe("prospect");
+    expect(normalizeRelationshipStage("Closed Lost")).toBe("churned");
+    expect(normalizeRelationshipStage("on hold")).toBe("paused");
+    expect(normalizeRelationshipStage("active")).toBe("active");
+  });
+
+  it("returns undefined for empty or unrecognized values (keeps default)", async () => {
+    const { normalizeRelationshipStage } = await import("../../src/commands/import.js");
+    expect(normalizeRelationshipStage("")).toBeUndefined();
+    expect(normalizeRelationshipStage(undefined)).toBeUndefined();
+    expect(normalizeRelationshipStage("banana")).toBeUndefined();
+  });
+});
+
 describe("runImport — CSV", () => {
   it("creates customers and imports interactions", async () => {
     vol.fromJSON({ "/crm/data.csv": SIMPLE_CSV });
@@ -158,6 +177,30 @@ describe("runImport — CSV", () => {
 
     expect(result.customersCreated).toBe(0);
     expect(result.interactionsImported).toBe(0);
+  });
+
+  it("maps the CSV stage and industry columns into main_facts.md", async () => {
+    vol.fromJSON({
+      "/crm/data.csv":
+        "name,domain,stage,industry\n" +
+        "Initech,initech.com,prospect,Software\n" +
+        "Umbrella Corp,umbrella.com,customer,Pharma\n",
+    });
+
+    const result = await runImport("/crm/data.csv", { from: "csv" }, "/crm");
+    expect(result.customersCreated).toBe(2);
+
+    const initech = vol.readFileSync("/crm/customers/initech/main_facts.md", "utf-8") as string;
+    expect(initech).toContain("relationship_stage: prospect");
+    expect(initech).toContain("industry: Software");
+
+    // "customer" is a common synonym that must normalize to the `active` enum.
+    const umbrella = vol.readFileSync(
+      "/crm/customers/umbrella-corp/main_facts.md",
+      "utf-8"
+    ) as string;
+    expect(umbrella).toContain("relationship_stage: active");
+    expect(umbrella).toContain("industry: Pharma");
   });
 });
 

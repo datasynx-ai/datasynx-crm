@@ -234,6 +234,15 @@ const FIELD_ALIASES: Record<string, string[]> = {
   domain: ["company domain", "website", "domain", "url", "web", "homepage"],
   phone: ["phone number", "phone", "tel", "telephone", "mobile", "cell"],
   industry: ["industry", "sector", "branche", "vertical"],
+  stage: [
+    "relationship stage",
+    "relationship_stage",
+    "lifecycle stage",
+    "lifecycle_stage",
+    "lifecycle",
+    "stage",
+    "status",
+  ],
   primary_contact: ["contact name", "contact person", "contact", "ansprechpartner", "kontakt"],
   timezone: ["timezone", "time zone", "tz"],
   // Import-specific fields
