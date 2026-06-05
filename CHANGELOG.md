@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.11.0...v1.12.0) (2026-06-05)
+
+
+### Features
+
+* **core:** retrieval-augmented context via optional focus query ([2ab7bde](https://github.com/datasynx-ai/datasynx-crm/commit/2ab7bde2becb171a85dce197ccd7342ca99ed7d7))
+
 # [1.11.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.10.0...v1.11.0) (2026-06-05)
 
 
