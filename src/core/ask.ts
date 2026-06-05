@@ -1,21 +1,36 @@
-import { hybridSearch, type HybridDoc } from "./hybrid-search.js";
+import { hybridSearch, reciprocalRankFusion, type HybridDoc } from "./hybrid-search.js";
+import { searchKnowledge } from "./lancedb.js";
 import { loadMemories } from "./memory.js";
 import { loadSops } from "./sop.js";
 import { readInteractions } from "../fs/interactions-writer.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
 
 /**
- * Ask-your-CRM (domino D10 / C2): natural-language Q&A over CRM data. Gathers a
- * corpus (interactions, pipeline, memories, SOPs), retrieves relevant snippets
- * via hybrid search, and — when an LLM is available — synthesizes a grounded
- * answer. Without an LLM it returns the ranked sources (still useful).
+ * Ask-your-CRM (domino D10 / C2): natural-language Q&A over CRM data. Interactions
+ * are retrieved through the indexed hybrid path (LanceDB BM25 + vector, see
+ * `searchKnowledge`); the small, structured sources (memories, SOPs, pipeline) are
+ * ranked in-memory by keyword. The two ranked lists are fused via Reciprocal Rank
+ * Fusion. When a customer's interactions are not yet indexed, the in-memory
+ * markdown is used as a fallback so nothing becomes unsearchable. When an LLM is
+ * available the top snippets are synthesized into a grounded answer; otherwise the
+ * ranked sources are returned (still useful).
  */
 export interface AskResult {
   answer?: string;
   sources: Array<{ id: string; text: string }>;
 }
 
-export async function gatherCorpus(dataDir: string, slug?: string): Promise<HybridDoc[]> {
+export interface GatherCorpusOptions {
+  /** Include interactions from the markdown file (in-memory fallback). Default true. */
+  includeInteractions?: boolean;
+}
+
+export async function gatherCorpus(
+  dataDir: string,
+  slug?: string,
+  opts: GatherCorpusOptions = {}
+): Promise<HybridDoc[]> {
+  const includeInteractions = opts.includeInteractions ?? true;
   const docs: HybridDoc[] = [];
 
   for (const m of loadMemories(dataDir, slug)) docs.push({ id: `mem:${m.id}`, text: m.text });
@@ -23,12 +38,14 @@ export async function gatherCorpus(dataDir: string, slug?: string): Promise<Hybr
     docs.push({ id: `sop:${s.id}`, text: `${s.title} ${s.triggers.join(" ")} ${s.body}` });
 
   if (slug) {
-    const interactions = await readInteractions(dataDir, slug).catch(() => "");
-    interactions
-      .split(/(?=^## )/m)
-      .map((e) => e.trim())
-      .filter((e) => e && !e.startsWith("# "))
-      .forEach((e, i) => docs.push({ id: `int:${slug}:${i}`, text: e }));
+    if (includeInteractions) {
+      const interactions = await readInteractions(dataDir, slug).catch(() => "");
+      interactions
+        .split(/(?=^## )/m)
+        .map((e) => e.trim())
+        .filter((e) => e && !e.startsWith("# "))
+        .forEach((e, i) => docs.push({ id: `int:${slug}:${i}`, text: e }));
+    }
 
     const deals = await readPipeline(dataDir, slug).catch(() => []);
     for (const d of deals)
@@ -41,11 +58,38 @@ export async function gatherCorpus(dataDir: string, slug?: string): Promise<Hybr
   return docs;
 }
 
+const TOP_K = 6;
+
 export async function askCrm(dataDir: string, question: string, slug?: string): Promise<AskResult> {
-  const corpus = await gatherCorpus(dataDir, slug);
-  const ranked = hybridSearch(question, corpus, { limit: 6 });
-  const byId = new Map(corpus.map((d) => [d.id, d]));
-  const sources = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
+  // Interactions via the indexed hybrid path (BM25 + vector), when available.
+  const lanceRanking: string[] = [];
+  const lanceTextById = new Map<string, string>();
+  if (slug) {
+    const hits = await searchKnowledge(dataDir, slug, question, TOP_K).catch(() => []);
+    for (const h of hits) {
+      const id = `lance:${h.source}`;
+      lanceRanking.push(id);
+      if (!lanceTextById.has(id)) lanceTextById.set(id, h.content);
+    }
+  }
+
+  // Small structured sources in-memory; interactions only as fallback when the
+  // indexed path returned nothing (so manually-logged, un-indexed entries still
+  // surface and the "empty on no match" contract holds).
+  const corpus = await gatherCorpus(dataDir, slug, {
+    includeInteractions: lanceRanking.length === 0,
+  });
+  const memById = new Map(corpus.map((d) => [d.id, d]));
+  const memRanking = hybridSearch(question, corpus, { limit: TOP_K }).map((r) => r.id);
+
+  // Fuse the two disjoint ranked lists via RRF (k=60 default).
+  const rankings = [memRanking, lanceRanking].filter((r) => r.length > 0);
+  const fused = rankings.length > 0 ? reciprocalRankFusion(rankings) : [];
+
+  const sources = fused
+    .map(({ id }) => ({ id, text: lanceTextById.get(id) ?? memById.get(id)?.text }))
+    .filter((s): s is { id: string; text: string } => Boolean(s.text))
+    .slice(0, TOP_K);
 
   if (sources.length === 0) return { sources: [] };
 
