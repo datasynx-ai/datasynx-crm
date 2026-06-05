@@ -3,7 +3,7 @@ import { Index } from "@lancedb/lancedb";
 import { makeArrowTable } from "@lancedb/lancedb";
 import { Schema, Field, FixedSizeList, Float32 as ArrowFloat32, Utf8 } from "apache-arrow";
 import path from "path";
-import { embedText } from "./embedder.js";
+import { embedText, getEmbeddingDimension } from "./embedder.js";
 import { reciprocalRankFusion } from "./hybrid-search.js";
 import { logger } from "./logger.js";
 
@@ -22,13 +22,21 @@ export function resetConnection(): void {
   _db = null;
 }
 
-const CUSTOMER_TABLE_SCHEMA = new Schema([
-  new Field("source_ref", new Utf8(), false),
-  new Field("text", new Utf8(), false),
-  new Field("date", new Utf8(), false),
-  new Field("type", new Utf8(), false),
-  new Field("vector", new FixedSizeList(384, new Field("item", new ArrowFloat32(), true)), false),
-]);
+/**
+ * Build the per-customer table schema sized to the configured embedding model's
+ * dimension (detected at runtime), so a different model — e.g. a 768-dim one —
+ * works without code changes. The text/metadata columns are model-independent.
+ */
+async function buildCustomerSchema(): Promise<Schema> {
+  const dim = await getEmbeddingDimension();
+  return new Schema([
+    new Field("source_ref", new Utf8(), false),
+    new Field("text", new Utf8(), false),
+    new Field("date", new Utf8(), false),
+    new Field("type", new Utf8(), false),
+    new Field("vector", new FixedSizeList(dim, new Field("item", new ArrowFloat32(), true)), false),
+  ]);
+}
 
 async function getOrCreateCustomerTable(
   db: lancedb.Connection,
@@ -36,7 +44,7 @@ async function getOrCreateCustomerTable(
 ): Promise<lancedb.Table> {
   const tableNames: string[] = await db.tableNames();
   if (!tableNames.includes(tableName)) {
-    const table = await db.createEmptyTable(tableName, CUSTOMER_TABLE_SCHEMA);
+    const table = await db.createEmptyTable(tableName, await buildCustomerSchema());
     await table.createIndex("source_ref", { config: Index.btree() });
     await ensureFtsIndex(table);
     return table;
@@ -92,6 +100,59 @@ export async function indexInLanceDB(
       .execute(data);
   } catch (err) {
     logger.error("lancedb", "indexInLanceDB failed", { error: (err as Error).message });
+  }
+}
+
+/**
+ * Rebuild a customer's table from its own stored `text` column: re-embed every
+ * row with the currently configured model and recreate the table sized to that
+ * model's dimension, plus the FTS index. Use after switching DXCRM_EMBED_MODEL,
+ * or to add the FTS index to a legacy table. No source files are needed — the
+ * indexed text is the input. Returns the number of rows reindexed.
+ */
+export async function reindexCustomer(dataDir: string, slug: string): Promise<number> {
+  try {
+    const db = await getDb(dataDir);
+    const tableName = `docs_${slug.replace(/[^a-z0-9]/gi, "_")}`;
+    const tableNames: string[] = await db.tableNames();
+    if (!tableNames.includes(tableName)) return 0;
+
+    const table = await db.openTable(tableName);
+    const rows = (await table.query().limit(1_000_000).toArray()) as Array<Record<string, unknown>>;
+    if (rows.length === 0) return 0;
+
+    // Recreate the table with the current embedding dimension + indexes.
+    await db.dropTable(tableName);
+    const fresh = await db.createEmptyTable(tableName, await buildCustomerSchema());
+    await fresh.createIndex("source_ref", { config: Index.btree() });
+    await ensureFtsIndex(fresh);
+
+    let count = 0;
+    for (const r of rows) {
+      const sourceRef = String(r["source_ref"] ?? "");
+      if (!sourceRef) continue;
+      const text = String(r["text"] ?? "");
+      const vector = await embedText(text);
+      const data = makeArrowTable([
+        {
+          source_ref: sourceRef,
+          text: text.slice(0, 2000),
+          date: String(r["date"] ?? new Date().toISOString().slice(0, 10)),
+          type: String(r["type"] ?? "unknown"),
+          vector: Array.from(vector),
+        },
+      ]);
+      await fresh
+        .mergeInsert("source_ref")
+        .whenMatchedUpdateAll()
+        .whenNotMatchedInsertAll()
+        .execute(data);
+      count++;
+    }
+    return count;
+  } catch (err) {
+    logger.error("lancedb", "reindexCustomer failed", { error: (err as Error).message });
+    return 0;
   }
 }
 

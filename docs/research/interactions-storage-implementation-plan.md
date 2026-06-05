@@ -9,12 +9,14 @@
 ## Leitentscheidung
 
 **Hybrid wird selbst fusioniert, nicht an LanceDBs Reranker-Modul delegiert.** Begründung: In `@lancedb/lancedb@0.29.0` ist das `rerankers`-dist-Modul leer (kein nutzbarer JS-RRF-Reranker). Wir nutzen daher LanceDBs **native FTS (Tantivy/BM25)** und **native Vektorsuche** als zwei getrennte Queries und fusionieren ihre Ränge mit unserer **bereits getesteten** `reciprocalRankFusion` (`src/core/hybrid-search.ts`). Vorteile:
+
 - Echtes BM25 (statt des bisherigen Term-Overlap-Zählers) für die Keyword-Seite.
 - Volle Kontrolle + Testbarkeit, kein Abhängen von undokumentierten Reranker-Interna.
 - Graceful Degradation: fehlt der FTS-Index (Altbestände) oder schlägt FTS fehl → Fallback auf reine Vektorsuche (heutiges Verhalten). **Nie** ein harter Fehler.
 - Wiederverwendung von vorhandenem, getestetem Code (RRF, k=60).
 
 **Verifizierte API (v0.29.0):**
+
 - FTS-Index: `await table.createIndex("text", { config: Index.fts() })`
 - FTS-Query: `table.search(query, "fts").limit(n).toArray()` → Rows mit `_score`
 - Vektor-Query: `table.search(vector).limit(n).toArray()` → Rows mit `_distance`
@@ -27,6 +29,7 @@
 **Ziel:** `searchKnowledge` liefert echtes Hybrid (Vektor + BM25, RRF-fusioniert). Tool-Beschreibung wird damit faktisch wahr.
 
 **Dateien:**
+
 - `src/core/lancedb.ts`
   - `getOrCreateCustomerTable`: nach Tabellen-Erstellung zusätzlich FTS-Index anlegen:
     `await table.createIndex("text", { config: Index.fts() })`.
@@ -37,6 +40,7 @@
 - `src/mcp/capabilities.ts` / `get_capabilities`: Beschreibungstext synchronisieren (CLAUDE.md-Regel Doku↔Code).
 
 **Tests (TDD, `__tests__/core/lancedb.test.ts` erweitern):**
+
 - FTS + Vektor liefern überlappende & disjunkte `source_ref` → RRF-Reihenfolge korrekt, Top-`limit` eingehalten.
 - FTS-Query wirft (kein Index) → Fallback liefert reine Vektor-Resultate (heutiger Test bleibt grün).
 - Dedupe: gleicher `source_ref` aus beiden Legs erscheint einmal.
@@ -53,6 +57,7 @@
 **Ziel:** „Ask your CRM" nutzt echtes Hybrid statt effektiv Keyword-only.
 
 **Dateien:**
+
 - `src/core/ask.ts`: für `slug`-gebundene Fragen die LanceDB-Hybrid-Resultate (Schritt 1) als interactions-Quelle nutzen; Memories/SOPs/Pipeline bleiben In-Memory-Korpus, aber `hybridSearch` wird **mit** `vectorRanking` aufgerufen (oder die Korpora in RRF korrekt fusioniert). Kein Vollscan der Markdown-Datei je Query mehr für interactions.
 - `src/core/hybrid-search.ts`: bleibt für kleine In-Memory-Korpora (SOP/Memory); Aufrufer müssen `vectorRanking` befüllen (sonst Keyword-only — als bewusster Fallback dokumentieren).
 
@@ -67,6 +72,7 @@
 **Ziel:** `get_customer_context` enthält neben den jüngsten Einträgen die **relevanten älteren** (per Hybrid).
 
 **Dateien:**
+
 - `src/core/context-builder.ts`: optionaler Parameter `focus?: string`/`query?: string`. Wenn gesetzt, zusätzlich Top-k (z.B. 3) Hybrid-Treffer aus LanceDB als Sektion „## Relevant History (retrieved)" anhängen — innerhalb des bestehenden Token-Budgets (3000) priorisiert. Ohne `focus` unverändert (Backwards-Compat).
 - `src/mcp/tools/get-customer-context.ts`: optionales `focus`-Feld im Input-Schema durchreichen.
 
@@ -81,6 +87,7 @@
 **Ziel:** `interactions.md` schlank halten, ohne Suchbarkeit zu verlieren (LanceDB bleibt vollständig).
 
 **Dateien:**
+
 - **Neu** `src/core/archive.ts`: `archiveInteractions(dataDir, slug, {before?, keep?})` — verschiebt kalte Einträge aus `interactions.md` nach `customers/<slug>/interactions-archive/<jahr>.md` (menschenlesbar, im Backup). **LanceDB unangetastet.** Optional rekursive Verdichtung kalter Einträge zu einem Summary-Block in `main_facts.md`.
 - **Neu** `src/commands/archive.ts` + Registrierung: `dxcrm archive <slug> [--before YYYY-MM-DD] [--keep N]`.
 - **Neu/optional** `dxcrm reindex [<slug>]`: stellt FTS-Index für bestehende Tabellen sicher (`ensureFtsIndex`) + re-embeddet ggf.
@@ -93,9 +100,21 @@
 
 ---
 
-## Schritt 5 (optional, später) — Embedding-Upgrade
+## Schritt 5 — Embedding-Layer (Konfigurierbarkeit + Eval-Harness) ✅ UMGESETZT
 
-all-MiniLM-L6-v2 (384d) gegen modernes lokales Modell (bge-small, nomic-embed) mit kleiner Eval-Harness gegen echten Korpus evaluieren. Durch Hybrid (Schritt 1) sinkt der Druck. Nur mit Messung, kein Blind-Swap.
+Kein Blind-Swap, sondern die Infrastruktur für eine **messbare** Modellwahl:
+
+- **Konfigurierbares Modell** (`DXCRM_EMBED_MODEL`, Default `Xenova/all-MiniLM-L6-v2`) und
+  **dynamisch erkannte Dimension** (`getEmbeddingDimension`) — der Vektor-Store sizet sich
+  selbst, 768-dim-Modelle funktionieren ohne Codeänderung (`src/core/embedder.ts`, `src/core/lancedb.ts`).
+- **Eval-Harness** `dxcrm eval-embeddings <fixtures.json> [--k]` + reine Metriken
+  (recall@k, MRR, Cosine) in `src/core/embedding-eval.ts` — Modellvergleich auf dem echten Korpus.
+- **`dxcrm reindex <slug>`** baut die Tabelle aus der gespeicherten `text`-Spalte neu (neue
+  Dimension + FTS-Index) — Migration nach Modellwechsel, ohne Re-Sync.
+- **Doku:** `docs/embeddings.md` (Modell, Eval, Wechsel-Workflow).
+
+Default-Modell bewusst unverändert gelassen (klein, offline, bewährt); der Wechsel ist jetzt ein
+gemessener, reversibler Schritt statt eines Risikos.
 
 ---
 
