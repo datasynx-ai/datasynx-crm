@@ -128,19 +128,6 @@ export const logger = {
     log("error", component, message, context),
 };
 
-/**
- * Start a timer; the returned function logs an `info` entry with `durationMs`
- * when called. Useful for timing syncs, LLM calls, and other operations.
- */
-export function withTimer(
-  component: string,
-  message: string,
-  context?: Record<string, unknown>
-): () => void {
-  const t0 = Date.now();
-  return () => log("info", component, message, { ...context, durationMs: Date.now() - t0 });
-}
-
 export interface LogQuery {
   level?: LogLevel; // minimum level to include
   component?: string;
