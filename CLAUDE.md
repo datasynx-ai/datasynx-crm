@@ -73,8 +73,8 @@ Vor jedem Commit prüfe ich automatisch:
 ## Projekt-Kontext
 
 Produkt: DatasynxOpenCRM (`dxcrm`, npm: `datasynx-opencrm`)
-Spec: `plan.md` (kanonisch, v4)
-Aktuelle Phase: Phase 1 — Core Loop (Wochen 1–4)
+Spec: `plan.md` (kanonisch, v5 — konsolidiert Future-Feat + domino-plan)
+Aktuelle Phase: Phasen 1–5 abgeschlossen · Härtung & erster externer User
 Ziel: Erster externer User nutzt dxcrm 7 Tage täglich ohne HubSpot.
 
 ## Development Branch

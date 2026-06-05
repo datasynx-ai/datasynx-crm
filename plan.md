@@ -1,9 +1,14 @@
-# DatasynxOpenCRM — Implementierungsplan v4
+# DatasynxOpenCRM — Implementierungsplan v5 (konsolidiert)
 **Brand:** Datasynx · **CLI:** `dxcrm` · **npm:** `datasynx-opencrm`
-**Version:** 4.0 · **Status:** GO · **Datum:** 2026-05-24
+**Version:** 5.0 · **Status:** GO · **Datum:** 2026-06-05
 
-> **Phase 1 — ABGESCHLOSSEN** ✅ (Stand: 2026-05-26)
-> 336 Tests · Build sauber · Auf `main` gemergt · Bereit für ersten externen User
+> **Phasen 1–5 — ABGESCHLOSSEN** ✅ (Stand: 2026-06-05)
+> 3207 Tests · Build sauber · Auf `main` gemergt · v1.9.0 publiziert
+>
+> **v5 konsolidiert** die vormals separaten Planungsdokumente in diese eine kanonische Spec.
+> Integriert sind `Future-Feat.md` (Wettbewerbs-Feature-Tiefe, F1–F8 / C1–C8, siehe **Phase 5**)
+> und `domino-plan.md` (Feature-Bau-Reihenfolge, D1–D17). Abgelöst (alle umgesetzt):
+> `next-plan.md`, `v0-1-plan.md`, `plan-enterprise.md`, `plan-enterprise-npm.md`.
 
 ---
 
@@ -581,6 +586,140 @@ Security-Review:
 
 ---
 
+## PHASE 5 — Agenten-nativer Daten-, Memory- & Governance-Layer
+**Ziel: Wettbewerbstiefe gegen etablierte CRMs (Salesforce/HubSpot/Zoho) und AI-natives (Attio/Day.ai/Clay)**
+
+```
+ERLEDIGT WENN:
+Alle Pflicht-Module (F1–F8), Wettbewerbs-Features (C1–C8) und die
+Feature-Domino-Sequenz (D1–D17) sind umgesetzt, getestet und auf main gemergt.
+```
+
+> **Status: ABGESCHLOSSEN ✅** — konsolidiert aus den vormals separaten Dokumenten
+> `Future-Feat.md` (Feature-Tiefe) und `domino-plan.md` (Bau-Reihenfolge).
+> Quelle der Anforderungen: `ResearchCRM.md` (Markt & Use-Cases 2026) + explizite Produktanforderungen.
+
+### 5.0 Positionierung & Scope-Grenze (wichtigste Entscheidung)
+
+**Wir bauen den Daten-, Kontext-, Memory-, Governance- und Observability-Layer für Agenten — nicht die
+Agenten-Runtime.** Der Host (Claude Agent SDK / Mastra / Hermes) plant, denkt und führt aus; opencrm
+liefert über MCP die *Tools, Resources, Prompts, Erinnerungen, SOPs, Leitplanken und Kostentransparenz*.
+
+**NICHT in unser npm (das liefern die Frameworks):**
+- Agent-Loop / Reasoning-Engine, Planning, Tool-Calling-Mechanik
+- Voice/Realtime-Speech, Multimodalität
+- LLM-Provider-Plumbing (Streaming, Retries, Modellwahl) — wir nutzen es nur (`callLlm`)
+- Multi-Agent-*Ausführung* (wir liefern nur Routing/Handoff-Entscheidung + Audit)
+
+**Sehr wohl unser Kern (der Moat):** local-first Daten, Markdown-SoT, Kontext-Builder, Memory, SOPs,
+HITL/Approval, RBAC + Field-ACL, Audit, Backup, Vault, Token-Kosten je Kunde, Compliance.
+
+**Markt-Realismus (ResearchCRM):** HITL + Datenqualität schlagen autonome Cold-Outbound-Bots
+(50–70 % Tool-Churn p. a., >40 % agentic-Projekte abgebrochen). Wir setzen auf **verlässliche, messbare
+HITL-Features mit Provenance** statt „robotischer Vollautonomie".
+
+### 5.1 Pflicht-Module F1–F8 (alle umgesetzt)
+
+| # | Modul | Status | Umsetzung |
+|---|---|---|---|
+| F1 | **Backup von allem** — verschlüsselt, verifizierbar, offsite | ✅ | `dxcrm backup` (ZIP, SHA-256, Schedule, Retention, S3/rsync-Upload, `verifyBackupFile`), AES-256-GCM (`encryption.ts`); Scope deckt `customers/` **und** `.agentic/` ab |
+| F2 | **Tonalität je Kunde** (+ globales Default) | ✅ (D8) | Tone-Profil je Kunde, `resolveTone(slug)` mit Fallback auf global; automatisch in `draft_email`/Sequenzen angewandt |
+| F3 | **Human-in-the-Loop + Approval** | ✅ (D4) | Generischer Approval-Layer + Autonomie-Policy (`auto`\|`approve`\|`block`) als MCP-Gate vor schreibenden Tools; `approve_agent_action`, Audit, RBAC |
+| F4 | **Memories — je Kunde UND global** | ✅ (D6) | Typisierte Einträge (fact/preference/learning/instruction) mit Provenance; `remember`/`recall`; in `get_customer_context` injiziert |
+| F5 | **SOP-Modul + Hybrid-Search** | ✅ (D7) | SOP-Store global + je Kunde, `find_sops({query, slug?})`, Resource `crm://sops`, im Prompt als Vorgehensanweisungen injiziert |
+| F6 | **Lokaler Credential-Vault** | ✅ (D12) | `src/core/vault.ts` — AES-256-GCM-Blob `.agentic/vault.enc`, Master-Key nur via `DXCRM_VAULT_KEY`; CLI `dxcrm vault set\|get\|list\|rm`; von F1-Backup mitgesichert |
+| F7 | **Token-Kosten je Kunde + Observability** | ✅ (D3) | Token-Ledger `.agentic/usage.ndjson` aus `callLlm`; Preis-Tabelle je Modell; `dxcrm usage [--slug] [--since]`, Resource `crm://usage` |
+| F8 | **Hybrid-Search** (Vektor + Keyword + Rerank + Provenance) | ✅ (D2) | `hybridSearch(query, corpus)` — Fundament für F4/F5/KB/„Ask your CRM"; Chunking 128–512 Tokens, nur Geändertes neu einbetten |
+
+### 5.2 Wettbewerbs-Features C1–C8 (HITL-first, alle umgesetzt)
+
+| # | Feature | Status | Nutzen / Umsetzung |
+|---|---|---|---|
+| C1 | **Call/Meeting → CRM-Autofill** | ✅ (D9) | Transcript → {Kontakt, Next Steps, Stage, Objections} → Felder/Deal (mit Approval F3). Löst den #1-Schmerzpunkt manuelle Eingabe |
+| C2 | **„Ask your CRM" (RAG-Chat / NL-Q&A)** | ✅ (D10) | NL-Fragen über strukturierte + unstrukturierte Daten via Hybrid-Search (F8) → MCP-Prompt + Resource |
+| C3 | **Next-Best-Action-Engine** | ✅ (D11) | RAG über ähnliche gewonnene Deals + SOPs (F5) → empfohlener nächster Schritt |
+| C4 | **Churn-Frühwarnung** | ✅ (D13) | `src/core/churn.ts` — invertierte relationship-health + Risk-Flags → `{riskScore, level, signals}`; `dxcrm churn assess\|scan` |
+| C5 | **Daten-Hygiene-Agent** | ✅ (D5) | Fuzzy-Dedupe (Embeddings) + Format-/Lückenfix als Vorschläge mit Approval (F3) |
+| C6 | **Enrichment-Layer** | ✅ (D15) | `src/core/enrichment.ts` — pluginbares `EnrichmentProvider`-Interface, füllt nur Lücken; Credentials aus D12-Vault; `dxcrm enrich <slug> [--write]` |
+| C7 | **Conversation-Intelligence-Lite** | ✅ (D16) | `src/core/conversation-intel.ts` — Talk-Ratio, Discovery-Questions, Objection-Erkennung, Coaching-Tipps; `dxcrm coach <file>` |
+| C8 | **Prädiktives Lead-Scoring (ML)** | ✅ (D14) | `src/core/lead-model.ts` — dependency-freie logistische Regression auf eigener won/lost-Historie; Fallback auf Heuristik; `dxcrm leadscore train\|predict` |
+
+**Bewusst vermieden (ResearchCRM):** autonome **Cold-Outbound-SDR-Bots** als Kernfeature
+(50–70 % Churn, Reputations-/Deliverability-Risiko). Inbound-Qualifizierung + Research/Daten-Layer sind
+der verlässliche Pfad.
+
+### 5.3 Feature-Domino-Sequenz D1–D17 (Bau-Reihenfolge — alle ✅)
+
+> **Prinzip:** Jeder Stein ist so gewählt, dass er alle folgenden einfacher oder besser macht.
+> Erst Fundamente & Multiplikatoren, dann Killer-Features, dann Tiefe & Härtung.
+> *(Nicht zu verwechseln mit der strategischen Business-Domino-Sequenz DOMINO 1–6 weiter oben.)*
+
+```
+WELLE 0 (Fundament)        D1 ─▶ D2 ─▶ D3 ─▶ D4
+                           backup  hybrid  usage  approval
+WELLE 1 (Multiplikatoren)  D5 ─▶ D6 ─▶ D7 ─▶ D8
+                           hygiene memories SOP  tonality
+WELLE 2 (Killer-Features)  D9 ─▶ D10 ─▶ D11 ─▶ D12
+                           autofill ask-crm NBA  vault
+WELLE 3 (Tiefe + Härtung)  D13 ─▶ D14 ─▶ D15 ─▶ D16 ─▶ D17
+                           churn  scoring enrich conv-intel compliance
+```
+
+**Welle 0 — Fundament** (macht alles Folgende sicher, messbar, steuerbar)
+- **D1 ✅ Backup-all + Restore-Drill** (F1) — billiges Sicherheitsnetz; erfasst automatisch jeden später hinzukommenden Datentyp → fearless iteration für D2–D17.
+- **D2 ✅ Hybrid-Search-Engine** (F8) — Retrieval-Grundlage; Prerequisite für D5, D6, D7, D10, D11.
+- **D3 ✅ Token-Kosten/Observability am `callLlm`-Choke-Point** (F7) — jedes spätere LLM-Feature ist „born observable"; Basis für Outcome-Pricing.
+- **D4 ✅ HITL-/Approval-Gate + Autonomie-Policy** (F3) — dünner Enforcement-Wrapper; spätere Automatisierung (D5, D9, D11, D12) dockt kostenlos an Freigaben an.
+
+**Welle 1 — Multiplikatoren** (machen jede Interaktion klüger/konsistenter)
+- **D5 ✅ Daten-Hygiene-Agent** (C5) — saubere Daten heben rückwirkend Scoring, Memories, Suche, NBA. Hängt ab von D2, D4.
+- **D6 ✅ Memories je Kunde + global** (F4) — in `get_customer_context` injiziert. Hängt ab von D2.
+- **D7 ✅ SOP-Modul + Trigger-Search** (F5) — prozedurales Wissen, per D2 auffindbar. Hängt ab von D2.
+- **D8 ✅ Tonalität je Kunde** (F2) — dockt an `draft_email`/Sequenzen/Journeys an.
+
+**Welle 2 — Killer-Features** (höchster Wert, jetzt entrisikt)
+- **D9 ✅ Call/Meeting → CRM-Autofill** (C1) — nutzt D2/D3/D4/D6/D7. Hängt ab von D2, D3, D4, D6, D7.
+- **D10 ✅ „Ask your CRM"** (C2) — hängt ab von D2 (+ D6, D7).
+- **D11 ✅ Next-Best-Action-Engine** (C3) — hängt ab von D2, D6, D7, D4.
+- **D12 ✅ Vault + GUI (Credentials)** (F6) — von D1-Backup mitverschlüsselt; schaltet D15 frei. GUI bleibt dokumentierter Follow-up, headless Core ist scriptbar.
+
+**Welle 3 — Tiefe & Härtung** (Wettbewerbstiefe mit Governance)
+- **D13 ✅ Churn-Frühwarnung** (C4) — hängt ab von D5 + relationship-health.
+- **D14 ✅ Prädiktives ML-Lead-Scoring** (C8) — hängt ab von D5 + genügend Historie.
+- **D15 ✅ Enrichment-Layer** (C6) — hängt ab von D12 (Vault für API-Keys).
+- **D16 ✅ Conversation-Intelligence-Lite** (C7) — aus der D9-Transkript-Pipeline.
+- **D17 ✅ Compliance-Härtung + lokale-LLM-Option** (§5.4) — Querschnitts-Härtung am Ende.
+
+**Abhängigkeits-Kurzform:** D2→{D6,D7,D10,D11} · D4→{D5,D9,D11} · D5→{D13,D14} · D12→{D15} · D3→Pricing(alle).
+
+### 5.4 Compliance (Pflicht für EU-Verkauf)
+
+- **EU AI Act Art. 50 (ab 2. Aug. 2026):** KI-Inhalte als AI kennzeichnen ✅ — `src/core/compliance.ts`
+  (`aiDisclosure`/`labelAiContent`, on-by-default, de/en, opt-out via `DXCRM_AI_DISCLOSURE=off`), in `draft_email` verdrahtet.
+- **DSGVO:** ✅ `gdpr erase` (Files + LanceDB + Löschprotokoll); DPIA/FRIA-Doku in `docs/compliance.md`.
+- **Datensouveränität als Verkaufsargument:** lokale LLM-Option ✅ — `callLlm` provider-agnostisch
+  (Anthropic | lokal/Ollama via `DXCRM_LLM_PROVIDER/BASE_URL/MODEL`), Usage-Recording paritätisch.
+- **Audit/Provenance:** ✅ Audit-Log + bi-temporaler Graph; `dxcrm compliance` als Posture-Read-out.
+
+### 5.5 Architektur-Hinweise (Wiederverwendung)
+
+- **Hybrid-Search (F8)** ist das gemeinsame Fundament für Memories, SOPs, KB, „Ask your CRM".
+- **`callLlm`** ist der einzige LLM-Choke-Point → F7 (Usage-Ledger), PII-Masking + Guardrails sitzen hier; provider-agnostisch (lokale Modelle).
+- **HITL-Gate (F3)** als dünner Wrapper vor schreibenden MCP-Tools (RBAC-ähnliches Enforcement).
+- **Vault (F6)** nutzt `encryption.ts` + OS-Keychain; Vault-Key verschlüsselt auch F1-Backups.
+- **Alles Neue persistiert unter `.agentic/`** (Markdown/JSON) → automatisch von F1-Backup erfasst.
+- **Alles agenten-nativ exponieren:** je Modul ein MCP-Tool/Resource + CLI (Doppel-Oberfläche).
+
+### 5.6 Risiken & Caveats (aus ResearchCRM)
+
+- **Hype vs. Realität:** >40 % agentic-Projekte abgebrochen; Fokus auf messbare HITL-Quick-Wins statt Vollautonomie.
+- **Outcome-Pricing braucht präzise Metrik-Definition** (was zählt als „resolved"/Outcome).
+- **Build-vs-Buy:** Eigenbau lohnt nur durch das **local-first + Markdown + MCP-native + Governance**-Modell — unser Moat.
+- **Vault/Lizenzen:** Lizenz gewählter npm (kdbxweb MIT / @napi-rs/keyring MIT) vor Auslieferung verifizieren; KeePassXC ist GPL (separate App, kein Linking).
+- **EU-AI-Act-Fristen im Fluss** (Digital Omnibus): vor verbindlicher Umsetzung Rechtsstand prüfen.
+
+---
+
 ## Dateistruktur (Kanonisch)
 
 ```
@@ -655,9 +794,9 @@ my-crm/
 Jedes neue Feature, jede Spec-Änderung, jede Roadmap-Anpassung wird bewertet, indem es durch das Domino-Framework und den Validierungsmodus in `DatasynxOpenCRM_PO_Prompt.md` geführt wird.
 
 **Versions-Disziplin:**
-- V4 = kanonische Spec (dieses Dokument)
-- V3 = Implementierungsreferenz (Details zu Schemas, Codex-Config, Migrations-Interna)
-- PO-Prompt = das Governance-System, das V4 produziert hat
+- V5 = kanonische Spec (dieses Dokument) — konsolidiert Future-Feat + domino-plan
+- V4 = vorherige kanonische Spec (Phasen 1–4)
+- PO-Prompt = das Governance-System, das die Spec produziert hat
 
 **Die Spec ändert sich, wenn:**
 1. Ein echter User auf eine Lücke stößt, die nicht im Backlog ist → zum Backlog hinzufügen mit Trigger
@@ -684,7 +823,7 @@ Dann wechselt er zu einem neuen Unternehmen und installiert es am ersten Tag. Da
 
 ---
 
-*DatasynxOpenCRM v4 — Kein CRM. Eine Flotte von Agenten.*
+*DatasynxOpenCRM v5 — Kein CRM. Eine Flotte von Agenten.*
 *Gebaut von Datasynx. Open Source. Zero Lock-in. `npm install`.*
 
 *Der Domino, der zuerst fallen muss:*
