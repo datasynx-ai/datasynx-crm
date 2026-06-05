@@ -43,7 +43,7 @@ function triggerOnQuerySync(dataDir: string, slug: string): void {
 }
 
 export async function handleGetCustomerContext(
-  input: { slug?: string },
+  input: { slug?: string; focus?: string },
   dataDir: string = DATA_DIR
 ): Promise<{
   content: Array<{ type: "text"; text: string }>;
@@ -78,7 +78,7 @@ export async function handleGetCustomerContext(
   triggerOnQuerySync(dataDir, targetSlug);
 
   try {
-    const context = await buildContext(dataDir, targetSlug);
+    const context = await buildContext(dataDir, targetSlug, input.focus);
     return {
       content: [{ type: "text", text: context }],
     };
@@ -106,9 +106,12 @@ Automatically triggers a background Gmail sync if last sync was >30 minutes ago.
 
 Args:
   slug: Customer ID (e.g. "acme-corp"). Leave empty to use active session customer.
+  focus: Optional topic/question. When set, a "Relevant History" section is added
+         with the most pertinent older entries retrieved via hybrid search — useful
+         to surface context beyond the last 10 interactions (e.g. "pricing agreement").
 
 Returns: Structured markdown with Quick Reference, Contacts, Critical Context,
-Recent Activity (last 10 interactions), Pipeline, and Open Questions.
+Recent Activity (last 10 interactions), optional Relevant History, Pipeline, and Open Questions.
 
 Performance: <3 seconds. Token budget: <3000.`,
       inputSchema: z.object({
@@ -116,8 +119,16 @@ Performance: <3 seconds. Token budget: <3000.`,
           .string()
           .optional()
           .describe("Customer slug (e.g. 'acme-corp'). Leave empty for active session customer."),
+        focus: z
+          .string()
+          .optional()
+          .describe("Optional topic to retrieve relevant older history for (hybrid search)."),
       }),
     },
-    async ({ slug }) => handleGetCustomerContext({ ...(slug !== undefined ? { slug } : {}) })
+    async ({ slug, focus }) =>
+      handleGetCustomerContext({
+        ...(slug !== undefined ? { slug } : {}),
+        ...(focus !== undefined ? { focus } : {}),
+      })
   );
 }

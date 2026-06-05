@@ -1,7 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { vol } from "memfs";
 
-beforeEach(() => vol.reset());
+// Mock the LanceDB-backed search so retrieval-augmented context is deterministic.
+const { searchKnowledgeMock } = vi.hoisted(() => ({ searchKnowledgeMock: vi.fn() }));
+vi.mock("../../src/core/lancedb.js", () => ({ searchKnowledge: searchKnowledgeMock }));
+
+beforeEach(() => {
+  vol.reset();
+  searchKnowledgeMock.mockReset();
+  searchKnowledgeMock.mockResolvedValue([]);
+});
 
 describe("buildContext", () => {
   it("throws when customer does not exist", async () => {
@@ -89,6 +97,51 @@ describe("buildContext", () => {
 
     // Should be trimmed — not include all 20 entries
     expect(ctx.length).toBeLessThan(12000);
+  });
+
+  it("appends retrieved relevant history when a focus query is given", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/main_facts.md":
+        "---\nname: Acme Corp\nrelationship_stage: active\ncreated: '2026-01-01'\nupdated: '2026-05-26'\n---\n",
+      // Recent interactions do NOT mention the focus term; only the indexed hit does.
+      "/data/customers/acme-corp/interactions.md":
+        "# Interactions\n\n## 2026-05-25\n**Call** with John\nWeekly sync.\n",
+      "/data/customers/acme-corp/pipeline.md": "# Pipeline\n",
+    });
+    searchKnowledgeMock.mockResolvedValueOnce([
+      {
+        content: "Agreed GDPR data residency must stay in the EU",
+        source: "gmail://thread/9",
+        score: 0.9,
+      },
+    ]);
+
+    const { buildContext } = await import("../../src/core/context-builder.js");
+    const ctx = await buildContext("/data", "acme-corp", "data residency");
+
+    expect(searchKnowledgeMock).toHaveBeenCalledWith(
+      "/data",
+      "acme-corp",
+      "data residency",
+      expect.any(Number)
+    );
+    expect(ctx).toContain("Relevant History");
+    expect(ctx).toContain("GDPR data residency must stay in the EU");
+  });
+
+  it("omits the relevant-history section when no focus is given", async () => {
+    vol.fromJSON({
+      "/data/customers/acme-corp/main_facts.md":
+        "---\nname: Acme Corp\nrelationship_stage: active\ncreated: '2026-01-01'\nupdated: '2026-05-26'\n---\n",
+      "/data/customers/acme-corp/interactions.md": "# Interactions\n",
+      "/data/customers/acme-corp/pipeline.md": "# Pipeline\n",
+    });
+
+    const { buildContext } = await import("../../src/core/context-builder.js");
+    const ctx = await buildContext("/data", "acme-corp");
+
+    expect(ctx).not.toContain("Relevant History");
+    expect(searchKnowledgeMock).not.toHaveBeenCalled();
   });
 
   it("trims to last 5 interactions when context exceeds 3000 tokens (12000 chars)", async () => {

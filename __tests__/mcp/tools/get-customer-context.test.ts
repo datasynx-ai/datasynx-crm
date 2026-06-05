@@ -51,7 +51,15 @@ describe("get_customer_context tool", () => {
 
     await handleGetCustomerContext({ slug: "test-corp" }, "/my/data");
 
-    expect(mockBuildContext).toHaveBeenCalledWith("/my/data", "test-corp");
+    expect(mockBuildContext).toHaveBeenCalledWith("/my/data", "test-corp", undefined);
+  });
+
+  it("passes the focus query through to buildContext", async () => {
+    mockBuildContext.mockResolvedValue("# Customer Context: test-corp");
+
+    await handleGetCustomerContext({ slug: "test-corp", focus: "pricing agreement" }, "/my/data");
+
+    expect(mockBuildContext).toHaveBeenCalledWith("/my/data", "test-corp", "pricing agreement");
   });
 });
 
@@ -79,7 +87,7 @@ describe("get_customer_context — RBAC can_see", () => {
     const result = await handleGetCustomerContext({ slug: "acme-corp" }, "/data");
 
     expect(result.isError).toBeFalsy();
-    expect(mockBuildContext).toHaveBeenCalledWith("/data", "acme-corp");
+    expect(mockBuildContext).toHaveBeenCalledWith("/data", "acme-corp", undefined);
   });
 
   it("rep accessing unowned customer: returns access denied error", async () => {
