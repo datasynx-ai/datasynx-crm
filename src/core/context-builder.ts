@@ -31,7 +31,34 @@ function extractSection(content: string, sectionName: string): string {
   return match ? (match[1] ?? "").trim() : "";
 }
 
-export async function buildContext(dataDir: string, slug: string): Promise<string> {
+/**
+ * Retrieval-augmented section: when a `focus` query is supplied, pull the most
+ * relevant entries from the indexed hybrid store (LanceDB BM25 + vector) so the
+ * context surfaces pertinent *older* history that falls outside the last-N
+ * recent window. Best-effort: returns "" if nothing is indexed or search fails.
+ */
+async function buildRetrievedSection(
+  dataDir: string,
+  slug: string,
+  focus: string
+): Promise<string> {
+  try {
+    const { searchKnowledge } = await import("./lancedb.js");
+    const hits = await searchKnowledge(dataDir, slug, focus, 3);
+    if (hits.length === 0) return "";
+    return hits
+      .map((h) => {
+        const snippet = h.content.slice(0, 500).trim();
+        const ellipsis = h.content.length > 500 ? "…" : "";
+        return `- ${snippet}${ellipsis} _(${h.source})_`;
+      })
+      .join("\n");
+  } catch {
+    return "";
+  }
+}
+
+export async function buildContext(dataDir: string, slug: string, focus?: string): Promise<string> {
   const customerDir = path.join(dataDir, "customers", slug);
 
   if (!fs.existsSync(customerDir)) {
@@ -58,42 +85,14 @@ export async function buildContext(dataDir: string, slug: string): Promise<strin
   const contacts = extractSection(mainContent, "Contacts");
   const criticalContext = extractSection(mainContent, "Critical Context");
   const openQuestions = extractSection(mainContent, "Open Questions");
-
-  const recentActivity = parseRecentInteractions(interactionsPath, MAX_INTERACTIONS);
   const pipelineContent = parsePipelineContent(pipelinePath);
 
-  const sections: string[] = [
-    `# Customer Context: ${slug}`,
-    "",
-    "## Metadata",
-    frontmatterStr || "(no metadata)",
-    "",
-    "## Quick Reference",
-    quickRef || "(not set)",
-    "",
-    "## Contacts",
-    contacts || "(not set)",
-    "",
-    "## Critical Context",
-    criticalContext || "(not set)",
-    "",
-    "## Recent Activity (last 10 interactions)",
-    recentActivity || "(no interactions yet)",
-    "",
-    "## Pipeline",
-    pipelineContent || "(no deals)",
-    "",
-    "## Open Questions",
-    openQuestions || "(none)",
-  ];
+  const retrieved = focus ? await buildRetrievedSection(dataDir, slug, focus) : "";
 
-  const raw = sections.join("\n");
-  const tokenEstimate = estimateTokens(raw);
-
-  // If over 3000 tokens, trim interactions
-  if (tokenEstimate > 3000) {
-    const trimmedActivity = parseRecentInteractions(interactionsPath, 5);
-    const trimmedSections: string[] = [
+  const assemble = (interactionLimit: number): string => {
+    const trimmed = interactionLimit < MAX_INTERACTIONS;
+    const recentActivity = parseRecentInteractions(interactionsPath, interactionLimit);
+    return [
       `# Customer Context: ${slug}`,
       "",
       "## Metadata",
@@ -108,16 +107,25 @@ export async function buildContext(dataDir: string, slug: string): Promise<strin
       "## Critical Context",
       criticalContext || "(not set)",
       "",
-      "## Recent Activity (last 5 interactions — trimmed for token budget)",
-      trimmedActivity || "(no interactions yet)",
+      `## Recent Activity (last ${interactionLimit} interactions${
+        trimmed ? " — trimmed for token budget" : ""
+      })`,
+      recentActivity || "(no interactions yet)",
       "",
+      ...(retrieved ? [`## Relevant History (retrieved for "${focus}")`, retrieved, ""] : []),
       "## Pipeline",
       pipelineContent || "(no deals)",
       "",
       "## Open Questions",
       openQuestions || "(none)",
-    ];
-    return trimmedSections.join("\n");
+    ].join("\n");
+  };
+
+  const raw = assemble(MAX_INTERACTIONS);
+
+  // If over 3000 tokens, trim interactions to the most recent 5.
+  if (estimateTokens(raw) > 3000) {
+    return assemble(5);
   }
 
   return raw;
