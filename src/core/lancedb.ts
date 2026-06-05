@@ -4,6 +4,7 @@ import { makeArrowTable } from "@lancedb/lancedb";
 import { Schema, Field, FixedSizeList, Float32 as ArrowFloat32, Utf8 } from "apache-arrow";
 import path from "path";
 import { embedText } from "./embedder.js";
+import { reciprocalRankFusion } from "./hybrid-search.js";
 import { logger } from "./logger.js";
 
 let _db: lancedb.Connection | null = null;
@@ -37,9 +38,25 @@ async function getOrCreateCustomerTable(
   if (!tableNames.includes(tableName)) {
     const table = await db.createEmptyTable(tableName, CUSTOMER_TABLE_SCHEMA);
     await table.createIndex("source_ref", { config: Index.btree() });
+    await ensureFtsIndex(table);
     return table;
   }
   return db.openTable(tableName);
+}
+
+/**
+ * Ensure a full-text-search (Tantivy/BM25) index exists on the `text` column so
+ * the keyword leg of hybrid search works. Idempotent and best-effort: an
+ * "already exists" failure (or any other) is swallowed — FTS is an enhancement,
+ * never a hard dependency. This also lazily migrates older `docs_<slug>` tables
+ * that were created before FTS indexing was added.
+ */
+async function ensureFtsIndex(table: lancedb.Table): Promise<void> {
+  try {
+    await table.createIndex("text", { config: Index.fts() });
+  } catch {
+    // Index already exists or FTS unavailable — fall back to vector-only search.
+  }
 }
 
 export async function indexInLanceDB(
@@ -91,6 +108,37 @@ export async function dropCustomerTable(dataDir: string, slug: string): Promise<
   }
 }
 
+interface KnowledgeDoc {
+  content: string;
+  source: string;
+}
+
+/** Map LanceDB result rows to {source_ref → doc} and the source_ref ranking. */
+function collectRanking(
+  rows: Array<Record<string, unknown>>,
+  docs: Map<string, KnowledgeDoc>
+): string[] {
+  const ranking: string[] = [];
+  for (const r of rows) {
+    const source = String(r["source_ref"] ?? "");
+    if (!source) continue;
+    ranking.push(source);
+    if (!docs.has(source)) {
+      docs.set(source, { content: String(r["text"] ?? ""), source });
+    }
+  }
+  return ranking;
+}
+
+/**
+ * Hybrid search across a customer's indexed knowledge: a semantic vector leg
+ * (ANN over embeddings) and a keyword leg (LanceDB native full-text/BM25) are
+ * each ranked, then fused with Reciprocal Rank Fusion. Vector handles semantic
+ * similarity; FTS handles exact terms/IDs/names that vectors miss. The FTS leg
+ * is best-effort: if no FTS index exists (legacy tables) or it errors, the
+ * result degrades gracefully to vector-only. Never throws — returns [] on any
+ * failure or when the customer has not been indexed yet.
+ */
 export async function searchKnowledge(
   dataDir: string,
   slug: string,
@@ -98,11 +146,9 @@ export async function searchKnowledge(
   limit: number
 ): Promise<Array<{ content: string; score: number; source: string }>> {
   try {
-    const vectorFloat32 = await embedText(query);
     const db = await getDb(dataDir);
     const tableName = `docs_${slug.replace(/[^a-z0-9]/gi, "_")}`;
 
-    // Check if table exists
     const tableNames: string[] = await db.tableNames();
     if (!tableNames.includes(tableName)) {
       return [];
@@ -110,12 +156,37 @@ export async function searchKnowledge(
 
     const table = await db.openTable(tableName);
 
-    const results = await table.search(Array.from(vectorFloat32)).limit(limit).toArray();
+    // Over-fetch from each leg so fusion has candidates to work with.
+    const overFetch = Math.max(limit * 4, 20);
+    const docs = new Map<string, KnowledgeDoc>();
 
-    return results.map((r: Record<string, unknown>) => ({
-      content: String(r["text"] ?? ""),
-      score: typeof r["_distance"] === "number" ? 1 - r["_distance"] : 1,
-      source: String(r["source_ref"] ?? ""),
+    // Vector leg (semantic).
+    const vectorFloat32 = await embedText(query);
+    const vecRows = (await table
+      .search(Array.from(vectorFloat32))
+      .limit(overFetch)
+      .toArray()) as Array<Record<string, unknown>>;
+    const vecRanking = collectRanking(vecRows, docs);
+
+    // Keyword leg (BM25 full-text) — best-effort, falls back to vector-only.
+    let ftsRanking: string[] = [];
+    try {
+      await ensureFtsIndex(table);
+      const ftsRows = (await table.search(query, "fts").limit(overFetch).toArray()) as Array<
+        Record<string, unknown>
+      >;
+      ftsRanking = collectRanking(ftsRows, docs);
+    } catch {
+      ftsRanking = [];
+    }
+
+    const rankings = ftsRanking.length > 0 ? [vecRanking, ftsRanking] : [vecRanking];
+    const fused = reciprocalRankFusion(rankings);
+
+    return fused.slice(0, limit).map(({ id, score }) => ({
+      content: docs.get(id)?.content ?? "",
+      score,
+      source: id,
     }));
   } catch {
     // If LanceDB table doesn't exist or search fails, return empty array
