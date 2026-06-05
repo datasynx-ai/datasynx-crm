@@ -955,6 +955,8 @@ Returns: { url, expiresAt, expiresInMinutes, serverRunning, vaultKeyConfigured, 
 
 The link is served by the HTTP MCP server (\`dxcrm server start\`) at \`/vault\`,
 gated by a short-lived session token, and needs \`DXCRM_VAULT_KEY\` set in the
-server's environment. The same store is reachable from the terminal via
-\`dxcrm vault set|get|list|rm\` and \`dxcrm vault link\`.
+server's environment. The \`/vault\` routes are localhost-only by default
+(set \`DXCRM_VAULT_GUI_ALLOW_REMOTE=1\` to allow remote access). The same store
+is reachable from the terminal via \`dxcrm vault set|get|list|rm\` and
+\`dxcrm vault link\`.
 `.trim();

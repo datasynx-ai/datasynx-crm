@@ -21,6 +21,26 @@ export interface VaultGuiResult {
 /** Tokens are base64url; reject anything else before trusting/embedding it. */
 const SAFE_TOKEN = /^[A-Za-z0-9_-]+$/;
 
+/**
+ * Whether a remote address is a loopback (localhost) address. The vault GUI is
+ * a credential manager, so even though the HTTP MCP server binds 0.0.0.0 for
+ * team use, the /vault routes are restricted to localhost by default — a leaked
+ * link can't be used from another machine. Handles IPv4, IPv6 (::1) and
+ * IPv4-mapped IPv6 (::ffff:127.0.0.1).
+ */
+export function isLoopbackAddress(addr: string | undefined): boolean {
+  if (!addr) return false;
+  const a = addr.startsWith("::ffff:") ? addr.slice("::ffff:".length) : addr;
+  if (a === "::1") return true;
+  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(a);
+}
+
+/** Opt out of the localhost-only restriction (e.g. a trusted reverse proxy). */
+export function vaultRemoteAllowed(): boolean {
+  const v = (process.env["DXCRM_VAULT_GUI_ALLOW_REMOTE"] ?? "").toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}
+
 function gate(
   dataDir: string,
   masterKey: string | undefined,

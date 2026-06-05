@@ -81,6 +81,8 @@ import {
   handleVaultSet,
   handleVaultReveal,
   handleVaultDelete,
+  isLoopbackAddress,
+  vaultRemoteAllowed,
 } from "./vault-gui.js";
 import { verifyVaultSession } from "../core/vault-session.js";
 import { registerGetPipelineChanges } from "./tools/get-pipeline-changes.js";
@@ -263,6 +265,26 @@ export async function startHttp(port = 3847): Promise<void> {
   // into .agentic/vault.enc and never pass through the LLM. The master key is
   // taken from the server's environment (DXCRM_VAULT_KEY) only.
   const vaultKey = (): string | undefined => process.env["DXCRM_VAULT_KEY"];
+
+  // Secure-by-default: the vault routes are reachable from localhost only, even
+  // though the MCP server itself binds 0.0.0.0 for team use. Opt out for a
+  // trusted reverse proxy with DXCRM_VAULT_GUI_ALLOW_REMOTE=1.
+  app.use("/vault", (req, res, next) => {
+    if (vaultRemoteAllowed() || isLoopbackAddress(req.socket.remoteAddress)) {
+      next();
+      return;
+    }
+    if (req.path === "/") {
+      res
+        .status(403)
+        .setHeader("content-type", "text/html")
+        .send(
+          "<!DOCTYPE html><html><body style='font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center'><h2>🚫 Localhost only</h2><p>The credential vault is reachable from this machine only. Open the link on the host running the server, or set <code>DXCRM_VAULT_GUI_ALLOW_REMOTE=1</code> if it sits behind a trusted proxy.</p></body></html>"
+        );
+      return;
+    }
+    res.status(403).json({ error: "vault_localhost_only" });
+  });
 
   app.get("/vault", (req, res) => {
     const token = (req.query["t"] as string | undefined) ?? "";

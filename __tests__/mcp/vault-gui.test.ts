@@ -111,3 +111,38 @@ describe("vault-gui handlers — happy path", () => {
     expect(res.status).toBe(500);
   });
 });
+
+describe("isLoopbackAddress", () => {
+  it("accepts IPv4 / IPv6 loopback (incl. IPv4-mapped)", async () => {
+    const { isLoopbackAddress } = await import("../../src/mcp/vault-gui.js");
+    expect(isLoopbackAddress("127.0.0.1")).toBe(true);
+    expect(isLoopbackAddress("127.5.6.7")).toBe(true);
+    expect(isLoopbackAddress("::1")).toBe(true);
+    expect(isLoopbackAddress("::ffff:127.0.0.1")).toBe(true);
+  });
+
+  it("rejects non-loopback and unknown addresses", async () => {
+    const { isLoopbackAddress } = await import("../../src/mcp/vault-gui.js");
+    expect(isLoopbackAddress("192.168.1.10")).toBe(false);
+    expect(isLoopbackAddress("10.0.0.4")).toBe(false);
+    expect(isLoopbackAddress("203.0.113.7")).toBe(false);
+    expect(isLoopbackAddress("::ffff:192.168.1.10")).toBe(false);
+    expect(isLoopbackAddress(undefined)).toBe(false);
+    expect(isLoopbackAddress("")).toBe(false);
+  });
+});
+
+describe("vaultRemoteAllowed", () => {
+  it("defaults to false (localhost-only) and opts in via env", async () => {
+    const { vaultRemoteAllowed } = await import("../../src/mcp/vault-gui.js");
+    delete process.env["DXCRM_VAULT_GUI_ALLOW_REMOTE"];
+    expect(vaultRemoteAllowed()).toBe(false);
+    for (const v of ["1", "true", "yes"]) {
+      process.env["DXCRM_VAULT_GUI_ALLOW_REMOTE"] = v;
+      expect(vaultRemoteAllowed()).toBe(true);
+    }
+    process.env["DXCRM_VAULT_GUI_ALLOW_REMOTE"] = "0";
+    expect(vaultRemoteAllowed()).toBe(false);
+    delete process.env["DXCRM_VAULT_GUI_ALLOW_REMOTE"];
+  });
+});

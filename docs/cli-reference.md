@@ -1078,6 +1078,17 @@ link, never the secret. The link carries a short-lived session token
 (`.agentic/vault-sessions.json`, stored only as a SHA-256 hash). Override the base URL
 with `DXCRM_PUBLIC_URL` when the server runs behind a hostname/proxy.
 
+**Localhost-only by default.** Although the MCP server binds `0.0.0.0` for team use,
+the `/vault` routes only answer requests from loopback addresses — a leaked link is
+useless from another machine. Set `DXCRM_VAULT_GUI_ALLOW_REMOTE=1` to allow remote
+access (e.g. behind a trusted reverse proxy that terminates auth/TLS).
+
+| Env var | Purpose |
+| --- | --- |
+| `DXCRM_VAULT_KEY` | Master key (server environment only); required to read/write secrets. |
+| `DXCRM_PUBLIC_URL` | Base URL for minted links when behind a hostname/proxy. |
+| `DXCRM_VAULT_GUI_ALLOW_REMOTE` | `1` to allow non-localhost access to `/vault`. |
+
 ## dxcrm churn (early-warning)
 
 Turns relationship-health signals (recency, cadence, momentum, silent champions)

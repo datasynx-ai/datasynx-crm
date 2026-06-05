@@ -275,6 +275,10 @@ passes through the AI. The link is served by the HTTP MCP server, gated by a
 short-lived token, and the master key (`DXCRM_VAULT_KEY`) lives only in the server's
 environment.
 
+**Secure by default:** even though the team MCP server binds `0.0.0.0`, the `/vault`
+routes are reachable from **localhost only** — a leaked link can't be used from another
+machine. Put it behind a trusted reverse proxy with `DXCRM_VAULT_GUI_ALLOW_REMOTE=1`.
+
 ```bash
 dxcrm server start                 # serves the vault GUI at /vault
 export DXCRM_VAULT_KEY=…            # master key (server env only)
