@@ -48,7 +48,9 @@ export function registerSearchCustomerKnowledge(server: McpServer): void {
     "search_customer_knowledge",
     {
       title: "Search Customer Knowledge",
-      description: `Hybrid vector + full-text search across all emails and transcripts for a customer.
+      description: `Hybrid search across all emails and transcripts for a customer: a semantic
+vector leg (embeddings ANN) and a keyword leg (BM25 full-text) are fused via Reciprocal Rank
+Fusion. Vector finds semantically similar content; full-text nails exact terms, IDs and names.
 Use when you need to find specific information from past communications.
 
 Args:

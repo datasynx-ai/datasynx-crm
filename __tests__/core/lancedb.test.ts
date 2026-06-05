@@ -18,7 +18,7 @@ vi.mock("@lancedb/lancedb", async () => {
       tableNames: vi.fn().mockResolvedValue([]),
     }),
     makeArrowTable: vi.fn().mockReturnValue({}),
-    Index: { btree: vi.fn().mockReturnValue({}) },
+    Index: { btree: vi.fn().mockReturnValue({}), fts: vi.fn().mockReturnValue({}) },
   };
 });
 
@@ -55,6 +55,7 @@ describe("searchKnowledge", () => {
     vi.mocked(lancedb.connect).mockResolvedValueOnce({
       tableNames: vi.fn().mockResolvedValue(["docs_acme_corp"]),
       openTable: vi.fn().mockResolvedValue({
+        createIndex: vi.fn().mockResolvedValue(undefined),
         search: vi.fn().mockReturnValue({
           limit: vi.fn().mockReturnValue({
             toArray: vi.fn().mockResolvedValue([mockRow]),
@@ -70,8 +71,75 @@ describe("searchKnowledge", () => {
     const results = await searchKnowledge("/data", "acme-corp", "pricing", 5);
     expect(results).toHaveLength(1);
     expect(results[0]?.content).toBe("Pricing discussed at €5000/mo");
-    expect(results[0]?.score).toBeCloseTo(0.8);
+    // Score is now a Reciprocal Rank Fusion score (small positive), not 1 - distance.
+    expect(results[0]?.score).toBeGreaterThan(0);
     expect(results[0]?.source).toBe("gmail://thread/abc");
+  });
+
+  it("fuses vector and full-text legs via RRF and dedupes shared source_refs", async () => {
+    // Vector leg ranks B then A; FTS leg ranks A then C. A appears in both
+    // legs (best fused rank), B and C each in one. RRF should rank A first.
+    const vecRows = [
+      { text: "doc B", source_ref: "ref-b", _distance: 0.1 },
+      { text: "doc A", source_ref: "ref-a", _distance: 0.3 },
+    ];
+    const ftsRows = [
+      { text: "doc A", source_ref: "ref-a", _score: 9.0 },
+      { text: "doc C", source_ref: "ref-c", _score: 4.0 },
+    ];
+    let call = 0;
+    const search = vi.fn().mockImplementation(() => ({
+      limit: vi.fn().mockReturnValue({
+        toArray: vi.fn().mockResolvedValue(call++ === 0 ? vecRows : ftsRows),
+      }),
+    }));
+    const lancedb = await import("@lancedb/lancedb");
+    vi.mocked(lancedb.connect).mockResolvedValueOnce({
+      tableNames: vi.fn().mockResolvedValue(["docs_acme_corp"]),
+      openTable: vi.fn().mockResolvedValue({
+        createIndex: vi.fn().mockResolvedValue(undefined),
+        search,
+      }),
+      createEmptyTable: vi.fn(),
+    } as never);
+
+    const { searchKnowledge, resetConnection } = await import("../../src/core/lancedb.js");
+    resetConnection();
+
+    const results = await searchKnowledge("/data", "acme-corp", "doc A", 10);
+    // Three distinct docs, A fused to the top.
+    expect(results.map((r) => r.source)).toEqual(["ref-a", "ref-b", "ref-c"]);
+    expect(results[0]?.content).toBe("doc A");
+    // Each source_ref appears exactly once (deduped across legs).
+    expect(new Set(results.map((r) => r.source)).size).toBe(results.length);
+  });
+
+  it("falls back to vector-only when the full-text leg throws", async () => {
+    const vecRows = [{ text: "vector hit", source_ref: "ref-v", _distance: 0.2 }];
+    let call = 0;
+    const search = vi.fn().mockImplementation(() => {
+      // First call (vector) succeeds; second call (fts) throws.
+      if (call++ === 0) {
+        return { limit: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(vecRows) }) };
+      }
+      throw new Error("no fts index");
+    });
+    const lancedb = await import("@lancedb/lancedb");
+    vi.mocked(lancedb.connect).mockResolvedValueOnce({
+      tableNames: vi.fn().mockResolvedValue(["docs_acme_corp"]),
+      openTable: vi.fn().mockResolvedValue({
+        createIndex: vi.fn().mockResolvedValue(undefined),
+        search,
+      }),
+      createEmptyTable: vi.fn(),
+    } as never);
+
+    const { searchKnowledge, resetConnection } = await import("../../src/core/lancedb.js");
+    resetConnection();
+
+    const results = await searchKnowledge("/data", "acme-corp", "anything", 5);
+    expect(results).toHaveLength(1);
+    expect(results[0]?.source).toBe("ref-v");
   });
 
   it("sanitizes slug with special chars for table name", async () => {
