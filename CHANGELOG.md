@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/datasynx-ai/datasynx-crm/compare/v1.14.0...v1.14.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **cli:** clean exit for --version/--help; remove dead code ([dd36248](https://github.com/datasynx-ai/datasynx-crm/commit/dd362486bc65ec9f38e0ef56aecdd1d6751b2386))
+
 # [1.14.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.13.0...v1.14.0) (2026-06-05)
 
 
