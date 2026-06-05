@@ -1,3 +1,15 @@
+# [1.15.0](https://github.com/datasynx/datasynx-crm/compare/v1.14.1...v1.15.0) (2026-06-05)
+
+
+### Bug Fixes
+
+* **release:** correct repository owner datasynx-ai -> datasynx ([#24](https://github.com/datasynx/datasynx-crm/issues/24)) ([0d8d861](https://github.com/datasynx/datasynx-crm/commit/0d8d861481062902f7f15ac7510dd85b55c73bf2))
+
+
+### Features
+
+* **sync:** salesforce api low-roi objects (issue [#22](https://github.com/datasynx/datasynx-crm/issues/22)) ([a77f7a4](https://github.com/datasynx/datasynx-crm/commit/a77f7a4af70358c689cfae393fe331d3e7da3bde))
+
 ## [1.14.1](https://github.com/datasynx-ai/datasynx-crm/compare/v1.14.0...v1.14.1) (2026-06-05)
 
 
