@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.9.0...v1.10.0) (2026-06-05)
+
+
+### Features
+
+* **core:** real hybrid search in searchKnowledge (vector + BM25, RRF-fused) ([984775b](https://github.com/datasynx-ai/datasynx-crm/commit/984775b03ccc9fe6614f251a6e1a87cd7f9953be))
+
 # [1.9.0](https://github.com/datasynx-ai/datasynx-crm/compare/v1.8.0...v1.9.0) (2026-06-04)
 
 
