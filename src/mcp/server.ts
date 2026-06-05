@@ -74,6 +74,17 @@ import { registerTriggerSync } from "./tools/trigger-sync.js";
 import { registerGetAuditLog } from "./tools/get-audit-log.js";
 import { registerGetLogs } from "./tools/get-logs.js";
 import { registerGetDiagnostics } from "./tools/get-diagnostics.js";
+import { registerGetVaultLink } from "./tools/get-vault-link.js";
+import {
+  renderVaultGuiPage,
+  handleVaultList,
+  handleVaultSet,
+  handleVaultReveal,
+  handleVaultDelete,
+  isLoopbackAddress,
+  vaultRemoteAllowed,
+} from "./vault-gui.js";
+import { verifyVaultSession } from "../core/vault-session.js";
 import { registerGetPipelineChanges } from "./tools/get-pipeline-changes.js";
 import { registerGetPipelineVelocity } from "./tools/get-pipeline-velocity.js";
 import { registerGetPipelineFunnel } from "./tools/get-pipeline-funnel.js";
@@ -105,7 +116,7 @@ export function createMcpServer(): McpServer {
     version: "0.1.0",
   });
 
-  // Register all 61 tools
+  // Register all 62 tools
   // IMPORTANT: Use server.registerTool() — server.tool() is deprecated in v2
   registerGetCapabilities(server);
   registerGetActiveSession(server);
@@ -164,6 +175,7 @@ export function createMcpServer(): McpServer {
   registerGetPipelineChanges(server);
   registerGetPipelineVelocity(server);
   registerGetPipelineFunnel(server);
+  registerGetVaultLink(server);
   registerCustomObjectTools(server);
 
   // MCP Prompts (playbooks) + Resources (read-only entities) — agent-native primitives
@@ -190,7 +202,10 @@ export async function startHttp(port = 3847): Promise<void> {
   app.use(express.json());
 
   const server = createMcpServer();
-  const dataDir = process.cwd();
+  // Honor DXCRM_DATA_DIR like the CLI and MCP tools do, so `dxcrm server start
+  // --data <dir>` (which passes it via env) and the vault link minted by the
+  // CLI/agent resolve the same data directory. Falls back to cwd.
+  const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
   // RFC 9728 — OAuth 2.0 Protected Resource Metadata
   app.get("/.well-known/oauth-protected-resource", (req, res) => {
@@ -242,6 +257,75 @@ export async function startHttp(port = 3847): Promise<void> {
     } catch {
       res.json({ sessions: [] });
     }
+  });
+
+  // ── Credential Vault GUI (issue #21) ────────────────────────────────────────
+  // A token-gated, browser-based credential manager. Operators open the link
+  // from `get_vault_link` and enter secrets directly here; values are encrypted
+  // into .agentic/vault.enc and never pass through the LLM. The master key is
+  // taken from the server's environment (DXCRM_VAULT_KEY) only.
+  const vaultKey = (): string | undefined => process.env["DXCRM_VAULT_KEY"];
+
+  // Secure-by-default: the vault routes are reachable from localhost only, even
+  // though the MCP server itself binds 0.0.0.0 for team use. Opt out for a
+  // trusted reverse proxy with DXCRM_VAULT_GUI_ALLOW_REMOTE=1.
+  app.use("/vault", (req, res, next) => {
+    if (vaultRemoteAllowed() || isLoopbackAddress(req.socket.remoteAddress)) {
+      next();
+      return;
+    }
+    if (req.path === "/") {
+      res
+        .status(403)
+        .setHeader("content-type", "text/html")
+        .send(
+          "<!DOCTYPE html><html><body style='font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center'><h2>🚫 Localhost only</h2><p>The credential vault is reachable from this machine only. Open the link on the host running the server, or set <code>DXCRM_VAULT_GUI_ALLOW_REMOTE=1</code> if it sits behind a trusted proxy.</p></body></html>"
+        );
+      return;
+    }
+    res.status(403).json({ error: "vault_localhost_only" });
+  });
+
+  app.get("/vault", (req, res) => {
+    const token = (req.query["t"] as string | undefined) ?? "";
+    if (!verifyVaultSession(dataDir, token)) {
+      res
+        .status(401)
+        .setHeader("content-type", "text/html")
+        .send(
+          "<!DOCTYPE html><html><body style='font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center'><h2>🔒 Link expired</h2><p>This vault link is invalid or has expired. Ask your agent for a fresh one (<code>get_vault_link</code>).</p></body></html>"
+        );
+      return;
+    }
+    res.setHeader("content-type", "text/html");
+    res.send(renderVaultGuiPage({ token }));
+  });
+
+  app.get("/vault/api/secrets", (req, res) => {
+    const result = handleVaultList(dataDir, vaultKey(), (req.query["token"] as string) ?? "");
+    res.status(result.status).json(result.body);
+  });
+
+  app.post("/vault/api/secrets", (req, res) => {
+    const { token, name, value } = (req.body ?? {}) as {
+      token?: string;
+      name?: string;
+      value?: string;
+    };
+    const result = handleVaultSet(dataDir, vaultKey(), token ?? "", name ?? "", value ?? "");
+    res.status(result.status).json(result.body);
+  });
+
+  app.post("/vault/api/secrets/reveal", (req, res) => {
+    const { token, name } = (req.body ?? {}) as { token?: string; name?: string };
+    const result = handleVaultReveal(dataDir, vaultKey(), token ?? "", name ?? "");
+    res.status(result.status).json(result.body);
+  });
+
+  app.post("/vault/api/secrets/delete", (req, res) => {
+    const { token, name } = (req.body ?? {}) as { token?: string; name?: string };
+    const result = handleVaultDelete(dataDir, vaultKey(), token ?? "", name ?? "");
+    res.status(result.status).json(result.body);
   });
 
   // Gmail Pub/Sub webhook

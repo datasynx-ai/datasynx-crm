@@ -71,6 +71,30 @@ vaultCommand
   );
 
 vaultCommand
+  .command("link")
+  .description("Mint a browser link to the vault GUI (enter/manage secrets without the CLI)")
+  .option("--ttl <minutes>", "How long the link stays valid, in minutes (default 15)", "15")
+  .action((opts: { ttl: string }) =>
+    guard(async () => {
+      const { createVaultSession } = await import("../core/vault-session.js");
+      const ttlMin = Math.min(Math.max(parseInt(opts.ttl, 10) || 15, 1), 240);
+      const { token, expiresAt } = createVaultSession(dataDir(), ttlMin * 60 * 1000);
+      const base = (
+        process.env["DXCRM_PUBLIC_URL"] ??
+        `http://localhost:${process.env["DXCRM_MCP_PORT"] ?? "3847"}`
+      ).replace(/\/+$/, "");
+      console.log(success(`${base}/vault?t=${token}`));
+      console.log(info(`Valid until ${expiresAt} (${ttlMin} min).`));
+      if (!process.env["DXCRM_VAULT_KEY"]) {
+        console.log(
+          info("Note: set DXCRM_VAULT_KEY in the server's environment before saving secrets.")
+        );
+      }
+      console.log(info("Requires the HTTP server: dxcrm server start"));
+    })
+  );
+
+vaultCommand
   .command("rm <name>")
   .description("Remove a secret")
   .action((name: string) =>
