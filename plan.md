@@ -562,9 +562,17 @@ Bewahrt die vollständige Historie inkl. verknüpfter Activities und Multi-Objec
 > `soqlQueryAll()`-Helper — kein LIMIT-Cap mehr, große Orgs werden vollständig importiert
 > (`src/sync/salesforce-client.ts`, `runSalesforceApiImport` in `src/commands/import.ts`).
 > **Leads** ✅ · **Events** ✅ · **Cases → Tickets** ✅ · **OpportunityLineItems → Quote** ✅ · **Notes** ✅ · **Campaigns (CampaignMember)** ✅.
-> Damit deckt der Salesforce-API-Import alle Kern-Objekte ab. **Bewusst zurückgestellt** (niedriger ROI):
-> Attachments (Binär-Download), API-Describe-Custom-Fields (im File-Import via LLM-Mapping abgedeckt),
-> Owner→Actor & Account-Hierarchie.
+> Damit deckt der Salesforce-API-Import alle Kern-Objekte ab.
+>
+> **Update (Issue #22 — vormals „low ROI", jetzt umgesetzt):**
+> **Accounts → Kunden** ✅ (registriert `AccountId → slug`) · **Owner → Actor** ✅
+> (`OwnerId` → `User`, als ` [Owner: …]` an Interactions/Deal-Notes) ·
+> **Account-Hierarchie** ✅ (`ParentId` → Note `salesforce://accounthierarchy/<id>`) ·
+> **API-Describe-Custom-Fields** ✅ (`__c`-Felder via sObject-`describe` automatisch
+> entdeckt, Werte als Note `salesforce://customfields/account/<id>`) ·
+> **Attachments** ✅ (Binär-Download nach `customers/<slug>/attachments/`).
+> Client-Funktionen in `src/sync/salesforce-client.ts`, Verdrahtung in
+> `runSalesforceApiImport` (`src/commands/import.ts`). Damit ist Domino 4c vollständig.
 
 ### Domino 4d — Compliance-Paket
 

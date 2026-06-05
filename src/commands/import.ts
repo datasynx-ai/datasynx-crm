@@ -19,6 +19,9 @@ interface ImportResult {
   quotesImported?: number;
   notesImported?: number;
   campaignsImported?: number;
+  hierarchyImported?: number;
+  customFieldsImported?: number;
+  attachmentsImported?: number;
 }
 
 /** Map a Salesforce StageName to opencrm's fixed pipeline stage enum. */
@@ -594,6 +597,12 @@ async function runSalesforceApiImport(
     fetchSalesforceLineItems,
     fetchSalesforceNotes,
     fetchSalesforceCampaignMembers,
+    fetchSalesforceUsers,
+    fetchSalesforceAccounts,
+    fetchSalesforceCustomFields,
+    fetchSalesforceRecords,
+    fetchSalesforceAttachments,
+    downloadSalesforceAttachment,
   } = await import("../sync/salesforce-client.js");
 
   let contacts: Awaited<ReturnType<typeof fetchSalesforceContacts>>;
@@ -605,6 +614,9 @@ async function runSalesforceApiImport(
   let lineItems: Awaited<ReturnType<typeof fetchSalesforceLineItems>>;
   let notes: Awaited<ReturnType<typeof fetchSalesforceNotes>>;
   let campaignMembers: Awaited<ReturnType<typeof fetchSalesforceCampaignMembers>>;
+  let users: Awaited<ReturnType<typeof fetchSalesforceUsers>>;
+  let accounts: Awaited<ReturnType<typeof fetchSalesforceAccounts>>;
+  let attachments: Awaited<ReturnType<typeof fetchSalesforceAttachments>>;
 
   try {
     contacts = await fetchSalesforceContacts(instanceUrl, token);
@@ -616,22 +628,53 @@ async function runSalesforceApiImport(
     lineItems = (await fetchSalesforceLineItems(instanceUrl, token)) ?? [];
     notes = (await fetchSalesforceNotes(instanceUrl, token)) ?? [];
     campaignMembers = (await fetchSalesforceCampaignMembers(instanceUrl, token)) ?? [];
+    users = (await fetchSalesforceUsers(instanceUrl, token)) ?? [];
+    accounts = (await fetchSalesforceAccounts(instanceUrl, token)) ?? [];
+    attachments = (await fetchSalesforceAttachments(instanceUrl, token)) ?? [];
   } catch (err) {
     result.errors.push(`Salesforce API: ${(err as Error).message}`);
     return result;
   }
 
+  // Owner → Actor: resolve each record's OwnerId to a human-readable label.
+  const ownerById = new Map<string, string>();
+  for (const u of users) {
+    const label = u.Name?.trim() || u.Email?.trim();
+    if (label) ownerById.set(u.Id, label);
+  }
+  const ownerSuffix = (ownerId?: string): string => {
+    const label = ownerId ? ownerById.get(ownerId) : undefined;
+    return label ? ` [Owner: ${label}]` : "";
+  };
+
   if (opts.dryRun) {
     console.log(
       info(
-        `Dry run — ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities, ${leads.length} leads, ${events.length} events, ${cases.length} cases from Salesforce`
+        `Dry run — ${accounts.length} accounts, ${contacts.length} contacts, ${tasks.length} tasks, ${opportunities.length} opportunities, ${leads.length} leads, ${events.length} events, ${cases.length} cases, ${users.length} users, ${attachments.length} attachments from Salesforce`
       )
     );
     return result;
   }
 
-  // Pass 1: contacts → customers
   const slugMap = new Map<string, string>();
+
+  // Pass 0: accounts → customers (registers AccountId → slug so hierarchy,
+  // custom fields, and attachments can be linked back by ParentId).
+  for (const acc of accounts) {
+    const name = acc.Name?.trim();
+    if (!name) continue;
+    const domain = acc.Website?.replace(/^https?:\/\//, "") ?? "";
+    try {
+      const { slug, created } = ensureCustomer(dir, name, domain, "", false);
+      slugMap.set(acc.Id, slug);
+      slugMap.set(name.toLowerCase(), slug);
+      if (created) result.customersCreated++;
+    } catch (err) {
+      result.errors.push(`Account '${name}': ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 1: contacts → customers
   for (const contact of contacts) {
     const name = contact.Name?.trim();
     if (!name) continue;
@@ -660,7 +703,7 @@ async function runSalesforceApiImport(
     }
 
     const date = task.ActivityDate ?? new Date().toISOString().slice(0, 10);
-    const notes = (task.Description ?? task.Subject ?? "").slice(0, 500);
+    const notes = `${(task.Description ?? task.Subject ?? "").slice(0, 500)}${ownerSuffix(task.OwnerId)}`;
     const t = (task.Type ?? "").toLowerCase();
     const type = t.includes("call")
       ? ("Call" as const)
@@ -716,7 +759,7 @@ async function runSalesforceApiImport(
         stage: mapSalesforceStage(opp.StageName),
         currency: "EUR",
         updated: today,
-        notes: `Imported from Salesforce (${opp.StageName ?? "unknown stage"})`,
+        notes: `Imported from Salesforce (${opp.StageName ?? "unknown stage"})${ownerSuffix(opp.OwnerId)}`,
         ...(typeof opp.Amount === "number" ? { value: opp.Amount } : {}),
         ...(typeof opp.Probability === "number" ? { probability: opp.Probability } : {}),
         ...(opp.CloseDate ? { close_date: opp.CloseDate } : {}),
@@ -756,7 +799,7 @@ async function runSalesforceApiImport(
         date: new Date().toISOString().slice(0, 10),
         type: "Note",
         with: lead.Name,
-        summary: `Salesforce Lead imported (status: ${lead.Status ?? "n/a"}; contact: ${contactPart})`,
+        summary: `Salesforce Lead imported (status: ${lead.Status ?? "n/a"}; contact: ${contactPart})${ownerSuffix(lead.OwnerId)}`,
         nextSteps: [],
         sourceRef,
         synced: new Date().toISOString(),
@@ -796,7 +839,7 @@ async function runSalesforceApiImport(
         type: "Meeting",
         with: slug,
         subject: event.Subject ?? "Salesforce Event",
-        summary: (event.Description ?? event.Subject ?? "").slice(0, 500),
+        summary: `${(event.Description ?? event.Subject ?? "").slice(0, 500)}${ownerSuffix(event.OwnerId)}`,
         nextSteps: [],
         sourceRef,
         synced: new Date().toISOString(),
@@ -974,7 +1017,138 @@ async function runSalesforceApiImport(
     }
   }
 
+  // Pass 10: account hierarchy → Note interaction on each subsidiary
+  const accountNameById = new Map<string, string>();
+  for (const acc of accounts) {
+    if (acc.Name) accountNameById.set(acc.Id, acc.Name);
+  }
+  for (const acc of accounts) {
+    if (!acc.ParentId) continue;
+    const childSlug = slugMap.get(acc.Id);
+    if (!childSlug) {
+      result.skipped++;
+      continue;
+    }
+    const sourceRef = `salesforce://accounthierarchy/${acc.Id}`;
+    if (await dedup.seen(childSlug, sourceRef)) {
+      result.skipped++;
+      continue;
+    }
+    const parentName = accountNameById.get(acc.ParentId) ?? acc.ParentId;
+    try {
+      await appendInteraction(dir, childSlug, {
+        date: new Date().toISOString().slice(0, 10),
+        type: "Note",
+        with: childSlug,
+        subject: "Account hierarchy",
+        summary: `${acc.Name ?? childSlug} is a subsidiary of ${parentName} (Salesforce account hierarchy)`,
+        nextSteps: [],
+        sourceRef,
+        synced: new Date().toISOString(),
+      });
+      dedup.markAppended(childSlug, sourceRef);
+      result.hierarchyImported = (result.hierarchyImported ?? 0) + 1;
+    } catch (err) {
+      result.errors.push(`Account hierarchy ${acc.Id}: ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 11: custom-field describe → Note interaction per account with values.
+  // API-side describe discovers custom (__c) fields automatically, then their
+  // values are fetched in a single ad-hoc SOQL query.
+  if (accounts.length > 0) {
+    try {
+      const customFields = await fetchSalesforceCustomFields(instanceUrl, token, "Account");
+      if (customFields.length > 0) {
+        const labelByName = new Map(customFields.map((f) => [f.name, f.label ?? f.name]));
+        const fieldNames = customFields.map((f) => f.name);
+        const records = await fetchSalesforceRecords(instanceUrl, token, "Account", [
+          "Id",
+          ...fieldNames,
+        ]);
+        for (const rec of records) {
+          const accId = typeof rec["Id"] === "string" ? (rec["Id"] as string) : undefined;
+          const slug = accId ? slugMap.get(accId) : undefined;
+          if (!slug) {
+            result.skipped++;
+            continue;
+          }
+          const pairs = fieldNames
+            .map((n) => {
+              const v = rec[n];
+              if (v === null || v === undefined || v === "") return null;
+              return `${labelByName.get(n) ?? n}: ${String(v)}`;
+            })
+            .filter((p): p is string => p !== null);
+          if (pairs.length === 0) {
+            result.skipped++;
+            continue;
+          }
+          const sourceRef = `salesforce://customfields/account/${accId}`;
+          if (await dedup.seen(slug, sourceRef)) {
+            result.skipped++;
+            continue;
+          }
+          try {
+            await appendInteraction(dir, slug, {
+              date: new Date().toISOString().slice(0, 10),
+              type: "Note",
+              with: slug,
+              subject: "Salesforce custom fields",
+              summary: `Salesforce custom fields — ${pairs.join("; ")}`.slice(0, 500),
+              nextSteps: [],
+              sourceRef,
+              synced: new Date().toISOString(),
+            });
+            dedup.markAppended(slug, sourceRef);
+            result.customFieldsImported = (result.customFieldsImported ?? 0) + 1;
+          } catch (err) {
+            result.errors.push(`Custom fields ${accId}: ${(err as Error).message}`);
+          }
+        }
+      }
+    } catch (err) {
+      result.errors.push(`Custom-field describe: ${(err as Error).message}`);
+    }
+  }
+
+  // Pass 12: attachments → download binary into customers/<slug>/attachments/
+  for (const att of attachments) {
+    const slug = att.ParentId ? slugMap.get(att.ParentId) : undefined;
+    if (!slug) {
+      result.skipped++;
+      continue;
+    }
+    const safeName = sanitizeAttachmentName(att.Name ?? att.Id, att.Id);
+    const attachmentsDir = path.join(dir, "customers", slug, "attachments");
+    const destPath = path.join(attachmentsDir, safeName);
+    if (fs.existsSync(destPath)) {
+      result.skipped++;
+      continue;
+    }
+    try {
+      const body = await downloadSalesforceAttachment(instanceUrl, token, att.Id);
+      fs.mkdirSync(attachmentsDir, { recursive: true });
+      fs.writeFileSync(destPath, body);
+      result.attachmentsImported = (result.attachmentsImported ?? 0) + 1;
+    } catch (err) {
+      result.errors.push(`Attachment ${att.Id}: ${(err as Error).message}`);
+    }
+  }
+
   return result;
+}
+
+/**
+ * Turn a Salesforce attachment name into a safe single path segment. Falls back
+ * to the attachment Id when the name is empty or would escape the directory.
+ */
+function sanitizeAttachmentName(name: string, fallbackId: string): string {
+  const base = path
+    .basename(name)
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^\.+/, "");
+  return base.length > 0 ? base : `attachment-${fallbackId}`;
 }
 
 export async function runPipedriveApiImport(

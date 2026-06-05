@@ -2,6 +2,7 @@ export interface SalesforceContact {
   Id: string;
   Name: string;
   Email?: string;
+  OwnerId?: string;
   Account?: { Website?: string };
 }
 
@@ -12,6 +13,7 @@ export interface SalesforceTask {
   ActivityDate?: string;
   Type?: string;
   WhoId?: string;
+  OwnerId?: string;
 }
 
 export interface SalesforceOpportunity {
@@ -21,6 +23,7 @@ export interface SalesforceOpportunity {
   Amount?: number | null;
   CloseDate?: string;
   Probability?: number | null;
+  OwnerId?: string;
   Account?: { Name?: string; Website?: string };
 }
 
@@ -33,6 +36,41 @@ export interface SalesforceLead {
   Phone?: string;
   Status?: string;
   Website?: string;
+  OwnerId?: string;
+}
+
+/** A Salesforce User — the basis for Owner → Actor mapping. */
+export interface SalesforceUser {
+  Id: string;
+  Name?: string;
+  Email?: string;
+  IsActive?: boolean;
+}
+
+/** A Salesforce Account, including its parent for account-hierarchy mapping. */
+export interface SalesforceAccount {
+  Id: string;
+  Name?: string;
+  ParentId?: string;
+  Website?: string;
+  OwnerId?: string;
+}
+
+/** One field entry from an sObject `describe` call. */
+export interface SalesforceFieldDescribe {
+  name: string;
+  label?: string;
+  type?: string;
+  custom?: boolean;
+}
+
+/** A classic Salesforce Attachment (binary blob attached to a record). */
+export interface SalesforceAttachment {
+  Id: string;
+  Name?: string;
+  ParentId?: string;
+  ContentType?: string;
+  BodyLength?: number;
 }
 
 export interface SalesforceCampaignMember {
@@ -75,6 +113,7 @@ export interface SalesforceCase {
   ContactId?: string;
   CreatedDate?: string;
   ClosedDate?: string;
+  OwnerId?: string;
 }
 
 export interface SalesforceEvent {
@@ -85,6 +124,7 @@ export interface SalesforceEvent {
   StartDateTime?: string;
   WhoId?: string;
   WhatId?: string;
+  OwnerId?: string;
 }
 
 interface SoqlResponse<T> {
@@ -124,7 +164,7 @@ export async function fetchSalesforceContacts(
   return soqlQueryAll<SalesforceContact>(
     instanceUrl,
     token,
-    "SELECT+Id,Name,Email,Account.Website+FROM+Contact"
+    "SELECT+Id,Name,Email,OwnerId,Account.Website+FROM+Contact"
   );
 }
 
@@ -135,7 +175,7 @@ export async function fetchSalesforceTasks(
   return soqlQueryAll<SalesforceTask>(
     instanceUrl,
     token,
-    "SELECT+Id,Subject,Description,ActivityDate,Type,WhoId+FROM+Task"
+    "SELECT+Id,Subject,Description,ActivityDate,Type,WhoId,OwnerId+FROM+Task"
   );
 }
 
@@ -146,7 +186,7 @@ export async function fetchSalesforceOpportunities(
   return soqlQueryAll<SalesforceOpportunity>(
     instanceUrl,
     token,
-    "SELECT+Id,Name,StageName,Amount,CloseDate,Probability,Account.Name,Account.Website+FROM+Opportunity"
+    "SELECT+Id,Name,StageName,Amount,CloseDate,Probability,OwnerId,Account.Name,Account.Website+FROM+Opportunity"
   );
 }
 
@@ -157,7 +197,7 @@ export async function fetchSalesforceLeads(
   return soqlQueryAll<SalesforceLead>(
     instanceUrl,
     token,
-    "SELECT+Id,Name,Company,Email,Title,Phone,Status,Website+FROM+Lead"
+    "SELECT+Id,Name,Company,Email,Title,Phone,Status,Website,OwnerId+FROM+Lead"
   );
 }
 
@@ -168,7 +208,7 @@ export async function fetchSalesforceEvents(
   return soqlQueryAll<SalesforceEvent>(
     instanceUrl,
     token,
-    "SELECT+Id,Subject,Description,ActivityDate,StartDateTime,WhoId,WhatId+FROM+Event"
+    "SELECT+Id,Subject,Description,ActivityDate,StartDateTime,WhoId,WhatId,OwnerId+FROM+Event"
   );
 }
 
@@ -179,7 +219,7 @@ export async function fetchSalesforceCases(
   return soqlQueryAll<SalesforceCase>(
     instanceUrl,
     token,
-    "SELECT+Id,CaseNumber,Subject,Description,Status,Priority,Account.Name,AccountId,ContactId,CreatedDate,ClosedDate+FROM+Case"
+    "SELECT+Id,CaseNumber,Subject,Description,Status,Priority,Account.Name,AccountId,ContactId,CreatedDate,ClosedDate,OwnerId+FROM+Case"
   );
 }
 
@@ -214,6 +254,119 @@ export async function fetchSalesforceCampaignMembers(
     token,
     "SELECT+Id,CampaignId,Campaign.Name,ContactId,LeadId,Status,CreatedDate+FROM+CampaignMember"
   );
+}
+
+/**
+ * Fetch all Salesforce Users. The basis for Owner → Actor mapping: every
+ * record's `OwnerId` is resolved against this list to attribute the imported
+ * activity/deal to the responsible rep.
+ */
+export async function fetchSalesforceUsers(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceUser[]> {
+  return soqlQueryAll<SalesforceUser>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Name,Email,IsActive+FROM+User"
+  );
+}
+
+/**
+ * Fetch all Salesforce Accounts including `ParentId`, so parent/subsidiary
+ * account hierarchies can be reconstructed in the imported CRM.
+ */
+export async function fetchSalesforceAccounts(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceAccount[]> {
+  return soqlQueryAll<SalesforceAccount>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Name,ParentId,Website,OwnerId+FROM+Account"
+  );
+}
+
+/**
+ * Run the sObject `describe` REST call and return its field metadata. This is
+ * the API-side equivalent of inspecting an export's columns: it discovers
+ * custom fields (`__c`) on any object without hard-coding them.
+ */
+export async function describeSalesforceObject(
+  instanceUrl: string,
+  token: string,
+  objectName: string
+): Promise<SalesforceFieldDescribe[]> {
+  const url = `${instanceUrl}/services/data/v58.0/sobjects/${objectName}/describe`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(`Salesforce API error: ${res.status} ${res.statusText}`);
+  }
+  const data = (await res.json()) as { fields?: SalesforceFieldDescribe[] };
+  return data.fields ?? [];
+}
+
+/**
+ * Convenience wrapper over {@link describeSalesforceObject} that returns only
+ * the custom fields (those flagged `custom: true`, i.e. ending in `__c`).
+ */
+export async function fetchSalesforceCustomFields(
+  instanceUrl: string,
+  token: string,
+  objectName: string
+): Promise<SalesforceFieldDescribe[]> {
+  const fields = await describeSalesforceObject(instanceUrl, token, objectName);
+  return fields.filter((f) => f.custom === true);
+}
+
+/**
+ * Run an ad-hoc SOQL `SELECT <fields> FROM <object>` and return all records
+ * (with pagination). Used to pull discovered custom-field values once their
+ * API names are known from a `describe` call.
+ */
+export async function fetchSalesforceRecords(
+  instanceUrl: string,
+  token: string,
+  objectName: string,
+  fields: string[]
+): Promise<Array<Record<string, unknown>>> {
+  const soql = `SELECT+${fields.join(",")}+FROM+${objectName}`;
+  return soqlQueryAll<Record<string, unknown>>(instanceUrl, token, soql);
+}
+
+/**
+ * Fetch all classic Salesforce Attachment records (metadata only — the binary
+ * body is downloaded separately via {@link downloadSalesforceAttachment}).
+ */
+export async function fetchSalesforceAttachments(
+  instanceUrl: string,
+  token: string
+): Promise<SalesforceAttachment[]> {
+  return soqlQueryAll<SalesforceAttachment>(
+    instanceUrl,
+    token,
+    "SELECT+Id,Name,ParentId,ContentType,BodyLength+FROM+Attachment"
+  );
+}
+
+/**
+ * Download the binary body of a single Attachment and return it as a Buffer.
+ */
+export async function downloadSalesforceAttachment(
+  instanceUrl: string,
+  token: string,
+  attachmentId: string
+): Promise<Buffer> {
+  const url = `${instanceUrl}/services/data/v58.0/sobjects/Attachment/${attachmentId}/Body`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Salesforce API error: ${res.status} ${res.statusText}`);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }
 
 export interface SalesforceBulkJobStatus {
