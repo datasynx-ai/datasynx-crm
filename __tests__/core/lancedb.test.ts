@@ -236,6 +236,59 @@ describe("indexInLanceDB", () => {
   });
 });
 
+describe("reindexCustomer", () => {
+  it("returns 0 when the table does not exist", async () => {
+    const lancedb = await import("@lancedb/lancedb");
+    vi.mocked(lancedb.connect).mockResolvedValueOnce({
+      tableNames: vi.fn().mockResolvedValue([]),
+      openTable: vi.fn(),
+      createEmptyTable: vi.fn(),
+    } as never);
+    const { reindexCustomer, resetConnection } = await import("../../src/core/lancedb.js");
+    resetConnection();
+    expect(await reindexCustomer("/data", "acme-corp")).toBe(0);
+  });
+
+  it("re-embeds stored rows into a freshly recreated table", async () => {
+    const rows = [
+      { source_ref: "gmail://1", text: "alpha", date: "2026-01-01", type: "Email" },
+      { source_ref: "gmail://2", text: "beta", date: "2026-02-01", type: "Email" },
+    ];
+    const chain = {
+      whenMatchedUpdateAll: vi.fn(),
+      whenNotMatchedInsertAll: vi.fn(),
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
+    chain.whenMatchedUpdateAll.mockReturnValue(chain);
+    chain.whenNotMatchedInsertAll.mockReturnValue(chain);
+    const dropTable = vi.fn().mockResolvedValue(undefined);
+    const createEmptyTable = vi.fn().mockResolvedValue({
+      createIndex: vi.fn().mockResolvedValue(undefined),
+      mergeInsert: vi.fn().mockReturnValue(chain),
+    });
+    const lancedb = await import("@lancedb/lancedb");
+    vi.mocked(lancedb.connect).mockResolvedValueOnce({
+      tableNames: vi.fn().mockResolvedValue(["docs_acme_corp"]),
+      openTable: vi.fn().mockResolvedValue({
+        query: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({ toArray: vi.fn().mockResolvedValue(rows) }),
+        }),
+      }),
+      dropTable,
+      createEmptyTable,
+    } as never);
+
+    const { reindexCustomer, resetConnection } = await import("../../src/core/lancedb.js");
+    resetConnection();
+    const count = await reindexCustomer("/data", "acme-corp");
+
+    expect(count).toBe(2);
+    expect(dropTable).toHaveBeenCalledWith("docs_acme_corp");
+    expect(createEmptyTable).toHaveBeenCalled();
+    expect(chain.execute).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("dropCustomerTable", () => {
   it("drops the table when it exists", async () => {
     const dropTableMock = vi.fn().mockResolvedValue(undefined);

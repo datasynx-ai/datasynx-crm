@@ -56,6 +56,8 @@ import { coachCommand } from "./coach.js";
 import { complianceCommand } from "./compliance.js";
 import { mailboxCommand } from "./mailbox.js";
 import { archiveCommand } from "./archive.js";
+import { reindexCommand } from "./reindex.js";
+import { evalEmbeddingsCommand } from "./eval-embeddings.js";
 
 /** Every top-level `dxcrm` command, in display order. */
 export const ALL_COMMANDS: readonly Command[] = [
@@ -71,6 +73,8 @@ export const ALL_COMMANDS: readonly Command[] = [
   backupCommand,
   restoreCommand,
   archiveCommand,
+  reindexCommand,
+  evalEmbeddingsCommand,
   daemonCommand,
   statusCommand,
   agentCommand,

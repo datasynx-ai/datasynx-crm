@@ -52,3 +52,34 @@ describe("singleton", () => {
     expect(pipeline).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("embeddingModel", () => {
+  it("defaults to all-MiniLM-L6-v2 and honors DXCRM_EMBED_MODEL", async () => {
+    const { embeddingModel, DEFAULT_EMBED_MODEL } = await import("../../src/core/embedder.js");
+    expect(embeddingModel()).toBe(DEFAULT_EMBED_MODEL);
+    process.env["DXCRM_EMBED_MODEL"] = "Xenova/bge-small-en-v1.5";
+    expect(embeddingModel()).toBe("Xenova/bge-small-en-v1.5");
+    delete process.env["DXCRM_EMBED_MODEL"];
+  });
+
+  it("passes the configured model to the pipeline factory", async () => {
+    process.env["DXCRM_EMBED_MODEL"] = "Xenova/custom-model";
+    const { pipeline } = await import("@huggingface/transformers");
+    const { embedText, resetEmbeddingPipeline } = await import("../../src/core/embedder.js");
+    resetEmbeddingPipeline();
+    await embedText("hi");
+    expect(pipeline).toHaveBeenCalledWith("feature-extraction", "Xenova/custom-model");
+    delete process.env["DXCRM_EMBED_MODEL"];
+    resetEmbeddingPipeline();
+  });
+});
+
+describe("getEmbeddingDimension", () => {
+  it("detects the dimension by probing and caches it", async () => {
+    const { getEmbeddingDimension, resetEmbeddingPipeline } =
+      await import("../../src/core/embedder.js");
+    resetEmbeddingPipeline();
+    const dim = await getEmbeddingDimension();
+    expect(dim).toBe(384); // mocked model returns a 384-length vector
+  });
+});
