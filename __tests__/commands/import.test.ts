@@ -330,6 +330,12 @@ const mockFetchSalesforceCases = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceLineItems = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceNotes = vi.hoisted(() => vi.fn());
 const mockFetchSalesforceCampaignMembers = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceUsers = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceAccounts = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceCustomFields = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceRecords = vi.hoisted(() => vi.fn());
+const mockFetchSalesforceAttachments = vi.hoisted(() => vi.fn());
+const mockDownloadSalesforceAttachment = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/sync/salesforce-client.js", () => ({
   fetchSalesforceContacts: mockFetchSalesforceContacts,
@@ -341,7 +347,30 @@ vi.mock("../../src/sync/salesforce-client.js", () => ({
   fetchSalesforceLineItems: mockFetchSalesforceLineItems,
   fetchSalesforceNotes: mockFetchSalesforceNotes,
   fetchSalesforceCampaignMembers: mockFetchSalesforceCampaignMembers,
+  fetchSalesforceUsers: mockFetchSalesforceUsers,
+  fetchSalesforceAccounts: mockFetchSalesforceAccounts,
+  fetchSalesforceCustomFields: mockFetchSalesforceCustomFields,
+  fetchSalesforceRecords: mockFetchSalesforceRecords,
+  fetchSalesforceAttachments: mockFetchSalesforceAttachments,
+  downloadSalesforceAttachment: mockDownloadSalesforceAttachment,
 }));
+
+/** Default the optional Salesforce fetchers to empty so each test opts in. */
+function resetSalesforceOptionalMocks(): void {
+  mockFetchSalesforceOpportunities.mockResolvedValue([]);
+  mockFetchSalesforceLeads.mockResolvedValue([]);
+  mockFetchSalesforceEvents.mockResolvedValue([]);
+  mockFetchSalesforceCases.mockResolvedValue([]);
+  mockFetchSalesforceLineItems.mockResolvedValue([]);
+  mockFetchSalesforceNotes.mockResolvedValue([]);
+  mockFetchSalesforceCampaignMembers.mockResolvedValue([]);
+  mockFetchSalesforceUsers.mockResolvedValue([]);
+  mockFetchSalesforceAccounts.mockResolvedValue([]);
+  mockFetchSalesforceCustomFields.mockResolvedValue([]);
+  mockFetchSalesforceRecords.mockResolvedValue([]);
+  mockFetchSalesforceAttachments.mockResolvedValue([]);
+  mockDownloadSalesforceAttachment.mockResolvedValue(Buffer.from([]));
+}
 
 describe("runImport — Salesforce API mode", () => {
   beforeEach(async () => {
@@ -353,6 +382,7 @@ describe("runImport — Salesforce API mode", () => {
     readInteractions = vi.mocked(writerMod.readInteractions);
     appendInteraction.mockResolvedValue(undefined);
     readInteractions.mockResolvedValue("");
+    resetSalesforceOptionalMocks();
 
     const importMod = await import("../../src/commands/import.js");
     runImport = importMod.runImport;
@@ -741,6 +771,207 @@ describe("runImport — Salesforce API mode", () => {
 
     expect(result.skipped).toBe(1);
     expect(appendInteraction).not.toHaveBeenCalled();
+  });
+
+  // ─── Owner → Actor mapping ──────────────────────────────────────────────────
+
+  it("resolves OwnerId to the owner name on imported task interactions", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceUsers.mockResolvedValue([
+      { Id: "u1", Name: "Sara Rep", Email: "sara@myco.com", IsActive: true },
+    ]);
+    mockFetchSalesforceContacts.mockResolvedValue([
+      {
+        Id: "c1",
+        Name: "Alice",
+        Email: "alice@acme.com",
+        Account: { Website: "https://acme.com" },
+      },
+    ]);
+    mockFetchSalesforceTasks.mockResolvedValue([
+      {
+        Id: "t1",
+        WhoId: "c1",
+        OwnerId: "u1",
+        ActivityDate: "2026-01-15",
+        Type: "Call",
+        Subject: "Intro",
+        Description: "Discovery call",
+      },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    const entry = appendInteraction.mock.calls[0]![2] as { summary: string };
+    expect(entry.summary).toContain("Sara Rep");
+  });
+
+  it("embeds the owner in imported opportunity deal notes", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceUsers.mockResolvedValue([{ Id: "u1", Name: "Sara Rep" }]);
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceOpportunities.mockResolvedValue([
+      {
+        Id: "o1",
+        Name: "Acme License",
+        StageName: "Proposal",
+        Amount: 1000,
+        OwnerId: "u1",
+        Account: { Name: "Acme Corp" },
+      },
+    ]);
+
+    await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    const pipeline = vol.toJSON()["/crm/customers/acme-corp/pipeline.md"] as string;
+    expect(pipeline).toContain("Sara Rep");
+  });
+
+  // ─── Account hierarchy ──────────────────────────────────────────────────────
+
+  it("creates customers from accounts and records parent/subsidiary hierarchy", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceAccounts.mockResolvedValue([
+      { Id: "a0", Name: "Acme Corp", Website: "https://acme.com" },
+      { Id: "a1", Name: "Acme Subsidiary", ParentId: "a0", Website: "https://sub.acme.com" },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.customersCreated).toBe(2);
+    expect(result.hierarchyImported).toBe(1);
+    const entry = appendInteraction.mock.calls.find(
+      (c) => (c[2] as { sourceRef: string }).sourceRef === "salesforce://accounthierarchy/a1"
+    )?.[2] as { summary: string; subject?: string } | undefined;
+    expect(entry?.summary).toContain("Acme Corp");
+    expect(entry?.summary).toContain("Acme Subsidiary");
+  });
+
+  // ─── Custom-field describe ──────────────────────────────────────────────────
+
+  it("imports discovered custom-field values as a Note interaction per account", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceAccounts.mockResolvedValue([
+      { Id: "a0", Name: "Acme Corp", Website: "https://acme.com" },
+    ]);
+    mockFetchSalesforceCustomFields.mockResolvedValue([
+      { name: "Industry_Segment__c", label: "Industry Segment", custom: true },
+      { name: "Health_Score__c", label: "Health Score", custom: true },
+    ]);
+    mockFetchSalesforceRecords.mockResolvedValue([
+      { Id: "a0", Industry_Segment__c: "SaaS", Health_Score__c: 92 },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.customFieldsImported).toBe(1);
+    // It must have queried the discovered field names via fetchSalesforceRecords.
+    expect(mockFetchSalesforceRecords).toHaveBeenCalledWith(
+      "https://x.sf.com",
+      "tok",
+      "Account",
+      expect.arrayContaining(["Id", "Industry_Segment__c", "Health_Score__c"])
+    );
+    const entry = appendInteraction.mock.calls.find(
+      (c) => (c[2] as { sourceRef: string }).sourceRef === "salesforce://customfields/account/a0"
+    )?.[2] as { summary: string } | undefined;
+    expect(entry?.summary).toContain("Industry Segment");
+    expect(entry?.summary).toContain("SaaS");
+    expect(entry?.summary).toContain("Health Score");
+  });
+
+  it("skips the custom-field pass when describe finds no custom fields", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceAccounts.mockResolvedValue([{ Id: "a0", Name: "Acme Corp" }]);
+    mockFetchSalesforceCustomFields.mockResolvedValue([]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.customFieldsImported ?? 0).toBe(0);
+    expect(mockFetchSalesforceRecords).not.toHaveBeenCalled();
+  });
+
+  // ─── Attachments (binary download) ──────────────────────────────────────────
+
+  it("downloads attachments linked by ParentId into the customer attachments dir", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceAccounts.mockResolvedValue([
+      { Id: "a0", Name: "Acme Corp", Website: "https://acme.com" },
+    ]);
+    mockFetchSalesforceAttachments.mockResolvedValue([
+      { Id: "att1", Name: "contract.pdf", ParentId: "a0", ContentType: "application/pdf" },
+    ]);
+    mockDownloadSalesforceAttachment.mockResolvedValue(Buffer.from([1, 2, 3, 4]));
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.attachmentsImported).toBe(1);
+    expect(mockDownloadSalesforceAttachment).toHaveBeenCalledWith(
+      "https://x.sf.com",
+      "tok",
+      "att1"
+    );
+    const files = vol.toJSON();
+    const saved = Object.keys(files).find(
+      (p) => p.includes("/customers/acme-corp/attachments/") && p.endsWith("contract.pdf")
+    );
+    expect(saved).toBeDefined();
+  });
+
+  it("skips an attachment whose ParentId does not map to a customer", async () => {
+    vol.fromJSON({});
+    mockFetchSalesforceContacts.mockResolvedValue([]);
+    mockFetchSalesforceTasks.mockResolvedValue([]);
+    mockFetchSalesforceAttachments.mockResolvedValue([
+      { Id: "att1", Name: "orphan.pdf", ParentId: "unknown" },
+    ]);
+
+    const result = await runImport(
+      "",
+      { from: "salesforce", mode: "api", token: "tok", url: "https://x.sf.com" },
+      "/crm"
+    );
+
+    expect(result.attachmentsImported ?? 0).toBe(0);
+    expect(mockDownloadSalesforceAttachment).not.toHaveBeenCalled();
   });
 });
 

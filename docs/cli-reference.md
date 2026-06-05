@@ -466,9 +466,27 @@ dxcrm import --from salesforce --mode api \
   --url https://myco.salesforce.com
 ```
 
-- Pass 1: fetches contacts → creates customer records (slug from email domain or Name)
-- Pass 2: fetches tasks → creates interactions (linked via `WhoId`)
-- `sourceRef` format: `salesforce://task/<task-id>`
+Full-fidelity, multi-object import (each object paginates via `nextRecordsUrl`):
+
+- **Accounts** → customers (registers `AccountId → slug` for downstream linking)
+- **Contacts** → customers (slug from email domain or Name)
+- **Tasks** → interactions (`salesforce://task/<id>`, linked via `WhoId`)
+- **Opportunities** → pipeline deals (`pipeline.md`, stage/amount/probability/close-date)
+- **Leads** → customers + a lead Note (`salesforce://lead/<id>`)
+- **Events** → Meeting interactions (`salesforce://event/<id>`, linked via `WhoId`/`WhatId`)
+- **Cases** → tickets (`tickets.md`, mapped status/priority, SLA computed)
+- **OpportunityLineItems** → one quote per opportunity
+- **Notes** → Note interactions (`salesforce://note/<id>`, linked via `ParentId`)
+- **CampaignMembers** → Note interactions (`salesforce://campaignmember/<id>`)
+- **Owner → Actor**: `OwnerId` on every record is resolved against `User` and
+  surfaced as ` [Owner: <name>]` on interactions and in deal notes.
+- **Account hierarchy**: `ParentId` → a Note on the subsidiary
+  (`salesforce://accounthierarchy/<id>`) recording the parent relationship.
+- **Custom fields (API describe)**: custom (`__c`) fields are auto-discovered via
+  the sObject `describe` endpoint, their values fetched, and written as a Note
+  (`salesforce://customfields/account/<id>`).
+- **Attachments**: binary bodies are downloaded into
+  `customers/<slug>/attachments/` (deduped by filename, linked via `ParentId`).
 - API version: v58.0 (SOQL via `/services/data/v58.0/query`)
 - Env vars: `SFDC_TOKEN`, `SFDC_URL`
 

@@ -525,6 +525,236 @@ describe("fetchSalesforceNotes", () => {
   });
 });
 
+describe("fetchSalesforceUsers", () => {
+  it("returns parsed users and paginates", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "u1", Name: "Sara Rep", Email: "sara@myco.com", IsActive: true }],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-u000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "u2", Name: "Tom Lead", Email: "tom@myco.com", IsActive: false }],
+            totalSize: 2,
+            done: true,
+          }),
+      });
+    const { fetchSalesforceUsers } = await import("../../src/sync/salesforce-client.js");
+    const users = await fetchSalesforceUsers("https://myco.salesforce.com", "tok");
+    expect(users).toHaveLength(2);
+    expect(users[0]!.Name).toBe("Sara Rep");
+    expect(users[0]!.Email).toBe("sara@myco.com");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]![0] as string).toContain("FROM+User");
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 403, statusText: "Forbidden" });
+    const { fetchSalesforceUsers } = await import("../../src/sync/salesforce-client.js");
+    await expect(fetchSalesforceUsers("https://myco.salesforce.com", "tok")).rejects.toThrow(
+      "Salesforce API error"
+    );
+  });
+});
+
+describe("fetchSalesforceAccounts", () => {
+  it("returns parsed accounts with ParentId and paginates", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [
+              {
+                Id: "a1",
+                Name: "Acme Subsidiary",
+                ParentId: "a0",
+                Website: "https://sub.acme.com",
+                OwnerId: "u1",
+              },
+            ],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-a000",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "a0", Name: "Acme Corp" }],
+            totalSize: 2,
+            done: true,
+          }),
+      });
+    const { fetchSalesforceAccounts } = await import("../../src/sync/salesforce-client.js");
+    const accounts = await fetchSalesforceAccounts("https://myco.salesforce.com", "tok");
+    expect(accounts).toHaveLength(2);
+    expect(accounts[0]!.Name).toBe("Acme Subsidiary");
+    expect(accounts[0]!.ParentId).toBe("a0");
+    expect(fetchMock.mock.calls[0]![0] as string).toContain("FROM+Account");
+  });
+});
+
+describe("describeSalesforceObject", () => {
+  it("fetches the describe metadata for an object", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          name: "Account",
+          fields: [
+            { name: "Name", label: "Account Name", type: "string", custom: false },
+            {
+              name: "Industry_Segment__c",
+              label: "Industry Segment",
+              type: "picklist",
+              custom: true,
+            },
+          ],
+        }),
+    });
+    const { describeSalesforceObject } = await import("../../src/sync/salesforce-client.js");
+    const fields = await describeSalesforceObject("https://myco.salesforce.com", "tok", "Account");
+    expect(fields).toHaveLength(2);
+    expect(fetchMock.mock.calls[0]![0] as string).toContain("/sobjects/Account/describe");
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
+    const { describeSalesforceObject } = await import("../../src/sync/salesforce-client.js");
+    await expect(
+      describeSalesforceObject("https://myco.salesforce.com", "tok", "Account")
+    ).rejects.toThrow("Salesforce API error");
+  });
+});
+
+describe("fetchSalesforceCustomFields", () => {
+  it("returns only the custom (__c) fields with name and label", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          name: "Account",
+          fields: [
+            { name: "Name", label: "Account Name", type: "string", custom: false },
+            {
+              name: "Industry_Segment__c",
+              label: "Industry Segment",
+              type: "picklist",
+              custom: true,
+            },
+            { name: "Health_Score__c", label: "Health Score", type: "double", custom: true },
+          ],
+        }),
+    });
+    const { fetchSalesforceCustomFields } = await import("../../src/sync/salesforce-client.js");
+    const custom = await fetchSalesforceCustomFields(
+      "https://myco.salesforce.com",
+      "tok",
+      "Account"
+    );
+    expect(custom).toHaveLength(2);
+    expect(custom.map((f) => f.name)).toEqual(["Industry_Segment__c", "Health_Score__c"]);
+    expect(custom[0]!.label).toBe("Industry Segment");
+  });
+});
+
+describe("fetchSalesforceRecords", () => {
+  it("builds a SOQL query from the given fields and returns records", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          records: [{ Id: "a1", Industry_Segment__c: "SaaS", Health_Score__c: 92 }],
+          totalSize: 1,
+          done: true,
+        }),
+    });
+    const { fetchSalesforceRecords } = await import("../../src/sync/salesforce-client.js");
+    const records = await fetchSalesforceRecords("https://myco.salesforce.com", "tok", "Account", [
+      "Id",
+      "Industry_Segment__c",
+      "Health_Score__c",
+    ]);
+    expect(records).toHaveLength(1);
+    expect(records[0]!["Industry_Segment__c"]).toBe("SaaS");
+    const url = fetchMock.mock.calls[0]![0] as string;
+    expect(url).toContain("SELECT+Id,Industry_Segment__c,Health_Score__c+FROM+Account");
+  });
+});
+
+describe("fetchSalesforceAttachments", () => {
+  it("returns parsed attachments and paginates", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [
+              {
+                Id: "att1",
+                Name: "contract.pdf",
+                ParentId: "a1",
+                ContentType: "application/pdf",
+                BodyLength: 1024,
+              },
+            ],
+            totalSize: 2,
+            done: false,
+            nextRecordsUrl: "/services/data/v58.0/query/01g-att0",
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            records: [{ Id: "att2", Name: "logo.png", ParentId: "a1" }],
+            totalSize: 2,
+            done: true,
+          }),
+      });
+    const { fetchSalesforceAttachments } = await import("../../src/sync/salesforce-client.js");
+    const atts = await fetchSalesforceAttachments("https://myco.salesforce.com", "tok");
+    expect(atts).toHaveLength(2);
+    expect(atts[0]!.Name).toBe("contract.pdf");
+    expect(atts[0]!.ParentId).toBe("a1");
+    expect(fetchMock.mock.calls[0]![0] as string).toContain("FROM+Attachment");
+  });
+});
+
+describe("downloadSalesforceAttachment", () => {
+  it("downloads the binary body and returns a Buffer", async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(bytes.buffer),
+    });
+    const { downloadSalesforceAttachment } = await import("../../src/sync/salesforce-client.js");
+    const buf = await downloadSalesforceAttachment("https://myco.salesforce.com", "tok", "att1");
+    expect(Buffer.isBuffer(buf)).toBe(true);
+    expect(buf).toHaveLength(4);
+    expect([...buf]).toEqual([1, 2, 3, 4]);
+    expect(fetchMock.mock.calls[0]![0] as string).toContain("/sobjects/Attachment/att1/Body");
+  });
+
+  it("throws on non-OK response", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
+    const { downloadSalesforceAttachment } = await import("../../src/sync/salesforce-client.js");
+    await expect(
+      downloadSalesforceAttachment("https://myco.salesforce.com", "tok", "att1")
+    ).rejects.toThrow("Salesforce API error");
+  });
+});
+
 describe("fetchSalesforceCampaignMembers", () => {
   it("returns parsed campaign members and paginates", async () => {
     fetchMock
