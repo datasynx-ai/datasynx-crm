@@ -34,6 +34,7 @@ This project follows **Test-Driven Development**. The non-negotiables:
 | `npm run test:coverage` | Coverage (critical path 100%, utilities ≥ 80%) |
 | `npm run typecheck` | `tsc` type checking (strict) |
 | `npm run lint` | ESLint (zero warnings allowed) |
+| `npm run knip` | Dead code, unused exports & unused dependencies (zero issues allowed) |
 | `npm run format` | Prettier write |
 | `npm run build` | Build the distributable with tsdown |
 | `npm run docs:generate` | Regenerate the CLI/MCP reference docs from code |
@@ -41,7 +42,7 @@ This project follows **Test-Driven Development**. The non-negotiables:
 ### Before you open a PR
 
 ```bash
-npm run typecheck && npm run lint && npm run format:check && npm test && npm run build
+npm run typecheck && npm run lint && npm run knip && npm run format:check && npm test && npm run build
 ```
 
 A Husky pre-commit hook runs `lint-staged`, and a commit-msg hook enforces

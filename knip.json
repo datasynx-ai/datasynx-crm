@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "project": ["src/**/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": [
+    "@semantic-release/github",
+    "@semantic-release/npm",
+    "expect-type",
+    "@napi-rs/canvas",
+    "express"
+  ],
+  "ignoreBinaries": ["which", ".*GPL-.*", "SSPL-.*", "BUSL-.*", "Commons-Clause"],
+  "rules": {
+    "duplicates": "off"
+  },
+  "vitest": {
+    "config": ["vitest.config.ts"],
+    "entry": ["__tests__/**/*.test.ts", "__tests__/setup.ts"]
+  }
+}

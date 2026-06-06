@@ -27,6 +27,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
+      - name: Dead code & dependency check (knip)
+        run: npm run knip
 
   # ── Stage 2: Tests (Node Matrix) ─────────────────────────────────────────
   test:
