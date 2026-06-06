@@ -1,12 +1,6 @@
 import crypto from "crypto";
 import { logger } from "./logger.js";
 
-export interface IncomingWebhookRequest {
-  headers: Record<string, string>;
-  rawBody: Buffer;
-  body: unknown;
-}
-
 export function verifyHmacSha256(secret: string, payload: Buffer, signature: string): boolean {
   if (!signature.startsWith("sha256=")) return false;
   const expected = "sha256=" + crypto.createHmac("sha256", secret).update(payload).digest("hex");

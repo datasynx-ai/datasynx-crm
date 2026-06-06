@@ -49,5 +49,3 @@ leadscoreCommand
       console.log(`  ${String(p).padStart(3)}%  ${d.name} (${d.stage})`);
     }
   });
-
-export default leadscoreCommand;

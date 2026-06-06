@@ -21,6 +21,4 @@ export const GlobalSourcesSchema = z.object({
   created: z.string(),
 });
 
-export type GmailSource = z.infer<typeof GmailSourceSchema>;
-export type TranscriptSource = z.infer<typeof TranscriptSourceSchema>;
 export type GlobalSources = z.infer<typeof GlobalSourcesSchema>;

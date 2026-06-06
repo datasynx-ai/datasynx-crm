@@ -7,16 +7,6 @@ export interface CalendlyEventType {
   active: boolean;
 }
 
-export interface CalendlyScheduledEvent {
-  uri: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  inviteeName: string;
-  inviteeEmail: string;
-  status: "active" | "canceled";
-}
-
 interface CalendlyApiEventType {
   uri: string;
   slug: string;
@@ -24,16 +14,6 @@ interface CalendlyApiEventType {
   duration: number;
   scheduling_url: string;
   active: boolean;
-}
-
-interface CalendlyApiEvent {
-  uri: string;
-  name: string;
-  start_time: string;
-  end_time: string;
-  status: "active" | "canceled";
-  event_memberships: unknown[];
-  invitees_counter: { total: number };
 }
 
 async function calendlyRequest<T>(apiKey: string, path: string): Promise<T> {
@@ -101,26 +81,4 @@ export async function getSchedulingLink(
   if (prefill?.email) params.set("email", prefill.email);
   if (params.toString()) url += `?${params.toString()}`;
   return url;
-}
-
-export async function listScheduledEvents(
-  apiKey: string,
-  since?: string
-): Promise<CalendlyScheduledEvent[]> {
-  const userUri = await getCurrentUserUri(apiKey);
-  const encoded = encodeURIComponent(userUri);
-  const sinceParam = since ? `&min_start_time=${encodeURIComponent(since)}` : "";
-  const resp = await calendlyRequest<{ collection: CalendlyApiEvent[] }>(
-    apiKey,
-    `/scheduled_events?user=${encoded}&status=active${sinceParam}&count=100`
-  );
-  return resp.collection.map((ev) => ({
-    uri: ev.uri,
-    name: ev.name,
-    startTime: ev.start_time,
-    endTime: ev.end_time,
-    inviteeName: "",
-    inviteeEmail: "",
-    status: ev.status,
-  }));
 }

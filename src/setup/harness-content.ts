@@ -86,7 +86,6 @@ const ALL_TOOLS = [
   "list_custom_objects",
 ] as const;
 
-export type McpToolName = (typeof ALL_TOOLS)[number];
 export { ALL_TOOLS };
 export const TOOL_COUNT = ALL_TOOLS.length; // 62
 

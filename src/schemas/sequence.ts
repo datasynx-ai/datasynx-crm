@@ -26,6 +26,5 @@ export const SequenceEnrollmentSchema = z.object({
   lastRepliedAt: z.string().optional(),
 });
 
-export type SequenceStep = z.infer<typeof SequenceStepSchema>;
 export type Sequence = z.infer<typeof SequenceSchema>;
 export type SequenceEnrollment = z.infer<typeof SequenceEnrollmentSchema>;
