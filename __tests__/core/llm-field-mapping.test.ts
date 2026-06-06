@@ -4,9 +4,9 @@ import { mapCsvFieldsHeuristic } from "../../src/core/llm.js";
 const mockMessagesCreate = vi.hoisted(() => vi.fn());
 
 vi.mock("@anthropic-ai/sdk", () => ({
-  default: vi.fn().mockImplementation(() => ({
-    messages: { create: mockMessagesCreate },
-  })),
+  default: vi.fn(function () {
+    return { messages: { create: mockMessagesCreate } };
+  }),
 }));
 
 describe("mapCsvFieldsHeuristic (no-LLM fallback)", () => {

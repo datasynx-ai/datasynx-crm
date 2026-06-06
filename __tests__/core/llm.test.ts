@@ -4,9 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("@anthropic-ai/sdk", () => {
   const mockCreate = vi.fn();
   return {
-    default: vi.fn().mockImplementation(() => ({
-      messages: { create: mockCreate },
-    })),
+    default: vi.fn(function () {
+      return { messages: { create: mockCreate } };
+    }),
     __mockCreate: mockCreate,
   };
 });

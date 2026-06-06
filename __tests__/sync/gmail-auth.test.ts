@@ -5,11 +5,9 @@ vi.mock("google-auth-library", () => {
   const setCredentials = vi.fn();
   const generateAuthUrl = vi.fn().mockReturnValue("https://accounts.google.com/o/oauth2/auth");
   const getToken = vi.fn().mockResolvedValue({ tokens: { access_token: "new-token" } });
-  const OAuth2Client = vi.fn().mockImplementation(() => ({
-    setCredentials,
-    generateAuthUrl,
-    getToken,
-  }));
+  const OAuth2Client = vi.fn(function () {
+    return { setCredentials, generateAuthUrl, getToken };
+  });
   return { OAuth2Client };
 });
 
