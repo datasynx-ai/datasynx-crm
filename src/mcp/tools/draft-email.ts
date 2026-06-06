@@ -106,7 +106,7 @@ Returns: { subject, body, to, tone, polished, resolvedVariables } — does NOT s
         slug: z.string().describe("Customer slug"),
         templateId: z.string().describe("Template ID to use"),
         overrides: z
-          .record(z.string())
+          .record(z.string(), z.string())
           .optional()
           .describe("Override any template variable (e.g. {firstName: 'Alice'})"),
         tone: z

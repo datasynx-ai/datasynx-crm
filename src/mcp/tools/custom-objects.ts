@@ -96,7 +96,7 @@ export function registerCustomObjectTools(server: McpServer, dataDir: string = D
         "Create a record of a custom object. Values are validated against the schema. rep+.",
       inputSchema: z.object({
         object: z.string().describe("Custom object name"),
-        values: z.record(z.string()).describe("Field values (key=value)"),
+        values: z.record(z.string(), z.string()).describe("Field values (key=value)"),
       }),
     },
     ({ object, values }) => handleCreateRecord({ object, values }, dataDir)
