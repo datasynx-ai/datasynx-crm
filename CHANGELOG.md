@@ -1,3 +1,10 @@
+## [1.16.2](https://github.com/datasynx/datasynx-crm/compare/v1.16.1...v1.16.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **deps:** safe minor/patch dependency bumps (refs [#33](https://github.com/datasynx/datasynx-crm/issues/33)) ([0f700cd](https://github.com/datasynx/datasynx-crm/commit/0f700cd818282d217290e2e669aeb9e9fdc48c7e))
+
 ## [1.16.1](https://github.com/datasynx/datasynx-crm/compare/v1.16.0...v1.16.1) (2026-06-06)
 
 
