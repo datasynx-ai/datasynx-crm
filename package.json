@@ -91,7 +91,7 @@
     "@anthropic-ai/sdk": "0.98.1",
     "@googleapis/calendar": "15.0.0",
     "@googleapis/gmail": "17.0.0",
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "4.2.0",
     "@joplin/turndown-plugin-gfm": "1.0.67",
     "@lancedb/lancedb": "0.30.0",
     "@modelcontextprotocol/sdk": "^1.10.0",
