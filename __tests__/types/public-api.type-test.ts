@@ -65,3 +65,39 @@ expectTypeOf<CustomerSummary["slug"]>().toBeString();
 expectTypeOf<CustomerSummary["name"]>().toBeString();
 expectTypeOf<CustomerSummary["dealValue"]>().toEqualTypeOf<number | undefined>();
 expectTypeOf<CustomerSummary["lastInteraction"]>().toEqualTypeOf<string | undefined>();
+
+// ── Runtime export surface ───────────────────────────────────────────────────
+// The programmatic API lives at the package root. These assertions fail at
+// `npm run typecheck` if a runtime export changes shape.
+import * as publicApi from "../../src/index.js";
+
+expectTypeOf(publicApi.VERSION).toBeString();
+expectTypeOf(publicApi.createCustomer).toBeFunction();
+expectTypeOf(publicApi.runBackup).toBeFunction();
+expectTypeOf(publicApi.readMainFacts).toBeFunction();
+expectTypeOf(publicApi.customerExists).toBeFunction();
+expectTypeOf(publicApi.canSeeCustomer).toBeFunction();
+expectTypeOf(publicApi.getSession).toBeFunction();
+
+// ── Leak-guard ───────────────────────────────────────────────────────────────
+// Pin the *exact* set of runtime exports. Adding or removing a value export
+// from src/index.ts breaks this until the union below is updated deliberately —
+// preventing an internal helper from silently leaking into the public surface.
+type RuntimeExportNames = keyof typeof publicApi;
+expectTypeOf<RuntimeExportNames>().toEqualTypeOf<
+  | "createCustomer"
+  | "runBackup"
+  | "runAudit"
+  | "runValidate"
+  | "readMainFacts"
+  | "customerExists"
+  | "readAuditLog"
+  | "filterAuditLog"
+  | "getRbacConfig"
+  | "getRole"
+  | "canSeeCustomer"
+  | "getSession"
+  | "setSession"
+  | "clearSession"
+  | "VERSION"
+>();
