@@ -72,6 +72,11 @@ import { registerListTasks } from "./tools/list-tasks.js";
 import { registerCompleteTask } from "./tools/complete-task.js";
 import { registerSnoozeTask } from "./tools/snooze-task.js";
 import { registerGetEmailEngagement } from "./tools/get-email-engagement.js";
+import {
+  registerCreateProduct,
+  registerListProducts,
+  registerUpdateProduct,
+} from "./tools/product-tools.js";
 import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
 import { registerGetSurveyResults } from "./tools/get-survey-results.js";
 import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
@@ -175,6 +180,9 @@ export function createMcpServer(): McpServer {
   registerCompleteTask(server);
   registerSnoozeTask(server);
   registerGetEmailEngagement(server);
+  registerCreateProduct(server);
+  registerListProducts(server);
+  registerUpdateProduct(server);
   registerSendNpsSurvey(server);
   registerGetSurveyResults(server);
   registerSearchKnowledgeBase(server);

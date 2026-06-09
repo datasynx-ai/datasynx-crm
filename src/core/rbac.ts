@@ -14,6 +14,8 @@ export interface RbacConfig {
 
 // Tasks are personal follow-ups — every role manages their own (issue #46).
 const TASK_TOOLS = ["create_task", "complete_task", "snooze_task"];
+// Catalog is shared pricing config — manager/admin only (issue #50).
+const CATALOG_TOOLS = ["create_product", "update_product"];
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: [
@@ -26,8 +28,16 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     "define_custom_object",
     "create_record",
     ...TASK_TOOLS,
+    ...CATALOG_TOOLS,
   ],
-  manager: ["log_interaction", "update_deal", "pursue_goal", "create_record", ...TASK_TOOLS],
+  manager: [
+    "log_interaction",
+    "update_deal",
+    "pursue_goal",
+    "create_record",
+    ...TASK_TOOLS,
+    ...CATALOG_TOOLS,
+  ],
   rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS],
 };
 

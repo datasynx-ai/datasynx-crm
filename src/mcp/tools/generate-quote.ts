@@ -8,7 +8,12 @@ export async function handleGenerateQuote(
   input: {
     slug: string;
     dealName: string;
-    lineItems: Array<{ description: string; quantity: number; unitPrice: number }>;
+    lineItems: Array<{
+      sku?: string | undefined;
+      description?: string | undefined;
+      quantity: number;
+      unitPrice?: number | undefined;
+    }>;
     vatPercent?: number;
     validUntilDays?: number;
     currency?: string;
@@ -51,6 +56,8 @@ export function registerGenerateQuote(server: McpServer, dataDir: string = DATA_
     "generate_quote",
     {
       description: `Generate a professional HTML quote/offer for a customer deal.
+Line items can reference catalog products by SKU (price/description/tax auto-filled,
+see create_product) or be free ad-hoc items (description + unitPrice).
 Calculates subtotal, VAT, and total. Saves JSON + HTML to .agentic/quotes/.
 Returns: { quoteNumber, htmlPath, total, currency, validUntil }`,
       inputSchema: z.object({
@@ -59,13 +66,14 @@ Returns: { quoteNumber, htmlPath, total, currency, validUntil }`,
         lineItems: z
           .array(
             z.object({
-              description: z.string(),
+              sku: z.string().optional().describe("Catalog SKU — fills description/price/tax"),
+              description: z.string().optional().describe("Required for free ad-hoc items"),
               quantity: z.number().positive(),
-              unitPrice: z.number().min(0),
+              unitPrice: z.number().min(0).optional().describe("Required for free ad-hoc items"),
             })
           )
           .min(1)
-          .describe("Line items for the quote"),
+          .describe("Line items — by SKU and/or free (description + unitPrice)"),
         vatPercent: z.number().min(0).max(100).optional().describe("VAT percentage (default 19)"),
         validUntilDays: z
           .number()

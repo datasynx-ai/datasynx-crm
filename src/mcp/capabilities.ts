@@ -84,6 +84,9 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | list_sequences | List all defined email sequences with step count and enrollment count | any |
 | generate_quote | Generate a professional HTML quote with line items, VAT, subtotal, total | rep+ |
 | get_quote_status | Retrieve a generated quote by number or list all quotes for a customer | any |
+| create_product | Create/update a catalog product (upsert by SKU) for reuse in quotes | manager+ |
+| list_products | List catalog products (SKU, name, price, tax, recurring) | any |
+| update_product | Update fields of a catalog product by SKU | manager+ |
 | get_booking_link | Get a Calendly booking link for a customer — optionally pre-fills name/email | rep+ |
 | create_ticket | Create a support ticket with auto-calculated SLA due date based on priority | rep+ |
 | update_ticket | Update ticket status or assignee (resolved auto-sets resolution date) | rep+ |
@@ -414,6 +417,18 @@ Get quote status and details. Filter by quoteNumber (single quote) or slug (all 
 - Input: { quoteNumber?: string, slug?: string }
 - Returns (single): Full quote object with status: draft | sent | viewed | accepted | declined
 - Returns (list): { quotes: [...] }
+
+### create_product({ sku, name, unitPrice, currency?, taxRate?, recurring?, description? })
+Create or update a catalog product (upsert by SKU) so quotes can reference items by SKU (#50).
+- Returns: { success, product }
+
+### list_products()
+List all catalog products.
+- Returns: { count, products }
+
+### update_product({ sku, ... })
+Update fields of an existing catalog product by SKU.
+- Returns: { success, product } or { success:false, error } when unknown
 
 ### get_booking_link({ slug, eventType?, prefillName? })
 Get a Calendly booking link for a customer. Optionally pre-fills the customer's name/email.

@@ -33,6 +33,7 @@ import { taskCommand } from "./task.js";
 import { templateCommand } from "./template.js";
 import { sequenceCommand } from "./sequence.js";
 import { quoteCommand } from "./quote.js";
+import { productCommand } from "./product.js";
 import { ticketCommand } from "./ticket.js";
 import { surveyCommand } from "./survey.js";
 import { kbCommand } from "./kb.js";
@@ -99,6 +100,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   templateCommand,
   sequenceCommand,
   quoteCommand,
+  productCommand,
   ticketCommand,
   surveyCommand,
   kbCommand,

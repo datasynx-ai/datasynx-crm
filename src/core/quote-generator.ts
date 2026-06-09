@@ -13,10 +13,19 @@ interface QuoteConfig {
   footerText?: string;
 }
 
+export interface GenerateQuoteLineItem {
+  /** Reference a catalog product by SKU; price/description are filled in (#50). */
+  sku?: string | undefined;
+  description?: string | undefined;
+  quantity: number;
+  /** Required for free ad-hoc items; optional when a SKU is given. */
+  unitPrice?: number | undefined;
+}
+
 export interface GenerateQuoteInput {
   slug: string;
   dealName: string;
-  lineItems: Array<{ description: string; quantity: number; unitPrice: number }>;
+  lineItems: GenerateQuoteLineItem[];
   vatPercent?: number;
   validUntilDays?: number;
   currency?: string;
@@ -150,16 +159,40 @@ export function updateQuoteStatus(
 
 export async function generateQuote(dataDir: string, input: GenerateQuoteInput): Promise<Quote> {
   const config = loadQuoteConfig(dataDir);
-  const vatPercent = input.vatPercent ?? 19;
   const validUntilDays = input.validUntilDays ?? 30;
-  const currency = input.currency ?? config.currency ?? "EUR";
 
-  const items: QuoteLineItem[] = input.lineItems.map((item) => ({
-    description: item.description,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    total: item.quantity * item.unitPrice,
-  }));
+  // Resolve catalog SKUs → description / unitPrice / tax (#50). Free ad-hoc
+  // items (description + unitPrice, no SKU) keep working unchanged.
+  const { getProduct } = await import("../fs/catalog-store.js");
+  let catalogTaxRate: number | undefined;
+  let catalogCurrency: string | undefined;
+  const items: QuoteLineItem[] = input.lineItems.map((item) => {
+    const product = item.sku ? getProduct(dataDir, item.sku) : undefined;
+    if (item.sku && !product) {
+      throw new Error(`Unknown product SKU '${item.sku}' — add it via create_product first.`);
+    }
+    const description = item.description ?? product?.name;
+    const unitPrice = item.unitPrice ?? product?.unitPrice;
+    if (!description || unitPrice === undefined) {
+      throw new Error("Each line item needs a SKU or both description and unitPrice.");
+    }
+    if (product) {
+      if (catalogTaxRate === undefined && product.taxRate !== undefined) {
+        catalogTaxRate = product.taxRate;
+      }
+      if (catalogCurrency === undefined) catalogCurrency = product.currency;
+    }
+    return {
+      description,
+      quantity: item.quantity,
+      unitPrice,
+      total: Math.round(item.quantity * unitPrice * 100) / 100,
+    };
+  });
+
+  // Tax/currency from the catalog when the caller didn't specify them.
+  const vatPercent = input.vatPercent ?? catalogTaxRate ?? 19;
+  const currency = input.currency ?? config.currency ?? catalogCurrency ?? "EUR";
 
   const subtotal = items.reduce((sum, i) => sum + i.total, 0);
   const vat = Math.round(subtotal * (vatPercent / 100) * 100) / 100;
