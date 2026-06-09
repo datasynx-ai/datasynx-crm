@@ -82,6 +82,19 @@ export function formatTaskMessage(task: AgentTask): string {
       return `💡 *Signal: ${slug}*\n${String(payload["summary"] ?? "")}`;
     case "follow_up_nudge":
       return `📞 *Follow-up: ${slug}*\n${String(payload["message"] ?? "")}`;
+    case "task_due_reminder": {
+      const p = payload as {
+        date?: string;
+        tasks?: Array<{ title?: string; slug?: string; dueDate?: string; priority?: string }>;
+      };
+      const lines = [`✅ *Tasks due ${p.date ?? "today"}*`, ""];
+      for (const t of (p.tasks ?? []).slice(0, 15)) {
+        const cust = t.slug ? ` [${t.slug}]` : "";
+        const prio = t.priority === "high" ? " ‼️" : "";
+        lines.push(`• ${t.title ?? "?"}${cust} — due ${t.dueDate ?? "?"}${prio}`);
+      }
+      return lines.join("\n");
+    }
     default:
       return `📌 CRM Task (${task.type})\n${JSON.stringify(payload).slice(0, 200)}`;
   }

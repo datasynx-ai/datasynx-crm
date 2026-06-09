@@ -29,6 +29,7 @@ import { pluginCommand } from "./plugin.js";
 import { goalCommand } from "./goal.js";
 import { pushCommand } from "./push.js";
 import { attachCommand } from "./attach.js";
+import { taskCommand } from "./task.js";
 import { templateCommand } from "./template.js";
 import { sequenceCommand } from "./sequence.js";
 import { quoteCommand } from "./quote.js";
@@ -94,6 +95,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   goalCommand,
   pushCommand,
   attachCommand,
+  taskCommand,
   templateCommand,
   sequenceCommand,
   quoteCommand,

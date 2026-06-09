@@ -89,6 +89,10 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | update_ticket | Update ticket status or assignee (resolved auto-sets resolution date) | rep+ |
 | list_tickets | List tickets filtered by customer, status, priority, or assignee | any |
 | close_ticket | Close a ticket and optionally log resolution as an interaction | rep+ |
+| create_task | Create a first-class task / dated reminder ("remind me Friday about Acme") | rep+ |
+| list_tasks | List tasks — "what is due today?" (due: today/overdue, slug, assignee, status), RBAC-aware | any |
+| complete_task | Mark a task as done | rep+ |
+| snooze_task | Defer a task; it resurfaces on the given date | rep+ |
 | send_nps_survey | Generate NPS/CSAT survey token + HTML email draft (does not send automatically) | rep+ |
 | get_survey_results | NPS score, promoter/passive/detractor breakdown, all responses for a survey | any |
 | search_knowledge_base | Full-text search across KB articles (title, body, tags) with category and public filters | any |
@@ -445,6 +449,28 @@ Close a ticket and optionally log the resolution as an interaction in interactio
 RBAC: rep+
 - Input: { slug, ticketId, resolution?: string }
 - Returns: { ticket } with status=closed
+
+### create_task({ title, dueDate, slug?, priority?, assignee?, linkedDeal? })
+Create a first-class task / dated reminder. The daemon pushes due/overdue tasks to
+Slack/Telegram daily. Use this instead of a loose recommendation when a follow-up has a date.
+- Input: { title, dueDate: "YYYY-MM-DD", slug?, priority?: "high"|"normal"|"low", assignee?, linkedDeal? }
+- Returns: { success, task: { id, title, dueDate, status: "open", … } }
+
+### list_tasks({ due?, slug?, assignee?, status? })
+The rep's "what is due today?" view. RBAC-aware: customer-bound tasks are only visible when
+the customer is; manager/admin see all.
+- Input: { due?: "today"|"overdue", slug?, assignee?, status?: "open"|"done"|"snoozed" }
+- Returns: { today, count, tasks: [...] }
+
+### complete_task({ taskId })
+Mark a task as done (sets completedAt).
+- Input: { taskId }
+- Returns: { success, task }
+
+### snooze_task({ taskId, until })
+Defer a task: it disappears from "due today" and resurfaces (incl. daemon reminders) on the given date.
+- Input: { taskId, until: "YYYY-MM-DD" }
+- Returns: { success, task }
 
 ### send_nps_survey({ slug, contactEmail, surveyId, serverUrl? })
 Generate an NPS/CSAT survey email draft. Returns subject, HTML body, and a token-based response URL.

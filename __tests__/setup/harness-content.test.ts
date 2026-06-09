@@ -95,7 +95,7 @@ const V2_CRITICAL_TOOLS = [
 
 describe("TOOL_COUNT", () => {
   it("exports correct tool count", () => {
-    expect(TOOL_COUNT).toBe(62);
+    expect(TOOL_COUNT).toBe(66);
   });
 });
 

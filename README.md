@@ -109,7 +109,7 @@ flowchart LR
 Every customer is a folder of <code>main_facts</code>, <code>interactions</code>, and <code>pipeline</code> files. Git-friendly, grep-able, yours forever.
 </td>
 <td align="center" width="33%">
-<h3>🔌 62 MCP tools</h3>
+<h3>🔌 66 MCP tools</h3>
 Typed tools for context, deals, comms, and intelligence — discoverable by agents via <code>get_capabilities</code>.
 </td>
 <td align="center" width="33%">
@@ -181,7 +181,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                   dxcrm MCP server  ·  62 tools                    │
+│                   dxcrm MCP server  ·  66 tools                    │
 │                                                                    │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────────┐  │
 │  │  Customer  │ │  Pipeline  │ │Relationship│ │   Forecasting   │  │
@@ -206,7 +206,7 @@ An agent per customer pings you (Telegram) the moment a relevant email lands.
   Import:   HubSpot · Salesforce · Pipedrive · CSV
 ```
 
-→ Full reference: **[56 CLI commands](https://datasynx.github.io/datasynx-crm/#full-cli-reference)** · **[62 MCP tools](https://datasynx.github.io/datasynx-crm/#full-mcp-reference)**
+→ Full reference: **[61 CLI commands](https://datasynx.github.io/datasynx-crm/#full-cli-reference)** · **[66 MCP tools](https://datasynx.github.io/datasynx-crm/#full-mcp-reference)**
 
 <br/>
 
@@ -396,7 +396,7 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 
 **Shipped**
 
-- ✅ 62 MCP tools · 56 CLI commands · local-first Markdown store
+- ✅ 66 MCP tools · 61 CLI commands · local-first Markdown store
 - ✅ Hybrid (vector + full-text) search over emails & transcripts
 - ✅ Sync: Gmail, Outlook, Google Drive, Teams, Google Meet
 - ✅ Import: HubSpot, Salesforce, Pipedrive, CSV

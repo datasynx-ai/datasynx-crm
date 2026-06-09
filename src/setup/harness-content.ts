@@ -60,6 +60,11 @@ const ALL_TOOLS = [
   "update_ticket",
   "list_tickets",
   "close_ticket",
+  // Tasks & Reminders (issue #46)
+  "create_task",
+  "list_tasks",
+  "complete_task",
+  "snooze_task",
   // NPS/CSAT Survey (H7)
   "send_nps_survey",
   "get_survey_results",
@@ -87,7 +92,7 @@ const ALL_TOOLS = [
 ] as const;
 
 export { ALL_TOOLS };
-export const TOOL_COUNT = ALL_TOOLS.length; // 62
+export const TOOL_COUNT = ALL_TOOLS.length; // 66
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -198,6 +203,12 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 - \`update_ticket({ slug, ticketId, status?, assignee? })\` — update ticket status or assignee
 - \`list_tickets({ slug?, status?, priority?, assignee? })\` — list tickets sorted by priority
 - \`close_ticket({ slug, ticketId, resolution? })\` — close ticket and optionally log resolution
+
+### Tasks & Reminders (#46)
+- \`create_task({ title, dueDate, slug?, priority?, assignee?, linkedDeal? })\` — dated reminder/follow-up ("remind me Friday about Acme")
+- \`list_tasks({ due?, slug?, assignee?, status? })\` — "what is due today?" (due: today | overdue), RBAC-aware
+- \`complete_task({ taskId })\` — mark a task done
+- \`snooze_task({ taskId, until })\` — defer a task; it resurfaces on the given date
 
 ### NPS/CSAT Surveys (H7)
 - \`send_nps_survey({ slug, contactEmail, surveyId, serverUrl? })\` — generate survey token and email body for NPS/CSAT survey
@@ -325,6 +336,8 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 **Calendly (H3):** get_booking_link
 
 **Tickets (H6):** create_ticket · update_ticket · list_tickets · close_ticket
+
+**Tasks & Reminders (#46):** create_task · list_tasks · complete_task · snooze_task
 
 **NPS/CSAT (H7):** send_nps_survey · get_survey_results
 
@@ -486,6 +499,7 @@ list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
 generate_quote · get_quote_status · get_booking_link ·
 create_ticket · update_ticket · list_tickets · close_ticket ·
+create_task · list_tasks · complete_task · snooze_task ·
 send_nps_survey · get_survey_results ·
 search_knowledge_base · create_kb_article ·
 backup_now · list_backups ·
@@ -563,6 +577,7 @@ list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
 generate_quote · get_quote_status · get_booking_link ·
 create_ticket · update_ticket · list_tickets · close_ticket ·
+create_task · list_tasks · complete_task · snooze_task ·
 send_nps_survey · get_survey_results ·
 search_knowledge_base · create_kb_article
 

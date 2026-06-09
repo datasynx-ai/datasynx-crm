@@ -2,7 +2,7 @@ import { ALL_TOOLS } from "../setup/harness-content.js";
 
 /**
  * Tool search (N1-5): rank the registered MCP tools by relevance to a query so
- * agents can discover the right tool without loading all 62 up front
+ * agents can discover the right tool without loading all 66 up front
  * (mitigates context overflow). Scoring favours exact name-token matches.
  */
 export interface ToolMatch {

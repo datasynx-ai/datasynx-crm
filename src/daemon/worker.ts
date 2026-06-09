@@ -265,6 +265,14 @@ new CronJob(
     });
     await runSelfHeal();
     await takeDailySnapshot();
+    // Daily task queue (#46): due/overdue tasks → proactive queue → Slack/Telegram.
+    // remindedOn guards against re-sending within the same day.
+    {
+      const { runTaskReminders } = await import("./task-reminder.js");
+      await runTaskReminders(DATA_DIR).catch((err: unknown) => {
+        logger.error("daemon", "task reminder check failed", { error: (err as Error).message });
+      });
+    }
   },
   null,
   true,

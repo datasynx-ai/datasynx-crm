@@ -16,7 +16,8 @@ export type TaskType =
   | "follow_up_nudge"
   | "goal_progress_update"
   | "pipeline_forecast_weekly"
-  | "playbook_suggestion";
+  | "playbook_suggestion"
+  | "task_due_reminder";
 
 export type NotificationChannel = "telegram" | "slack" | "email" | "mcp_tool_response";
 export type TaskPriority = "urgent" | "high" | "normal";

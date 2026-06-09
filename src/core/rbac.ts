@@ -12,6 +12,9 @@ export interface RbacConfig {
   field_acl?: Record<string, Role[]>;
 }
 
+// Tasks are personal follow-ups — every role manages their own (issue #46).
+const TASK_TOOLS = ["create_task", "complete_task", "snooze_task"];
+
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: [
     "log_interaction",
@@ -22,9 +25,10 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     "register_push_subscription",
     "define_custom_object",
     "create_record",
+    ...TASK_TOOLS,
   ],
-  manager: ["log_interaction", "update_deal", "pursue_goal", "create_record"],
-  rep: ["log_interaction", "update_deal", "create_record"],
+  manager: ["log_interaction", "update_deal", "pursue_goal", "create_record", ...TASK_TOOLS],
+  rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS],
 };
 
 function rbacPath(dataDir: string): string {
