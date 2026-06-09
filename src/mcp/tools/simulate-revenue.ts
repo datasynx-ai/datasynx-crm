@@ -9,12 +9,14 @@ import {
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
 export async function handleSimulateRevenue(
-  input: { horizon?: "quarter" | "year"; iterations?: number },
+  input: { horizon?: "30d" | "90d" | "quarter" | "year"; iterations?: number },
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const horizon = input.horizon ?? "quarter";
+    // Rolling 90-day window by default — the calendar quarter silently dropped
+    // next-quarter pipeline near quarter-end (#55).
+    const horizon = input.horizon ?? "90d";
 
     const simInput = await buildSimulationInput(dataDir, horizon, today);
     if (input.iterations !== undefined) simInput.iterations = input.iterations;
@@ -31,6 +33,9 @@ export async function handleSimulateRevenue(
               forecast: result,
               confidence,
               dealCount: simInput.deals.length,
+              includedDeals: simInput.deals.length,
+              excludedDeals: simInput.excludedDeals,
+              excludedValue: simInput.excludedValue,
               horizon,
               simulatedAt: new Date().toISOString(),
             },
@@ -68,16 +73,20 @@ Use this instead of (or alongside) get_pipeline_forecast when you need:
 - Deal sensitivity analysis ("which deal matters most")
 - Month-by-month close distribution
 
+Horizon is a ROLLING window by default ("90d") — the calendar "quarter" used to
+silently drop next-quarter pipeline near quarter-end. Deals beyond the horizon
+are reported in excludedDeals/excludedValue, never dropped silently.
+
 Args:
-  horizon: "quarter" (default) | "year"
+  horizon: "30d" | "90d" (default, rolling) | "quarter" (calendar) | "year"
   iterations: simulation iterations (default: 10000)
 
-Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMonth, topRisks, sensitivityMap }, confidence, dealCount, horizon }`,
+Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMonth, topRisks, sensitivityMap }, confidence, dealCount, includedDeals, excludedDeals: [{ slug, name, stage, value, closeDate }], excludedValue, horizon }`,
       inputSchema: z.object({
         horizon: z
-          .enum(["quarter", "year"])
+          .enum(["30d", "90d", "quarter", "year"])
           .optional()
-          .describe('Forecast horizon (default: "quarter")'),
+          .describe('Forecast horizon (default: "90d" rolling window)'),
         iterations: z.number().optional().describe("Monte Carlo iterations (default: 10000)"),
       }),
     },

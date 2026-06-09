@@ -49,7 +49,7 @@ describe("handleSimulateRevenue", () => {
     expect(typeof forecast["p90"]).toBe("number");
   });
 
-  it("defaults to horizon=quarter", async () => {
+  it("defaults to the rolling 90d horizon (#55)", async () => {
     vol.fromJSON({
       [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: makePipelineMd(),
       [`${DATA_DIR}/customers/${SLUG}/health.json`]: makeHealthJson(),
@@ -57,7 +57,26 @@ describe("handleSimulateRevenue", () => {
     const { handleSimulateRevenue } = await import("../../../src/mcp/tools/simulate-revenue.js");
     const result = await handleSimulateRevenue({ iterations: 100 }, DATA_DIR);
     const parsed = parseResult(result);
-    expect(parsed["horizon"]).toBe("quarter");
+    expect(parsed["horizon"]).toBe("90d");
+  });
+
+  it("reports excludedDeals + excludedValue instead of dropping them silently (#55)", async () => {
+    // A deal far in the future is beyond any rolling/quarter horizon.
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: `# Pipeline
+
+| Name | Stage | Value | Currency | Probability | Close Date | Notes | Updated |
+|------|-------|-------|----------|-------------|------------|-------|---------|
+| Far Future | negotiation | 90000 |  | 75 | 2099-01-01 | | 2026-05-20 |`,
+      [`${DATA_DIR}/customers/${SLUG}/health.json`]: makeHealthJson(),
+    });
+    const { handleSimulateRevenue } = await import("../../../src/mcp/tools/simulate-revenue.js");
+    const result = await handleSimulateRevenue({ iterations: 100 }, DATA_DIR);
+    const parsed = parseResult(result);
+    expect(parsed["includedDeals"]).toBe(0);
+    const excluded = parsed["excludedDeals"] as Array<{ name: string }>;
+    expect(excluded.map((d) => d.name)).toContain("Far Future");
+    expect(parsed["excludedValue"]).toBe(90000);
   });
 
   it("returns dealCount in response", async () => {

@@ -58,6 +58,8 @@ export async function buildDealRoom(
       iterations: 1000,
       horizon: "quarter" as const,
       today,
+      excludedDeals: [],
+      excludedValue: 0,
     })),
   ]);
 

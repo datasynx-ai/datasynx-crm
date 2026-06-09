@@ -26,12 +26,30 @@ export interface DealSnapshot {
   championPresent: boolean;
 }
 
+/**
+ * Forecast horizons. Default is the rolling "90d" window — the calendar
+ * "quarter" silently dropped next-quarter pipeline near quarter-end (#55).
+ */
+export type Horizon = "30d" | "90d" | "quarter" | "year";
+
+/** A deal excluded from the forecast because it closes beyond the horizon. */
+export interface ExcludedDeal {
+  slug: string;
+  name: string;
+  stage: string;
+  value: number;
+  closeDate: string;
+}
+
 export interface SimulationInput {
   deals: DealSnapshot[];
   externalSignals: ExternalSignal[];
   iterations: number;
-  horizon: "quarter" | "year";
+  horizon: Horizon;
   today: string;
+  /** Open deals beyond the horizon — surfaced so nothing disappears silently. */
+  excludedDeals: ExcludedDeal[];
+  excludedValue: number;
 }
 
 export interface MonthForecast {
@@ -236,17 +254,40 @@ function getQuarterEnd(date: Date): Date {
   return new Date(date.getFullYear(), quarterEndMonth + 1, 0);
 }
 
+/** Inclusive end date for a forecast horizon, relative to `today`. */
+export function getHorizonEnd(today: Date, horizon: Horizon): Date {
+  switch (horizon) {
+    case "30d":
+      return new Date(today.getTime() + 30 * 86_400_000);
+    case "90d":
+      return new Date(today.getTime() + 90 * 86_400_000);
+    case "year":
+      return new Date(today.getFullYear(), 11, 31);
+    case "quarter":
+    default:
+      return getQuarterEnd(today);
+  }
+}
+
 // ─── Data aggregation ─────────────────────────────────────────────────────────
 
 export async function buildSimulationInput(
   dataDir: string,
-  horizon: "quarter" | "year",
+  horizon: Horizon,
   today: string,
   externalSignals: ExternalSignal[] = []
 ): Promise<SimulationInput> {
   const slugs = listCustomerSlugs(dataDir);
   if (slugs.length === 0) {
-    return { deals: [], externalSignals, iterations: 10_000, horizon, today };
+    return {
+      deals: [],
+      externalSignals,
+      iterations: 10_000,
+      horizon,
+      today,
+      excludedDeals: [],
+      excludedValue: 0,
+    };
   }
 
   const stages = getPipelineStages(dataDir);
@@ -256,9 +297,9 @@ export async function buildSimulationInput(
   }
 
   const deals: DealSnapshot[] = [];
+  const excludedDeals: ExcludedDeal[] = [];
   const todayDate = new Date(today);
-  const horizonEnd =
-    horizon === "quarter" ? getQuarterEnd(todayDate) : new Date(todayDate.getFullYear(), 11, 31);
+  const horizonEnd = getHorizonEnd(todayDate, horizon);
 
   for (const slug of slugs) {
     const pipelineDeals = await readPipeline(dataDir, slug).catch(() => []);
@@ -285,7 +326,17 @@ export async function buildSimulationInput(
 
       if (deal.close_date && deal.close_date.trim() !== "") {
         const closeDate = new Date(deal.close_date);
-        if (closeDate > horizonEnd) continue;
+        if (closeDate > horizonEnd) {
+          // Beyond the horizon — record it instead of dropping it silently (#55).
+          excludedDeals.push({
+            slug,
+            name: deal.name,
+            stage: deal.stage,
+            value: deal.value ?? 0,
+            closeDate: deal.close_date,
+          });
+          continue;
+        }
       }
 
       const probability = deal.probability ?? stageProb[deal.stage] ?? 50;
@@ -306,5 +357,14 @@ export async function buildSimulationInput(
     }
   }
 
-  return { deals, externalSignals, iterations: 10_000, horizon, today };
+  const excludedValue = excludedDeals.reduce((sum, d) => sum + d.value, 0);
+  return {
+    deals,
+    externalSignals,
+    iterations: 10_000,
+    horizon,
+    today,
+    excludedDeals,
+    excludedValue,
+  };
 }
