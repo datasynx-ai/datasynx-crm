@@ -634,7 +634,7 @@ Adjusts deal win probabilities using relationship health (D12) and champion pres
 ```json
 // Input
 {
-  "horizon": "quarter",   // "quarter" (default) | "year"
+  "horizon": "90d",       // "30d" | "90d" (default, rolling) | "quarter" (calendar) | "year"
   "iterations": 10000     // optional, default 10000
 }
 
@@ -661,10 +661,21 @@ Adjusts deal win probabilities using relationship health (D12) and champion pres
   },
   "confidence": "P50 forecast: €287.5k with ±€133.5k uncertainty (P10–P90 range). 28% of pipeline is at risk. 5 deals simulated.",
   "dealCount": 5,
-  "horizon": "quarter",
-  "simulatedAt": "2026-05-27T14:00:00.000Z"
+  "includedDeals": 5,
+  "excludedDeals": [
+    { "slug": "beta-gmbh", "name": "Phase 2", "stage": "proposal", "value": 60000, "closeDate": "2026-11-15" }
+  ],
+  "excludedValue": 60000,
+  "horizon": "90d",
+  "simulatedAt": "2026-06-09T14:00:00.000Z"
 }
 ```
+
+**Horizon (#55):** the default is a **rolling 90-day window**, not the calendar
+quarter — near quarter-end, `"quarter"` silently dropped most of the pipeline.
+Deals closing beyond the horizon are never dropped silently; they are listed in
+`excludedDeals` with their summed `excludedValue`. `get_pipeline_forecast`
+(no horizon filter) remains the unbounded view.
 
 **Probability adjustment:** Base probability + health adjustment (health 60 = neutral, ±0.2 range) + champion bonus (+5%).
 

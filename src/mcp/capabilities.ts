@@ -268,10 +268,12 @@ RBAC: rep+
 - Returns: { success, actionId, status }
 
 ### simulate_revenue({ horizon?, iterations? })
-Monte Carlo simulation over all active deals. Adjusts probabilities via health score (D12) and
+Monte Carlo simulation over active deals. Adjusts probabilities via health score (D12) and
 champion presence (D11). Returns P10/P50/P90 confidence interval + sensitivity map.
-horizon: "quarter" (default) | "year"
-- Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMonth, topRisks, sensitivityMap }, confidence, dealCount, horizon }
+horizon: "30d" | "90d" (default, rolling window) | "quarter" (calendar) | "year". The rolling
+default avoids silently dropping next-quarter pipeline near quarter-end; deals beyond the horizon
+are reported in excludedDeals/excludedValue.
+- Returns: { forecast: {...}, confidence, dealCount, includedDeals, excludedDeals, excludedValue, horizon }
 
 ### get_playbook({ slug, stage?, value?, healthScore?, daysSinceContact?, championPresent? })
 Returns playbooks matching the current deal situation. Without deal context, returns all playbooks.

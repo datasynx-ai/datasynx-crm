@@ -5,7 +5,7 @@ import { callLlm } from "./llm.js";
 import { getActor } from "../fs/audit-log.js";
 import { withJsonFile } from "./file-lock.js";
 import { guardIsoDate } from "./input-guard.js";
-import type { DealSnapshot, SimulationInput } from "./revenue-simulation.js";
+import type { DealSnapshot, SimulationInput, Horizon } from "./revenue-simulation.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
 import { listCustomerSlugs } from "../fs/customer-dir.js";
 import { writeJsonFile } from "../fs/json-store.js";
@@ -53,7 +53,7 @@ export interface Goal {
 
 export type BuildInputFn = (
   dataDir: string,
-  horizon: "quarter" | "year",
+  horizon: Horizon,
   today: string
 ) => Promise<SimulationInput>;
 

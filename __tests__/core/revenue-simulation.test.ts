@@ -614,7 +614,7 @@ describe("buildSimulationInput", () => {
     }
   });
 
-  it("filters deals beyond quarter horizon", async () => {
+  it("filters deals beyond the quarter horizon but reports them as excluded", async () => {
     vol.fromJSON({
       [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: makePipelineMd([
         "| Far Future | negotiation | 50000 |  | 75 | 2027-03-01 | | 2026-05-20 |",
@@ -626,6 +626,38 @@ describe("buildSimulationInput", () => {
     // Quarter end for 2026-05-27 = 2026-06-30, so 2027-03-01 is beyond
     const input = await buildSimulationInput(DATA_DIR, "quarter", TODAY);
     expect(input.deals).toHaveLength(0);
+    // Nothing disappears silently anymore (#55).
+    expect(input.excludedDeals.map((d) => d.name)).toContain("Far Future");
+    expect(input.excludedValue).toBe(50000);
+  });
+
+  it("90d rolling window includes a next-quarter deal that 'quarter' drops (#55)", async () => {
+    // TODAY 2026-05-27: quarter end 2026-06-30, +90d ≈ 2026-08-25.
+    const row = "| Aug Deal | negotiation | 60000 |  | 75 | 2026-08-01 | | 2026-05-20 |";
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: makePipelineMd([row]),
+      [`${DATA_DIR}/customers/acme-corp/health.json`]: makeHealthJson(),
+    });
+    vi.resetModules();
+    const { buildSimulationInput } = await import("../../src/core/revenue-simulation.js");
+
+    const quarter = await buildSimulationInput(DATA_DIR, "quarter", TODAY);
+    expect(quarter.deals.map((d) => d.name)).not.toContain("Aug Deal");
+    expect(quarter.excludedDeals.map((d) => d.name)).toContain("Aug Deal");
+
+    const rolling = await buildSimulationInput(DATA_DIR, "90d", TODAY);
+    expect(rolling.deals.map((d) => d.name)).toContain("Aug Deal");
+    expect(rolling.excludedValue).toBe(0);
+  });
+
+  it("getHorizonEnd resolves each horizon option", async () => {
+    vi.resetModules();
+    const { getHorizonEnd } = await import("../../src/core/revenue-simulation.js");
+    const today = new Date("2026-05-27");
+    expect(getHorizonEnd(today, "30d").toISOString().slice(0, 10)).toBe("2026-06-26");
+    expect(getHorizonEnd(today, "90d").toISOString().slice(0, 10)).toBe("2026-08-25");
+    expect(getHorizonEnd(today, "quarter").toISOString().slice(0, 10)).toBe("2026-06-30");
+    expect(getHorizonEnd(today, "year").toISOString().slice(0, 10)).toBe("2026-12-31");
   });
 
   it("includes closeDate in snapshot when set in pipeline.md", async () => {
