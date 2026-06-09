@@ -105,6 +105,8 @@ jobs:
         run: node __tests__/e2e/consumer-cjs.cjs
       - name: Install/Init Path Test (regression for #25)
         run: node __tests__/e2e/install-init.mjs
+      - name: MCP stdio Start Test (regression for #43)
+        run: node __tests__/e2e/mcp-stdio-start.mjs
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:

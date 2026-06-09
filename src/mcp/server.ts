@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -194,6 +196,13 @@ export async function startStdio(): Promise<void> {
   // IMPORTANT: stdout would corrupt the MCP stdio protocol — the logger writes
   // only to stderr (and the persistent ledger), never stdout.
   logger.info("mcp-server", "running via stdio");
+  // Resolve only once the client disconnects (stdin EOF) or the server closes.
+  // The CLI path (`dxcrm mcp start`) awaits this before src/cli.ts calls
+  // process.exit(); resolving here immediately would tear the server down right
+  // after the handshake (`Connection closed`). See issue #43.
+  await new Promise<void>((resolve) => {
+    server.server.onclose = resolve;
+  });
 }
 
 export async function startHttp(port = 3847): Promise<void> {
@@ -467,22 +476,40 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
     res.send(surveyThankYouPage(numScore, commentText));
   });
 
-  app.listen(port, () => {
-    logger.info("mcp-server", "running over http", { url: `http://0.0.0.0:${port}/mcp` });
+  // Resolve only once the HTTP server closes — same rationale as startStdio:
+  // the CLI path (`dxcrm mcp start --http`) awaits this before src/cli.ts calls
+  // process.exit(), which would otherwise kill the server the moment it listens.
+  // The detached `dxcrm server start` path (node dist/mcp.js) is unaffected.
+  await new Promise<void>((resolve, reject) => {
+    const httpServer = app.listen(port, () => {
+      logger.info("mcp-server", "running over http", { url: `http://0.0.0.0:${port}/mcp` });
+    });
+    httpServer.on("close", resolve);
+    httpServer.on("error", reject);
   });
 }
 
-// Entry point when run directly (e.g. node dist/mcp.js)
-const mode = process.env["DXCRM_MCP_MODE"] ?? "stdio";
-if (mode === "http") {
-  const port = parseInt(process.env["DXCRM_MCP_PORT"] ?? "3847", 10);
-  startHttp(port).catch((err: unknown) => {
-    logger.error("mcp-server", "fatal error", { error: (err as Error).message });
-    process.exit(1);
-  });
-} else {
-  startStdio().catch((err: unknown) => {
-    logger.error("mcp-server", "fatal error", { error: (err as Error).message });
-    process.exit(1);
-  });
+// Entry point when run directly (e.g. `node dist/mcp.js`), NOT on plain import.
+//
+// tsdown emits this module into both `dist/mcp.js` (the standalone server entry
+// the auto-registered integrations launch) and a shared chunk that `dist/cli.js`
+// imports. Without this guard the block ran on every import, so `dxcrm mcp start`
+// — which imports `startStdio` and then calls it — initialized the server twice
+// on the same stdio, corrupting JSON-RPC (`Connection closed`). See issue #43.
+const isDirectRun =
+  !!process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isDirectRun) {
+  const mode = process.env["DXCRM_MCP_MODE"] ?? "stdio";
+  if (mode === "http") {
+    const port = parseInt(process.env["DXCRM_MCP_PORT"] ?? "3847", 10);
+    startHttp(port).catch((err: unknown) => {
+      logger.error("mcp-server", "fatal error", { error: (err as Error).message });
+      process.exit(1);
+    });
+  } else {
+    startStdio().catch((err: unknown) => {
+      logger.error("mcp-server", "fatal error", { error: (err as Error).message });
+      process.exit(1);
+    });
+  }
 }
