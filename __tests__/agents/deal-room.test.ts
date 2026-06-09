@@ -198,6 +198,10 @@ describe("buildDealRoom", () => {
     vol.fromJSON({
       [`${DATA_DIR}/customers/${SLUG}/graph.json`]: makeGraphJson(),
       [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: manyDealsMd,
+      // Stale, low-probability proposals with a budget objection on the last
+      // touch — unambiguously at-risk under the v2 weighted score (#54).
+      [`${DATA_DIR}/customers/${SLUG}/interactions.md`]:
+        "## 2025-01-01 · Meeting\n**With:** CFO\n**Summary:** Budget concern raised, on hold\n---\n",
     });
     const { buildDealRoom } = await import("../../src/agents/deal-room.js");
     const brief = await buildDealRoom(DATA_DIR, SLUG, "Enterprise License", TODAY);

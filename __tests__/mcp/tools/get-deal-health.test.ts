@@ -72,6 +72,88 @@ describe("get_deal_health tool", () => {
     expect(parsed.error).toMatch(/Pipeline read failed/);
   });
 
+  // ─── Issue #54: structural awareness, consistent with open_deal_room ────────
+  function negotiationDeal() {
+    const today = new Date().toISOString().slice(0, 10);
+    return [
+      {
+        name: "Enterprise",
+        stage: "negotiation" as const,
+        currency: "EUR",
+        updated: today,
+        probability: 75,
+        value: 75000,
+      },
+    ];
+  }
+
+  it("does NOT score an A for a fresh negotiation deal with no economic buyer (repro)", async () => {
+    mockRead.mockResolvedValue(negotiationDeal());
+    // Recent touch, but no graph (→ no economic buyer/champion) and a budget objection.
+    vol.fromJSON({
+      "/data/customers/acme-corp/interactions.md":
+        "## 2026-06-09 · Meeting\n**With:** CFO\n**Summary:** CFO äußert Budget-Bedenken\n---\n",
+    });
+
+    const result = await handleGetDealHealth({ slug: "acme-corp" }, "/data");
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      deals: Array<{ grade: string; warnings: string[] }>;
+    };
+    const deal = parsed.deals[0]!;
+    expect(deal.grade).not.toBe("A");
+    expect(deal.warnings.some((w) => /economic buyer/i.test(w))).toBe(true);
+    expect(deal.warnings.some((w) => /champion/i.test(w))).toBe(true);
+    expect(deal.warnings.some((w) => /risk signal/i.test(w))).toBe(true);
+  });
+
+  it("rewards an identified economic buyer + champion (no structural warnings)", async () => {
+    mockRead.mockResolvedValue(negotiationDeal());
+    // Graph with an economic buyer and a champion edge.
+    vol.fromJSON({
+      "/data/customers/acme-corp/graph.json": JSON.stringify({
+        schemaVersion: "1",
+        slug: "acme-corp",
+        nodes: [
+          { id: "p1", type: "person", label: "Buyer", properties: {} },
+          { id: "p2", type: "person", label: "Champion", properties: {} },
+        ],
+        edges: [
+          {
+            id: "e1",
+            from: "p1",
+            to: "acme-corp",
+            type: "IS_ECONOMIC_BUYER",
+            weight: 1,
+            sentiment: 0,
+            lastContact: "",
+            contactCount: 1,
+            properties: {},
+          },
+          {
+            id: "e2",
+            from: "p2",
+            to: "acme-corp",
+            type: "IS_CHAMPION",
+            weight: 1,
+            sentiment: 0,
+            lastContact: "",
+            contactCount: 1,
+            properties: {},
+          },
+        ],
+        updatedAt: "2026-06-09T00:00:00Z",
+      }),
+    });
+
+    const result = await handleGetDealHealth({ slug: "acme-corp" }, "/data");
+    const parsed = JSON.parse((result.content[0] as { type: string; text: string }).text) as {
+      deals: Array<{ grade: string; score: number; warnings: string[] }>;
+    };
+    const deal = parsed.deals[0]!;
+    expect(deal.warnings.some((w) => /economic buyer|champion/i.test(w))).toBe(false);
+    expect(deal.grade).toBe("A");
+  });
+
   it("scores old deals lower (stale deal has lower score)", async () => {
     // Deal updated 90 days ago
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)

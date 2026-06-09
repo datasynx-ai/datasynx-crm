@@ -386,7 +386,16 @@ describe("buildRuleBasedAnalysis", () => {
       await import("../../src/agents/deal-agent.js");
     const { scoreDeal } = await import("../../src/core/deal-health.js");
     const deal = { name: "Q3 Renewal", stage: "negotiation" as const };
-    const badSignals = { daysSinceLastActivity: 70, daysInCurrentStage: 100, daysToClose: -5 };
+    // Grade F under the v2 weighted model: stale + stalled + overdue, no
+    // economic buyer/champion, and a negative last touch (#54).
+    const badSignals = {
+      daysSinceLastActivity: 70,
+      daysInCurrentStage: 100,
+      daysToClose: -5,
+      hasEconomicBuyer: false,
+      hasChampion: false,
+      lastTouchSentiment: "negative" as const,
+    };
     const obs = await makeObs({
       deal,
       dealHealthScore: scoreDeal(deal, badSignals),

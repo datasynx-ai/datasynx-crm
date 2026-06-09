@@ -1,7 +1,12 @@
 import { buildStakeholderMap, type StakeholderMap } from "../core/org-intelligence.js";
 import { readHealth } from "../core/relationship-health.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
-import { scoreDealForToday } from "../core/deal-health.js";
+import { readInteractions } from "../fs/interactions-writer.js";
+import {
+  scoreDealForToday,
+  detectTouchSentiment,
+  latestTouchSummary,
+} from "../core/deal-health.js";
 import {
   buildSimulationInput,
   runSimulation,
@@ -61,12 +66,21 @@ export async function buildDealRoom(
   const health = readHealth(dataDir, slug);
   const simResult = runSimulation({ ...simInput, iterations: 1000 });
 
-  // Deal health scores
+  // Deal health scores — pass the same structural/sentiment context the brief
+  // already surfaces, so get_deal_health and open_deal_room agree (issue #54).
   const todayDate = new Date(today);
+  const hasEconomicBuyer = stakeholders.people.some((p) => p.role === "economic_buyer");
+  const hasChampion = stakeholders.people.some((p) => p.role === "champion");
+  const lastSummary = latestTouchSummary(await readInteractions(dataDir, slug).catch(() => ""));
+  const lastTouchSentiment = lastSummary ? detectTouchSentiment(lastSummary) : undefined;
   const dealHealth: DealHealthEntry[] = pipelineDeals
     .filter((d) => d.stage !== "won" && d.stage !== "lost")
     .map((deal) => {
-      const scored: DealHealthScore = scoreDealForToday(deal, todayDate);
+      const scored: DealHealthScore = scoreDealForToday(deal, todayDate, {
+        hasEconomicBuyer,
+        hasChampion,
+        ...(lastTouchSentiment !== undefined ? { lastTouchSentiment } : {}),
+      });
       return {
         deal: deal.name,
         stage: deal.stage,

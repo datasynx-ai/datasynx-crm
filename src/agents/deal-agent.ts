@@ -2,7 +2,12 @@ import fs from "fs";
 import path from "path";
 import { writeJsonFile } from "../fs/json-store.js";
 import { readPipeline } from "../fs/pipeline-writer.js";
-import { deriveDealTiming, scoreDealForToday } from "../core/deal-health.js";
+import {
+  deriveDealTiming,
+  scoreDealForToday,
+  detectTouchSentiment,
+  latestTouchSummary,
+} from "../core/deal-health.js";
 import { computeCustomerHealth, readHealth } from "../core/relationship-health.js";
 import type { InteractionEntry } from "../schemas/interaction.js";
 import { readGraph, getStakeholders } from "../core/graph.js";
@@ -206,8 +211,6 @@ export async function observeDeal(
     deal,
     todayDate
   );
-  const dealHealthScore = scoreDealForToday(deal, todayDate);
-
   // Prefer the cached health snapshot (written on each interaction); only
   // recompute — re-reading and parsing the full interactions file — when none
   // exists yet. Mirrors proactive-worker's read-then-compute pattern.
@@ -229,6 +232,19 @@ export async function observeDeal(
 
   const interactionsPath = path.join(dataDir, "customers", slug, "interactions.md");
   const recentInteractionsSummary = buildRecentInteractionsSummary(interactionsPath);
+
+  // Structural/sentiment context so the agent's deal score matches
+  // get_deal_health / open_deal_room (issue #54).
+  const interactionsRaw = fs.existsSync(interactionsPath)
+    ? (fs.readFileSync(interactionsPath, "utf-8") as string)
+    : "";
+  const lastSummary = latestTouchSummary(interactionsRaw);
+  const lastTouchSentiment = lastSummary ? detectTouchSentiment(lastSummary) : undefined;
+  const dealHealthScore = scoreDealForToday(deal, todayDate, {
+    hasEconomicBuyer: stakeholders.economicBuyers.length > 0,
+    hasChampion: championCount > 0,
+    ...(lastTouchSentiment !== undefined ? { lastTouchSentiment } : {}),
+  });
 
   const contextSummary = buildContextSummary({
     deal,

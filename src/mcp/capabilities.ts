@@ -54,7 +54,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | update_deal | Create or update a deal in pipeline.md — upserts by deal name | rep+ |
 | update_customer_facts | Update fields in customer profile (domain, contact, stage, tags) | admin |
 | export_customer | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
-| get_deal_health | Score deal health 0–100 (A–F grade) based on activity, velocity, close date, probability | any |
+| get_deal_health | Score deal health 0–100 (A–F): weighted blend of stakeholder coverage, recency, stage dwell, sentiment, probability, close date | any |
 | get_pipeline_forecast | Aggregate weighted pipeline revenue across all customers grouped by stage | any |
 | get_pipeline_stages | List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost) | any |
 | summarize_meeting | LLM-summarize a transcript and log it as a Meeting interaction | rep+ |
@@ -202,8 +202,10 @@ RBAC: admin
 - Returns (Markdown): Formatted document with all sections (and attachment contents when requested)
 
 ### get_deal_health({ slug })
-Score the health of all deals for a customer based on activity recency, stage velocity,
-close date proximity, and probability.
+Score the health of all deals for a customer as a weighted blend (not recency alone):
+stakeholder coverage (economic buyer/champion, 30%), recency (20%), stage dwell (15%),
+last-touch sentiment (15%), probability plausibility (10%), close date (10%). Hard rule:
+no A in negotiation without an identified economic buyer. Consistent with open_deal_room.
 - Input: { slug: string }
 - Returns: { slug, deals: [{ deal, stage, score, grade, signals, warnings }] }
 

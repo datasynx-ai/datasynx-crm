@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { scoreDeal } from "../../src/core/deal-health.js";
+import {
+  scoreDeal,
+  detectTouchSentiment,
+  DEAL_HEALTH_WEIGHTS,
+} from "../../src/core/deal-health.js";
 import type { PipelineDeal } from "../../src/schemas/pipeline.js";
 
 const baseDeal: PipelineDeal = {
@@ -11,136 +15,165 @@ const baseDeal: PipelineDeal = {
   value: 50000,
 };
 
-describe("scoreDeal", () => {
-  it("score is 100 for fresh deal with no warnings", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 5,
-      daysInCurrentStage: 10,
-      daysToClose: 30,
-      probability: 60,
-    });
+// Fully-covered, fresh signals — the all-green baseline.
+const healthy = {
+  daysSinceLastActivity: 0,
+  daysInCurrentStage: 0,
+  daysToClose: 30,
+  probability: 60,
+  hasEconomicBuyer: true,
+  hasChampion: true,
+  lastTouchSentiment: "positive" as const,
+};
+
+describe("scoreDeal — v2 weighted model", () => {
+  it("documents weights that sum to 1.0", () => {
+    const sum = Object.values(DEAL_HEALTH_WEIGHTS).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(1.0, 10);
+  });
+
+  it("a fresh, fully-covered deal scores 100/A with no warnings", () => {
+    const result = scoreDeal(baseDeal, healthy);
     expect(result.score).toBe(100);
     expect(result.grade).toBe("A");
     expect(result.warnings).toHaveLength(0);
   });
 
-  it("penalizes deals with 60+ days of inactivity (-40)", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 65,
-      daysInCurrentStage: 10,
-    });
-    expect(result.score).toBe(60); // 100 - 40
+  // ─── The issue #54 reproduction ────────────────────────────────────────────
+  it("does NOT give an A to a negotiation deal missing the economic buyer (repro)", () => {
+    const result = scoreDeal(
+      { ...baseDeal, stage: "negotiation", probability: 75 },
+      {
+        daysSinceLastActivity: 0,
+        daysInCurrentStage: 0,
+        probability: 75,
+        hasEconomicBuyer: false,
+        hasChampion: false,
+        lastTouchSentiment: "negative",
+      }
+    );
+    // .30*25 + .20*100 + .15*100 + .15*40 + .10*100 + .10*100 = 68.5 → 69
+    expect(result.score).toBe(69);
+    expect(result.grade).not.toBe("A");
+    expect(result.warnings.some((w) => /economic buyer/i.test(w))).toBe(true);
+    expect(result.warnings.some((w) => /champion/i.test(w))).toBe(true);
+    expect(result.warnings.some((w) => /risk signal|sentiment|touchpoint/i.test(w))).toBe(true);
+  });
+
+  it("hard rule: caps an otherwise-perfect negotiation deal at B when no economic buyer", () => {
+    const result = scoreDeal(
+      { ...baseDeal, stage: "negotiation", probability: 75 },
+      { ...healthy, probability: 75, hasEconomicBuyer: false, hasChampion: true }
+    );
+    // stakeholder 50, rest 100 → .30*50 + .70*100 = 85 (would be A) → capped to B
+    expect(result.score).toBe(85);
+    expect(result.grade).toBe("B");
+    expect(result.warnings.some((w) => /economic buyer/i.test(w))).toBe(true);
+  });
+
+  it("does NOT apply a stakeholder malus on early (lead) stages", () => {
+    const result = scoreDeal(
+      { ...baseDeal, stage: "lead", probability: 10 },
+      {
+        daysSinceLastActivity: 5,
+        daysInCurrentStage: 10,
+        probability: 10,
+        hasEconomicBuyer: false,
+        hasChampion: false,
+        lastTouchSentiment: "neutral",
+      }
+    );
+    expect(result.score).toBe(100);
+    expect(result.warnings.some((w) => /economic buyer|champion/i.test(w))).toBe(false);
+  });
+
+  it("treats unknown stakeholders (undefined) as no malus — backward compatible", () => {
+    // No structural fields → only timing factors apply.
+    const result = scoreDeal(baseDeal, { daysSinceLastActivity: 5, daysInCurrentStage: 10 });
+    expect(result.score).toBe(100);
+    expect(result.grade).toBe("A");
+  });
+
+  // ─── Individual timing components (structural unknown) ───────────────────────
+  it("penalizes 60+ days inactivity (recency → 0, weight 0.20)", () => {
+    const result = scoreDeal(baseDeal, { daysSinceLastActivity: 65, daysInCurrentStage: 10 });
+    expect(result.score).toBe(80); // 100 - 0.20*100
     expect(result.warnings.some((w) => w.includes("65 days"))).toBe(true);
   });
 
-  it("penalizes deals with 31-60 days of inactivity (-25)", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 35,
-      daysInCurrentStage: 10,
-    });
-    expect(result.score).toBe(75); // 100 - 25
-    expect(result.warnings.some((w) => w.includes("Low activity"))).toBe(true);
-  });
-
-  it("penalizes deals with 15-30 days of inactivity (-10)", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 20,
-      daysInCurrentStage: 10,
-    });
-    expect(result.score).toBe(90); // 100 - 10
-    expect(result.warnings).toHaveLength(0); // no warning, just penalty
-  });
-
-  it("penalizes stage stagnation over 90 days (-25)", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 5,
-      daysInCurrentStage: 95,
-    });
-    expect(result.score).toBe(75); // 100 - 25
+  it("penalizes stage stagnation over 90 days (dwell → 30, weight 0.15)", () => {
+    const result = scoreDeal(baseDeal, { daysSinceLastActivity: 5, daysInCurrentStage: 95 });
+    expect(result.score).toBe(90); // 100 - 0.15*70
     expect(result.warnings.some((w) => w.includes("Stuck in"))).toBe(true);
   });
 
-  it("penalizes stage stagnation 46-90 days (-12)", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 5,
-      daysInCurrentStage: 50,
-    });
-    expect(result.score).toBe(88); // 100 - 12
-    expect(result.warnings.some((w) => w.includes("Slow progress"))).toBe(true);
-  });
-
-  it("penalizes overdue close date (-20)", () => {
+  it("penalizes an overdue close date (close → 40, weight 0.10)", () => {
     const result = scoreDeal(baseDeal, {
       daysSinceLastActivity: 5,
       daysInCurrentStage: 10,
       daysToClose: -5,
     });
-    expect(result.score).toBe(80); // 100 - 20
+    expect(result.score).toBe(94); // 100 - 0.10*60
     expect(result.warnings.some((w) => w.includes("Close date passed"))).toBe(true);
   });
 
-  it("penalizes close date less than 7 days away (-10)", () => {
+  it("penalizes a probability far below the stage expectation (prob → 50, weight 0.10)", () => {
     const result = scoreDeal(baseDeal, {
       daysSinceLastActivity: 5,
       daysInCurrentStage: 10,
-      daysToClose: 3,
+      probability: 10, // proposal expects ~50
     });
-    expect(result.score).toBe(90); // 100 - 10
-    expect(result.warnings.some((w) => w.includes("less than 7 days"))).toBe(true);
+    expect(result.score).toBe(95); // 100 - 0.10*50
+    expect(result.warnings.some((w) => /low probability/i.test(w))).toBe(true);
   });
 
-  it("penalizes low probability for non-lead stage (-15)", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 5,
-      daysInCurrentStage: 10,
-      probability: 10,
-    });
-    expect(result.score).toBe(85); // 100 - 15
-    expect(result.warnings.some((w) => w.includes("Low probability"))).toBe(true);
-  });
-
-  it("does NOT penalize low probability for lead stage", () => {
-    const leadDeal = { ...baseDeal, stage: "lead" as const };
-    const result = scoreDeal(leadDeal, {
-      daysSinceLastActivity: 5,
-      daysInCurrentStage: 10,
-      probability: 5,
-    });
+  it("does NOT penalize low probability on the lead stage", () => {
+    const result = scoreDeal(
+      { ...baseDeal, stage: "lead" },
+      { daysSinceLastActivity: 5, daysInCurrentStage: 10, probability: 5 }
+    );
     expect(result.score).toBe(100);
-    expect(result.warnings).toHaveLength(0);
-  });
-
-  it("grade A >= 80", () => {
-    const result = scoreDeal(baseDeal, { daysSinceLastActivity: 5, daysInCurrentStage: 10 });
-    expect(result.grade).toBe("A");
-    expect(result.score).toBeGreaterThanOrEqual(80);
-  });
-
-  it("grade F for score < 35", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 65, // -40
-      daysInCurrentStage: 95, // -25
-      daysToClose: -10, // -20
-      probability: 5, // -15
-    });
-    // 100 - 40 - 25 - 20 - 15 = 0
-    expect(result.score).toBe(0);
-    expect(result.grade).toBe("F");
   });
 
   it("score never goes below 0", () => {
-    const result = scoreDeal(baseDeal, {
-      daysSinceLastActivity: 999,
-      daysInCurrentStage: 999,
-      daysToClose: -999,
-      probability: 1,
-    });
+    const result = scoreDeal(
+      { ...baseDeal, stage: "negotiation" },
+      {
+        daysSinceLastActivity: 999,
+        daysInCurrentStage: 999,
+        daysToClose: -999,
+        probability: 1,
+        hasEconomicBuyer: false,
+        hasChampion: false,
+        lastTouchSentiment: "negative",
+      }
+    );
     expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.grade).toBe("F");
   });
 
-  it("returns signals in the result", () => {
+  it("returns the signals it scored", () => {
     const signals = { daysSinceLastActivity: 5, daysInCurrentStage: 10, daysToClose: 30 };
     const result = scoreDeal(baseDeal, signals);
     expect(result.signals).toEqual(signals);
+  });
+});
+
+describe("detectTouchSentiment", () => {
+  it("flags budget/competition objections as negative", () => {
+    expect(detectTouchSentiment("CFO äußert Budget-Bedenken")).toBe("negative");
+    expect(detectTouchSentiment("Customer says we are too expensive vs competitor")).toBe(
+      "negative"
+    );
+    expect(detectTouchSentiment("Deal on hold until next quarter")).toBe("negative");
+  });
+
+  it("flags clear positives", () => {
+    expect(detectTouchSentiment("Budget confirmed, contract signed!")).toBe("positive");
+  });
+
+  it("returns neutral for ordinary updates and empty text", () => {
+    expect(detectTouchSentiment("Discussed integration timeline and next steps")).toBe("neutral");
+    expect(detectTouchSentiment("")).toBe("neutral");
   });
 });

@@ -23,7 +23,7 @@ Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 | `update_deal` | Create or update a deal in pipeline.md — upserts by deal name | rep+ |
 | `export_customer` | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
 | `update_customer_facts` | Update fields in customer profile (domain, contact, stage, tags) | admin |
-| `get_deal_health` | Score deal health 0–100 (A–F grade) based on activity, velocity, close date, probability | any |
+| `get_deal_health` | Score deal health 0–100 (A–F): weighted blend of stakeholder coverage, recency, stage dwell, sentiment, probability, close date | any |
 | `get_pipeline_forecast` | Aggregate weighted pipeline revenue across all customers grouped by stage | any |
 | `summarize_meeting` | LLM-summarize a transcript and log it as a Meeting interaction | rep+ |
 | `get_pipeline_stages` | List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost) | any |
@@ -278,20 +278,39 @@ Score all deals for a customer on a 0–100 scale with letter grades (A–F).
 
 // Output
 {
+  "slug": "acme-corp",
   "deals": [
     {
-      "name": "Enterprise License 2026",
+      "deal": "Enterprise License 2026",
       "stage": "negotiation",
-      "value": 75000,
-      "score": 82,
+      "score": 69,
       "grade": "B",
-      "warnings": ["No interaction in 14 days", "Close date approaching"]
+      "signals": { "daysSinceLastActivity": 0, "daysInCurrentStage": 0, "probability": 75, "hasEconomicBuyer": false, "hasChampion": false, "lastTouchSentiment": "negative" },
+      "warnings": [
+        "No economic buyer identified for a \"negotiation\" deal — decision authority unconfirmed",
+        "No champion identified for a \"negotiation\" deal — no internal advocate",
+        "Last touchpoint shows risk signals (e.g. budget/competition/objection)"
+      ]
     }
   ]
 }
 ```
 
-Scoring signals: recency of last interaction, days to close date, stage progression, probability alignment. Grade map: A ≥90, B ≥75, C ≥60, D ≥40, F <40.
+**Scoring (v2 — weighted blend, not recency-dominated):** the score is a weighted
+sum of six 0–100 sub-scores. Weights (sum = 1.0):
+
+| Signal | Weight | What it measures |
+|---|---|---|
+| Stakeholder coverage | 0.30 | Economic buyer expected from `proposal`, champion from `qualified`; missing → strong malus |
+| Recency | 0.20 | Days since the last activity |
+| Stage dwell | 0.15 | How long the deal has been stuck in its stage |
+| Last-touch sentiment | 0.15 | Budget/competition/stall objections in the latest interaction |
+| Probability plausibility | 0.10 | Probability vs. the stage's expected value |
+| Close date | 0.10 | Overdue or imminent close |
+
+Grade map: A ≥80, B ≥65, C ≥50, D ≥35, F <35. **Hard rule:** a deal in
+`negotiation` without an identified economic buyer is never graded A — keeping
+`get_deal_health` consistent with `open_deal_room`'s critical-gap detection.
 
 ---
 
