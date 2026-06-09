@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/datasynx/datasynx-crm/compare/v1.25.0...v1.26.0) (2026-06-09)
+
+
+### Features
+
+* **core:** read-only web dashboard for reviews ([f77ee09](https://github.com/datasynx/datasynx-crm/commit/f77ee096bf0ca891a9f3191819b9581f6184698e)), closes [#52](https://github.com/datasynx/datasynx-crm/issues/52) [#51](https://github.com/datasynx/datasynx-crm/issues/51) [#52](https://github.com/datasynx/datasynx-crm/issues/52)
+
 # [1.25.0](https://github.com/datasynx/datasynx-crm/compare/v1.24.0...v1.25.0) (2026-06-09)
 
 
