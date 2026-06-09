@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/datasynx/datasynx-crm/compare/v1.26.0...v1.27.0) (2026-06-09)
+
+
+### Features
+
+* **core:** inbound lead capture — web forms straight into the CRM ([882f2b2](https://github.com/datasynx/datasynx-crm/commit/882f2b277516363cd65f06bb7f8b60235905cdb8)), closes [#60](https://github.com/datasynx/datasynx-crm/issues/60) [#48](https://github.com/datasynx/datasynx-crm/issues/48) [#48](https://github.com/datasynx/datasynx-crm/issues/48) [#60](https://github.com/datasynx/datasynx-crm/issues/60)
+
 # [1.26.0](https://github.com/datasynx/datasynx-crm/compare/v1.25.0...v1.26.0) (2026-06-09)
 
 
