@@ -122,6 +122,31 @@ describe("handleSimulateRevenue", () => {
     expect(parsed["horizon"]).toBe("year");
   });
 
+  it("breaks the simulation down by owner and supports an owner filter (#51)", async () => {
+    vol.fromJSON({
+      [`${DATA_DIR}/customers/${SLUG}/pipeline.md`]: `# Pipeline
+
+| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner |
+|---|---|---|---|---|---|---|---|---|
+| A | negotiation | 50000 |  | 60 | 2026-06-20 | 2026-06-01 |  | alice |
+| B | proposal | 40000 |  | 50 | 2026-06-25 | 2026-06-01 |  | bob |`,
+      [`${DATA_DIR}/customers/${SLUG}/health.json`]: makeHealthJson(),
+    });
+    const { handleSimulateRevenue } = await import("../../../src/mcp/tools/simulate-revenue.js");
+
+    const all = parseResult(
+      await handleSimulateRevenue({ iterations: 100, horizon: "year" }, DATA_DIR)
+    );
+    const byOwner = all["byOwner"] as Record<string, { count: number }>;
+    expect(Object.keys(byOwner).sort()).toEqual(["alice", "bob"]);
+
+    const filtered = parseResult(
+      await handleSimulateRevenue({ iterations: 100, owner: "alice", horizon: "year" }, DATA_DIR)
+    );
+    expect(filtered["includedDeals"]).toBe(1);
+    expect(Object.keys(filtered["byOwner"] as object)).toEqual(["alice"]);
+  });
+
   it("returns error response when buildSimulationInput throws", async () => {
     vi.doMock("../../../src/core/revenue-simulation.js", () => ({
       buildSimulationInput: vi.fn().mockRejectedValue(new Error("simulation error")),

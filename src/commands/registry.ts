@@ -20,6 +20,7 @@ import { auditCommand } from "./audit.js";
 import { logsCommand } from "./logs.js";
 import { doctorCommand } from "./doctor.js";
 import { pipelineCommand } from "./pipeline.js";
+import { forecastCommand } from "./forecast.js";
 import { rbacCommand } from "./rbac.js";
 import { gdprCommand } from "./gdpr.js";
 import { securityReportCommand } from "./security-report.js";
@@ -84,6 +85,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   logsCommand,
   doctorCommand,
   pipelineCommand,
+  forecastCommand,
   rbacCommand,
   gdprCommand,
   securityReportCommand,

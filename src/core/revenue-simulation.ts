@@ -3,6 +3,8 @@ import { listCustomerSlugs } from "../fs/customer-dir.js";
 import { readHealth, computeCustomerHealth } from "./relationship-health.js";
 import { readGraph, getStakeholders } from "./graph.js";
 import { getPipelineStages } from "./pipeline-stages.js";
+import { customerVisibility } from "./rbac.js";
+import { customerOwnerMap, lastAuditActorMap, resolveDealOwner } from "./forecast-owner.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,8 @@ export interface DealSnapshot {
   healthScore: number;
   daysSinceContact: number;
   championPresent: boolean;
+  /** Resolved deal owner (issue #51); present when ownership context is built. */
+  owner?: string;
 }
 
 /**
@@ -275,9 +279,16 @@ export async function buildSimulationInput(
   dataDir: string,
   horizon: Horizon,
   today: string,
-  externalSignals: ExternalSignal[] = []
+  externalSignals: ExternalSignal[] = [],
+  // Opt-in RBAC/owner scoping (issue #51). Omitted by deal-room/proactive/goal
+  // callers, so their behavior is unchanged; the simulate_revenue tool passes
+  // the current actor (and optionally an owner) here.
+  opts: { actor?: string; owner?: string } = {}
 ): Promise<SimulationInput> {
-  const slugs = listCustomerSlugs(dataDir);
+  const canSee = opts.actor ? customerVisibility(dataDir, opts.actor) : () => true;
+  const rbacOwners = customerOwnerMap(dataDir);
+  const auditOwners = lastAuditActorMap(dataDir);
+  const slugs = listCustomerSlugs(dataDir).filter(canSee);
   if (slugs.length === 0) {
     return {
       deals: [],
@@ -324,6 +335,9 @@ export async function buildSimulationInput(
     for (const deal of pipelineDeals) {
       if (deal.stage === "won" || deal.stage === "lost") continue;
 
+      const owner = resolveDealOwner(deal.owner, slug, rbacOwners, auditOwners);
+      if (opts.owner && owner !== opts.owner) continue;
+
       if (deal.close_date && deal.close_date.trim() !== "") {
         const closeDate = new Date(deal.close_date);
         if (closeDate > horizonEnd) {
@@ -349,6 +363,7 @@ export async function buildSimulationInput(
         healthScore,
         daysSinceContact,
         championPresent,
+        owner,
       };
       if (deal.close_date && deal.close_date.trim() !== "") {
         snapshot.closeDate = deal.close_date;

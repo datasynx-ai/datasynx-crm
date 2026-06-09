@@ -24,7 +24,7 @@ Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 | `export_customer` | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
 | `update_customer_facts` | Update fields in customer profile (domain, contact, stage, tags) | admin |
 | `get_deal_health` | Score deal health 0–100 (A–F): weighted blend of stakeholder coverage, recency, stage dwell, sentiment, probability, close date | any |
-| `get_pipeline_forecast` | Aggregate weighted pipeline revenue across all customers grouped by stage | any |
+| `get_pipeline_forecast` | Aggregate weighted pipeline revenue, grouped by stage and by owner (RBAC-aware) | any |
 | `summarize_meeting` | LLM-summarize a transcript and log it as a Meeting interaction | rep+ |
 | `get_pipeline_stages` | List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost) | any |
 | `get_market_intelligence` | Semantic search across all customers for patterns and common topics | any |
@@ -316,25 +316,34 @@ Grade map: A ≥80, B ≥65, C ≥50, D ≥35, F <35. **Hard rule:** a deal in
 
 ## get_pipeline_forecast
 
-Aggregate weighted pipeline revenue across all customers grouped by stage.
+Aggregate weighted pipeline revenue, grouped **by stage** and **by owner**.
+RBAC-aware: a `rep` only sees their own customers' deals; `manager`/`admin` get
+the full team rollup (issue #51). Pass `owner` to drill into a single rep.
 
 ```json
 // Input
-{}
+{ "filter": "acme", "owner": "alice" }   // both optional
 
 // Output
 {
-  "total": 347500,
-  "weighted": 189250,
+  "deals": [
+    { "slug": "acme-corp", "dealName": "Enterprise", "stage": "proposal", "owner": "alice", "value": 100000, "probability": 50, "weightedValue": 50000 }
+  ],
+  "totalWeightedValue": 90000,
   "byStage": {
-    "lead":        { "count": 3, "raw": 45000,  "weighted": 4500  },
-    "qualified":   { "count": 2, "raw": 80000,  "weighted": 24000 },
-    "proposal":    { "count": 4, "raw": 120000, "weighted": 60000 },
-    "negotiation": { "count": 2, "raw": 75000,  "weighted": 56250 },
-    "won":         { "count": 1, "raw": 27500,  "weighted": 27500 }
+    "proposal":    { "count": 1, "weightedValue": 50000 },
+    "qualified":   { "count": 1, "weightedValue": 40000 }
+  },
+  "byOwner": {
+    "alice": { "count": 1, "weightedValue": 50000 },
+    "bob":   { "count": 1, "weightedValue": 40000 }
   }
 }
 ```
+
+A deal's owner is resolved from its explicit `owner` field, falling back to the
+customer's RBAC owner (`owned_customers`) and then the most recent audit-trail
+actor (`unassigned` if none).
 
 ---
 

@@ -125,11 +125,14 @@ Markdown table with one row per deal:
 ```markdown
 # Pipeline — Acme Corp
 
-| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes |
-|---|---|---|---|---|---|---|---|
-| Q3 Renewal | negotiation | 50000 | EUR | 75 | 2026-08-31 | 2026-05-25 | Budget confirmed |
-| Upsell Module X | proposal | 15000 | EUR | 40 | 2026-10-01 | 2026-05-20 | Evaluating |
+| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner |
+|---|---|---|---|---|---|---|---|---|
+| Q3 Renewal | negotiation | 50000 | EUR | 75 | 2026-08-31 | 2026-05-25 | Budget confirmed | alice |
+| Upsell Module X | proposal | 15000 | EUR | 40 | 2026-10-01 | 2026-05-20 | Evaluating | bob |
 ```
+
+The parser is header-driven and column-order-tolerant; the `Owner` column is
+optional, so existing files without it keep working.
 
 **`PipelineDealSchema` fields:**
 
@@ -142,6 +145,7 @@ Markdown table with one row per deal:
 | `probability` | number | No | 0–100 win probability % |
 | `close_date` | string | No | YYYY-MM-DD target close date |
 | `notes` | string | No | Free-text notes |
+| `owner` | string | No | Owner/rep (RBAC actor); else resolved from the customer's RBAC owner or audit trail |
 | `updated` | string | Yes | YYYY-MM-DD (auto-set by `update_deal`) |
 
 **Default stages:**

@@ -55,7 +55,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | update_customer_facts | Update fields in customer profile (domain, contact, stage, tags) | admin |
 | export_customer | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
 | get_deal_health | Score deal health 0–100 (A–F): weighted blend of stakeholder coverage, recency, stage dwell, sentiment, probability, close date | any |
-| get_pipeline_forecast | Aggregate weighted pipeline revenue across all customers grouped by stage | any |
+| get_pipeline_forecast | Aggregate weighted pipeline revenue, grouped by stage and by owner (RBAC-aware) | any |
 | get_pipeline_stages | List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost) | any |
 | summarize_meeting | LLM-summarize a transcript and log it as a Meeting interaction | rep+ |
 | get_market_intelligence | Semantic search across all customers for patterns and common topics | any |
@@ -209,11 +209,12 @@ no A in negotiation without an identified economic buyer. Consistent with open_d
 - Input: { slug: string }
 - Returns: { slug, deals: [{ deal, stage, score, grade, signals, warnings }] }
 
-### get_pipeline_forecast({ filter? })
-Aggregate weighted pipeline revenue across all customers. Groups open deals by stage,
-computes probability-weighted expected revenue. Excludes won/lost deals.
-- Input: { filter?: string } — Optional filter by customer slug substring
-- Returns: { deals: [...], totalWeightedValue: number, byStage: { stage: { count, weightedValue } } }
+### get_pipeline_forecast({ filter?, owner? })
+Aggregate weighted pipeline revenue. Groups open deals by stage AND by owner; excludes
+won/lost. RBAC-aware: a rep sees only their own customers' deals, manager/admin the full
+team rollup. Pass owner to drill into one rep.
+- Input: { filter?: string, owner?: string }
+- Returns: { deals: [...], totalWeightedValue, byStage: { stage: { count, weightedValue } }, byOwner: { owner: { count, weightedValue } } }
 
 ### get_pipeline_stages()
 Returns all configured pipeline stages. Falls back to default stages if no custom stages configured.

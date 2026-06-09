@@ -11,6 +11,9 @@ export const PipelineDealSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD required")
     .optional(),
   notes: z.string().optional(),
+  /** Deal owner / responsible rep (RBAC actor id). Optional; resolved from the
+   * customer's RBAC owner or the audit trail when absent (issue #51). */
+  owner: z.string().optional(),
   updated: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD required"),
 });
 

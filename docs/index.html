@@ -145,6 +145,7 @@
   <a href="#cli-agent">dxcrm agent</a>
   <a href="#cli-server">dxcrm server</a>
   <a href="#cli-audit">dxcrm audit</a>
+  <a href="#cli-forecast">dxcrm forecast</a>
   <a href="#cli-rbac">dxcrm rbac</a>
   <a href="#cli-gdpr">dxcrm gdpr</a>
   <a href="#cli-backup">dxcrm backup</a>
@@ -534,6 +535,15 @@
 
 <span class="comment"># Log format:</span>
 <span class="comment"># 2026-06-01T09:14:00Z | alice | log_interaction | acme-corp | Renewal call</span></code></pre>
+</section>
+
+<!-- CLI: Forecast -->
+<section id="cli-forecast">
+<h2>dxcrm forecast</h2>
+<p>Weighted pipeline forecast — total, by stage, and per owner. RBAC-aware: a rep sees only their own customers' deals; manager/admin see the full team rollup.</p>
+<pre><code><span class="cmd">dxcrm forecast</span>                  <span class="comment"># total + by-stage</span>
+<span class="cmd">dxcrm forecast --by-owner</span>        <span class="comment"># per-owner rollup</span>
+<span class="cmd">dxcrm forecast --owner alice</span>      <span class="comment"># drill into one rep</span></code></pre>
 </section>
 
 <!-- CLI: RBAC -->

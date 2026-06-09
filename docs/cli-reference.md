@@ -41,6 +41,7 @@
 | `dxcrm nba` | Next-best-action recommendations for a customer |
 | `dxcrm object` | Manage custom objects (runtime-defined entities, no-migration) |
 | `dxcrm pipeline` | Pipeline time-travel: daily snapshots and 'what changed?' diffs |
+| `dxcrm forecast` | Weighted pipeline forecast — total, by stage, and per owner (RBAC-aware) |
 | `dxcrm plugin` | Manage dxcrm plugins |
 | `dxcrm policy` | Autonomy policy per tool/customer (auto\|approve\|block) |
 | `dxcrm push` | Manage real-time push subscriptions (Gmail Pub/Sub, MS Graph, Slack Events) |
@@ -585,6 +586,25 @@ Snapshots live in `.agentic/snapshots/<YYYY-MM-DD>.json` (atomic writes, one per
 day). Retention defaults to the last 90 days; override with `DXCRM_SNAPSHOT_KEEP`.
 The same data is available to agents via the `get_pipeline_changes`,
 `get_pipeline_velocity`, and `get_pipeline_funnel` MCP tools.
+
+## dxcrm forecast (weighted pipeline, per owner)
+
+Weighted pipeline forecast across customers — total, broken down **by stage** and
+**by owner/rep**. RBAC-aware: a `rep` sees only their own customers' deals, while
+`manager`/`admin` get the full team rollup (set `DXCRM_ACTOR`).
+
+```bash
+dxcrm forecast                  # total weighted value + by-stage breakdown
+dxcrm forecast --by-owner       # per-owner rollup (team review)
+dxcrm forecast --owner alice    # drill into a single rep
+dxcrm forecast --filter acme    # restrict to customers matching a slug substring
+```
+
+A deal's owner is resolved from its explicit `owner` column, falling back to the
+customer's RBAC owner (`owned_customers`) and then the most recent audit-trail
+actor (`unassigned` if none). Imported deals carry the owner from `--owner-map`.
+The same data is available to agents via the `get_pipeline_forecast` and
+`simulate_revenue` MCP tools (both accept an optional `owner`).
 
 ## dxcrm logs (observability)
 

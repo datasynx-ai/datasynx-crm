@@ -162,12 +162,31 @@ describe("upsertDeal", () => {
     expect(raw).not.toMatch(/^# Pipeline\s*$/m);
   });
 
-  it("writes the canonical documented header (| Deal | … | Updated | Notes |)", async () => {
+  it("writes the canonical documented header (| Deal | … | Notes | Owner |)", async () => {
     await upsertDeal(DATA_DIR, SLUG, deal1);
     const raw = fs.readFileSync(`${CUSTOMER_DIR}/pipeline.md`, "utf-8");
     expect(raw).toContain(
-      "| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes |"
+      "| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner |"
     );
+  });
+
+  it("round-trips the optional owner field (#51)", async () => {
+    await upsertDeal(DATA_DIR, SLUG, { ...deal1, owner: "alice" });
+    const deals = await readPipeline(DATA_DIR, SLUG);
+    expect(deals.find((d) => d.name === deal1.name)?.owner).toBe("alice");
+  });
+
+  it("parses an Owner column regardless of position (column-tolerant)", async () => {
+    vol.fromJSON({
+      [`${CUSTOMER_DIR}/pipeline.md`]:
+        "# Pipeline — Acme Corp\n\n" +
+        "| Owner | Deal | Stage | Value | Updated |\n" +
+        "|---|---|---|---|---|\n" +
+        "| bob | Big Deal | negotiation | 9000 | 2026-06-01 |\n",
+    });
+    const deals = await readPipeline(DATA_DIR, SLUG);
+    expect(deals[0]?.owner).toBe("bob");
+    expect(deals[0]?.name).toBe("Big Deal");
   });
 
   it("round-trips a deal scaffolded by `dxcrm create` after an update_deal rewrite", async () => {

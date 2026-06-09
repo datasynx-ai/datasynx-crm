@@ -618,10 +618,11 @@ export async function runHubSpotCsvImport(
         const amount = parseFloat(amountStr) || 0;
         const closeDate = coerceDate(closeDateRaw);
 
+        const resolvedOwner = ownerEmail ? ownerMap[ownerEmail] : undefined;
+
         const notesParts: string[] = [];
         if (dealId) notesParts.push(`hubspot://deal/${dealId}`);
         if (description) notesParts.push(description.slice(0, 200));
-        if (ownerEmail && ownerMap[ownerEmail]) notesParts.push(`owner:${ownerMap[ownerEmail]}`);
 
         const deal: PipelineDeal = {
           name: dealName,
@@ -632,6 +633,9 @@ export async function runHubSpotCsvImport(
           close_date: closeDate,
           updated: new Date().toISOString().slice(0, 10),
           ...(notesParts.length > 0 ? { notes: notesParts.join(" | ") } : {}),
+          // Populate the first-class owner field so per-owner forecasts work for
+          // imported deals (issue #51); previously owner lived only in notes.
+          ...(resolvedOwner ? { owner: resolvedOwner } : {}),
         };
 
         try {
