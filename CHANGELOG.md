@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/datasynx/datasynx-crm/compare/v1.21.0...v1.22.0) (2026-06-09)
+
+
+### Features
+
+* **core:** reusable product & price catalog for quotes ([97448cf](https://github.com/datasynx/datasynx-crm/commit/97448cfd965fd404f0ab8d35cbee205d4fb4ec99)), closes [#50](https://github.com/datasynx/datasynx-crm/issues/50) [#49](https://github.com/datasynx/datasynx-crm/issues/49) [#50](https://github.com/datasynx/datasynx-crm/issues/50)
+
 # [1.21.0](https://github.com/datasynx/datasynx-crm/compare/v1.20.0...v1.21.0) (2026-06-09)
 
 
