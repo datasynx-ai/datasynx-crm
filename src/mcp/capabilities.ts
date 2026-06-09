@@ -84,6 +84,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | list_sequences | List all defined email sequences with step count and enrollment count | any |
 | generate_quote | Generate a professional HTML quote with line items, VAT, subtotal, total | rep+ |
 | get_quote_status | Retrieve a generated quote by number or list all quotes for a customer | any |
+| send_quote | Mint the public accept/decline quote link (e-signature, optional Stripe payment link) | rep+ |
 | create_product | Create/update a catalog product (upsert by SKU) for reuse in quotes | manager+ |
 | list_products | List catalog products (SKU, name, price, tax, recurring) | any |
 | update_product | Update fields of a catalog product by SKU | manager+ |
@@ -411,6 +412,12 @@ RBAC: rep+
   validUntilDays?: Quote validity in days (default 30)
   currency?: Currency code (default EUR)
 - Returns: { quoteNumber, htmlPath, total, subtotal, vat, vatPercent, currency, validUntil, status }
+
+### send_quote({ slug, quoteNumber, validDays? })
+Mint the public, token-secured quote link (#49): recipient can accept (name+timestamp+IP
+e-signature receipt) or decline online. With STRIPE_API_KEY set, a payment link is attached;
+the Stripe webhook flips the quote to paid and fires quote.paid. Tokens are HMAC-signed and expire.
+- Returns: { success, quoteNumber, link, paymentLinkUrl?, expiresInDays, status }
 
 ### get_quote_status({ quoteNumber?, slug? })
 Get quote status and details. Filter by quoteNumber (single quote) or slug (all quotes for customer).

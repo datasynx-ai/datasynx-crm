@@ -35,6 +35,11 @@ function quotesDir(dataDir: string): string {
   return path.join(dataDir, ".agentic", "quotes");
 }
 
+/** Absolute path to a quote's JSON file. */
+export function quoteFilePath(dataDir: string, quoteNumber: string): string {
+  return path.join(quotesDir(dataDir), `${quoteNumber}.json`);
+}
+
 function loadQuoteConfig(dataDir: string): QuoteConfig {
   const p = path.join(dataDir, ".agentic", "quote-config.yaml");
   if (!fs.existsSync(p)) return {};

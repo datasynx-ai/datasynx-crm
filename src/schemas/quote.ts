@@ -20,10 +20,18 @@ export const QuoteSchema = z.object({
   createdAt: z.string(),
   validUntilDays: z.number().int().positive().default(30),
   validUntil: z.string(),
-  status: z.enum(["draft", "sent", "viewed", "accepted", "declined"]).default("draft"),
+  status: z.enum(["draft", "sent", "viewed", "accepted", "declined", "paid"]).default("draft"),
   viewedAt: z.string().optional(),
   acceptedAt: z.string().optional(),
+  declinedAt: z.string().optional(),
+  paidAt: z.string().optional(),
   htmlPath: z.string().optional(),
+  /** Lightweight e-signature receipt captured on online acceptance (#49). */
+  signature: z
+    .object({ name: z.string(), signedAt: z.string(), ip: z.string().optional() })
+    .optional(),
+  /** Optional Stripe payment link for the quote total. */
+  paymentLinkUrl: z.string().optional(),
 });
 
 export type QuoteLineItem = z.infer<typeof QuoteLineItemSchema>;
