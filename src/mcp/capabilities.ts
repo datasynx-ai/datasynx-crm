@@ -102,6 +102,8 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | list_workflows | List automation rules with run counters | any |
 | toggle_workflow | Enable/disable an automation rule | manager+ |
 | get_dashboard_link | Token-secured read-only web dashboard (forecast, funnel, velocity, goals) | any |
+| create_form | Embeddable lead-capture web form (honeypot, rate-limit, optional double-opt-in) | manager+ |
+| list_forms | List inbound lead-capture forms | any |
 | send_nps_survey | Generate NPS/CSAT survey token + HTML email draft (does not send automatically) | rep+ |
 | get_survey_results | NPS score, promoter/passive/detractor breakdown, all responses for a survey | any |
 | search_knowledge_base | Full-text search across KB articles (title, body, tags) with category and public filters | any |
@@ -513,6 +515,15 @@ All automation rules with enabled state, runCount, lastRunAt.
 
 ### toggle_workflow({ id, enabled })
 Enable or disable a rule.
+
+### create_form({ id, name, fields, doubleOptIn?, redirectUrl? })
+Inbound lead capture (#60): submissions to POST /forms/:id auto-create customer + contact +
+interaction and fire lead.captured (workflow-engine ready). Honeypot + per-IP rate limit;
+optional GDPR double-opt-in via signed confirmation links. Returns the embeddable HTML snippet.
+- Returns: { success, form, embedSnippet }
+
+### list_forms()
+All lead-capture forms.
 
 ### get_dashboard_link({ validDays? })
 Mint a token-secured link to the read-only web dashboard (#52): forecast P50/P90 (rolling 90d),
