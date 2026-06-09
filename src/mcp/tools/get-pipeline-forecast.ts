@@ -9,6 +9,7 @@ import {
   lastAuditActorMap,
   resolveDealOwner,
 } from "../../core/forecast-owner.js";
+import { dealPipelineId } from "../../core/pipelines.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -17,6 +18,7 @@ interface ForecastDeal {
   dealName: string;
   stage: string;
   owner: string;
+  pipeline: string;
   value?: number | undefined;
   probability?: number | undefined;
   weightedValue: number;
@@ -24,7 +26,7 @@ interface ForecastDeal {
 }
 
 export async function handleGetPipelineForecast(
-  input: { filter?: string; owner?: string },
+  input: { filter?: string; owner?: string; pipelineId?: string },
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   try {
@@ -50,6 +52,8 @@ export async function handleGetPipelineForecast(
         if (deal.stage === "won" || deal.stage === "lost") continue;
         const owner = resolveDealOwner(deal.owner, slug, rbacOwners, auditOwners);
         if (input.owner && owner !== input.owner) continue;
+        const pipeline = dealPipelineId(deal);
+        if (input.pipelineId && pipeline !== input.pipelineId) continue;
         const prob = deal.probability ?? 50;
         const value = deal.value ?? 0;
         const forecastDeal: ForecastDeal = {
@@ -57,6 +61,7 @@ export async function handleGetPipelineForecast(
           dealName: deal.name,
           stage: deal.stage,
           owner,
+          pipeline,
           value,
           probability: prob,
           weightedValue: Math.round((value * prob) / 100),
@@ -85,12 +90,25 @@ export async function handleGetPipelineForecast(
       },
       {}
     );
+    const byPipeline = allDeals.reduce<Record<string, { count: number; weightedValue: number }>>(
+      (acc, d) => {
+        if (!acc[d.pipeline]) acc[d.pipeline] = { count: 0, weightedValue: 0 };
+        acc[d.pipeline]!.count++;
+        acc[d.pipeline]!.weightedValue += d.weightedValue;
+        return acc;
+      },
+      {}
+    );
 
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify({ deals: allDeals, totalWeightedValue, byStage, byOwner }, null, 2),
+          text: JSON.stringify(
+            { deals: allDeals, totalWeightedValue, byStage, byOwner, byPipeline },
+            null,
+            2
+          ),
         },
       ],
     };
@@ -113,18 +131,21 @@ export function registerGetPipelineForecast(server: McpServer): void {
       title: "Get Pipeline Forecast",
       description: `Aggregate weighted pipeline revenue. Groups open deals by stage AND by owner,
 computes probability-weighted expected revenue. RBAC-aware: a rep sees only their own
-customers' deals; manager/admin see the full team rollup. Pass owner to drill into one rep.
+customers' deals; manager/admin see the full team rollup. Pass owner to drill into one rep,
+pipelineId to scope to one pipeline (otherwise a per-pipeline rollup is included).
 
-Returns: { deals: [...], totalWeightedValue, byStage: { stage: { count, weightedValue } }, byOwner: { owner: { count, weightedValue } } }`,
+Returns: { deals: [...], totalWeightedValue, byStage, byOwner, byPipeline: { pipeline: { count, weightedValue } } }`,
       inputSchema: z.object({
         filter: z.string().optional().describe("Filter by customer slug substring"),
         owner: z.string().optional().describe("Limit the forecast to a single owner/rep"),
+        pipelineId: z.string().optional().describe("Limit the forecast to one pipeline"),
       }),
     },
-    async ({ filter, owner }) =>
+    async ({ filter, owner, pipelineId }) =>
       handleGetPipelineForecast({
         ...(filter !== undefined ? { filter } : {}),
         ...(owner !== undefined ? { owner } : {}),
+        ...(pipelineId !== undefined ? { pipelineId } : {}),
       })
   );
 }

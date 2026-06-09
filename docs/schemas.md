@@ -125,8 +125,8 @@ Markdown table with one row per deal:
 ```markdown
 # Pipeline — Acme Corp
 
-| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner |
-|---|---|---|---|---|---|---|---|---|
+| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner | Pipeline |
+|---|---|---|---|---|---|---|---|---|---|
 | Q3 Renewal | negotiation | 50000 | EUR | 75 | 2026-08-31 | 2026-05-25 | Budget confirmed | alice |
 | Upsell Module X | proposal | 15000 | EUR | 40 | 2026-10-01 | 2026-05-20 | Evaluating | bob |
 ```
@@ -139,13 +139,14 @@ optional, so existing files without it keep working.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `name` | string | Yes | Deal name |
-| `stage` | enum | Yes | lead \| qualified \| proposal \| negotiation \| won \| lost |
+| `stage` | string | Yes | Validated against the deal's pipeline stages (defaults: lead/qualified/proposal/negotiation/won/lost) |
 | `value` | number | No | Deal value in `currency` |
 | `currency` | string | No | Default: "EUR" |
 | `probability` | number | No | 0–100 win probability % |
 | `close_date` | string | No | YYYY-MM-DD target close date |
 | `notes` | string | No | Free-text notes |
 | `owner` | string | No | Owner/rep (RBAC actor); else resolved from the customer's RBAC owner or audit trail |
+| `pipeline` | string | No | Named pipeline (#47); missing = `default`. Stages validate against the pipeline's own stage set; every pipeline keeps `won`/`lost` as final stages |
 | `updated` | string | Yes | YYYY-MM-DD (auto-set by `update_deal`) |
 
 **Default stages:**
@@ -159,7 +160,10 @@ optional, so existing files without it keep working.
 | `won` | Won | 5 | 100% |
 | `lost` | Lost | 6 | 0% |
 
-Custom stages are managed with `dxcrm stages set|delete|reset` and stored in `.agentic/pipeline-stages.json`.
+Custom stages are managed with `dxcrm stages set|delete|reset` (default pipeline,
+stored in `.agentic/pipeline-stages.json`). Named pipelines (#47) live in
+`.agentic/pipelines/<id>.json` and are managed with `dxcrm pipeline create` and
+`dxcrm stages set … --pipeline <id>`.
 
 ---
 

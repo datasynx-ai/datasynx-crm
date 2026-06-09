@@ -59,7 +59,7 @@ function emptyReport(snapshotCount: number): FunnelReport {
   };
 }
 
-export function analyzeFunnel(dataDir: string): FunnelReport {
+export function analyzeFunnel(dataDir: string, opts?: { pipelineId?: string }): FunnelReport {
   const metas = listSnapshots(dataDir);
   if (metas.length === 0) return emptyReport(0);
 
@@ -72,6 +72,8 @@ export function analyzeFunnel(dataDir: string): FunnelReport {
   const progress = new Map<string, DealProgress>();
   for (const snap of snaps) {
     for (const deal of snap.deals) {
+      // Pipeline scoping (#47): old snapshots without the field = default.
+      if (opts?.pipelineId && (deal.pipeline ?? "default") !== opts.pipelineId) continue;
       const key = `${deal.slug}::${deal.name}`;
       const p = progress.get(key) ?? { maxIndex: -1, won: false, lost: false };
       if (deal.stage === "lost") {

@@ -2,7 +2,11 @@ import { z } from "zod";
 
 export const PipelineDealSchema = z.object({
   name: z.string().min(1),
-  stage: z.enum(["lead", "qualified", "proposal", "negotiation", "won", "lost"]),
+  /** Stage id. Validated against the deal's pipeline definition at write time
+   * (issue #47); every pipeline keeps `won`/`lost` as its final stages. */
+  stage: z.string().min(1),
+  /** Pipeline this deal belongs to; missing = the default pipeline. */
+  pipeline: z.string().optional(),
   value: z.number().optional(),
   currency: z.string().default("EUR"),
   probability: z.number().min(0).max(100).optional(),

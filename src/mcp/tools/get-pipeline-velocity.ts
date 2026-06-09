@@ -5,11 +5,12 @@ import { analyzeVelocity } from "../../core/velocity.js";
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
 export async function handleGetPipelineVelocity(
-  input: { stalledDays?: number },
+  input: { stalledDays?: number; pipelineId?: string },
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  const opts: { stalledDays?: number } = {};
+  const opts: { stalledDays?: number; pipelineId?: string } = {};
   if (input.stalledDays !== undefined) opts.stalledDays = input.stalledDays;
+  if (input.pipelineId !== undefined) opts.pipelineId = input.pipelineId;
   const report = analyzeVelocity(dataDir, opts);
   return { content: [{ type: "text", text: JSON.stringify(report, null, 2) }] };
 }
@@ -26,6 +27,7 @@ and "which deals are rotting?".
 Args:
   stalledDays: A deal open in the same stage longer than this is "stalled"
     (default 14).
+  pipelineId: Scope the analysis to one pipeline (#47); omit for all.
 
 Returns: { fromId, toId, snapshotCount, stageDurations[{stage,avgDays,samples}],
 avgSalesCycleDays, wonCount, stalledDeals[{slug,name,stage,daysInStage,value}],
@@ -38,11 +40,13 @@ stalledThresholdDays }. snapshotCount is 0 until the daemon has taken snapshots.
           .max(365)
           .optional()
           .describe("Days in one stage before a deal counts as stalled (default 14)"),
+        pipelineId: z.string().optional().describe("Scope to one pipeline"),
       }),
     },
-    async ({ stalledDays }) => {
-      const input: { stalledDays?: number } = {};
+    async ({ stalledDays, pipelineId }) => {
+      const input: { stalledDays?: number; pipelineId?: string } = {};
       if (stalledDays !== undefined) input.stalledDays = stalledDays;
+      if (pipelineId !== undefined) input.pipelineId = pipelineId;
       return handleGetPipelineVelocity(input);
     }
   );

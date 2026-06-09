@@ -68,10 +68,15 @@ interface TimelinePoint {
 }
 
 /** Per-deal chronological list of (date, stage) observations. */
-function buildTimelines(snaps: PipelineSnapshot[]): Map<string, TimelinePoint[]> {
+function buildTimelines(
+  snaps: PipelineSnapshot[],
+  pipelineId?: string
+): Map<string, TimelinePoint[]> {
   const timelines = new Map<string, TimelinePoint[]>();
   for (const snap of snaps) {
     for (const deal of snap.deals) {
+      // Pipeline scoping (#47): old snapshots without the field = default.
+      if (pipelineId && (deal.pipeline ?? "default") !== pipelineId) continue;
       const key = dealKey(deal);
       const points = timelines.get(key) ?? [];
       points.push({ date: snap.id, stage: deal.stage, deal });
@@ -81,7 +86,10 @@ function buildTimelines(snaps: PipelineSnapshot[]): Map<string, TimelinePoint[]>
   return timelines;
 }
 
-export function analyzeVelocity(dataDir: string, opts?: { stalledDays?: number }): VelocityReport {
+export function analyzeVelocity(
+  dataDir: string,
+  opts?: { stalledDays?: number; pipelineId?: string }
+): VelocityReport {
   const threshold = stalledThreshold(opts);
   const metas = listSnapshots(dataDir);
   if (metas.length === 0) {
@@ -103,7 +111,7 @@ export function analyzeVelocity(dataDir: string, opts?: { stalledDays?: number }
   });
   const latestId = snaps[snaps.length - 1]!.id;
 
-  const timelines = buildTimelines(snaps);
+  const timelines = buildTimelines(snaps, opts?.pipelineId);
 
   // Accumulate completed stage dwells and sales-cycle durations.
   const dwellTotals = new Map<Stage, { total: number; samples: number }>();

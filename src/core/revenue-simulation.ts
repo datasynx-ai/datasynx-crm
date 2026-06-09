@@ -2,8 +2,8 @@ import { readPipeline } from "../fs/pipeline-writer.js";
 import { listCustomerSlugs } from "../fs/customer-dir.js";
 import { readHealth, computeCustomerHealth } from "./relationship-health.js";
 import { readGraph, getStakeholders } from "./graph.js";
-import { getPipelineStages } from "./pipeline-stages.js";
 import { customerVisibility } from "./rbac.js";
+import { dealPipelineId, stageProbabilities } from "./pipelines.js";
 import { customerOwnerMap, lastAuditActorMap, resolveDealOwner } from "./forecast-owner.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ export async function buildSimulationInput(
   // Opt-in RBAC/owner scoping (issue #51). Omitted by deal-room/proactive/goal
   // callers, so their behavior is unchanged; the simulate_revenue tool passes
   // the current actor (and optionally an owner) here.
-  opts: { actor?: string; owner?: string } = {}
+  opts: { actor?: string; owner?: string; pipelineId?: string } = {}
 ): Promise<SimulationInput> {
   const canSee = opts.actor ? customerVisibility(dataDir, opts.actor) : () => true;
   const rbacOwners = customerOwnerMap(dataDir);
@@ -301,11 +301,17 @@ export async function buildSimulationInput(
     };
   }
 
-  const stages = getPipelineStages(dataDir);
-  const stageProb: Record<string, number> = {};
-  for (const s of stages) {
-    stageProb[s.id] = s.probability ?? 50;
-  }
+  // Stage → probability per pipeline (#47); the default pipeline maps onto the
+  // global stage list, named pipelines onto their own definitions.
+  const probsByPipeline = new Map<string, Record<string, number>>();
+  const stageProbFor = (pipelineId: string): Record<string, number> => {
+    let probs = probsByPipeline.get(pipelineId);
+    if (!probs) {
+      probs = stageProbabilities(dataDir, pipelineId);
+      probsByPipeline.set(pipelineId, probs);
+    }
+    return probs;
+  };
 
   const deals: DealSnapshot[] = [];
   const excludedDeals: ExcludedDeal[] = [];
@@ -338,6 +344,9 @@ export async function buildSimulationInput(
       const owner = resolveDealOwner(deal.owner, slug, rbacOwners, auditOwners);
       if (opts.owner && owner !== opts.owner) continue;
 
+      const pipelineId = dealPipelineId(deal);
+      if (opts.pipelineId && pipelineId !== opts.pipelineId) continue;
+
       if (deal.close_date && deal.close_date.trim() !== "") {
         const closeDate = new Date(deal.close_date);
         if (closeDate > horizonEnd) {
@@ -353,7 +362,7 @@ export async function buildSimulationInput(
         }
       }
 
-      const probability = deal.probability ?? stageProb[deal.stage] ?? 50;
+      const probability = deal.probability ?? stageProbFor(pipelineId)[deal.stage] ?? 50;
       const snapshot: DealSnapshot = {
         slug,
         name: deal.name,

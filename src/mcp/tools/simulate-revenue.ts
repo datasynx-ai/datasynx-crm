@@ -11,7 +11,12 @@ import { UNASSIGNED_OWNER } from "../../core/forecast-owner.js";
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
 export async function handleSimulateRevenue(
-  input: { horizon?: "30d" | "90d" | "quarter" | "year"; iterations?: number; owner?: string },
+  input: {
+    horizon?: "30d" | "90d" | "quarter" | "year";
+    iterations?: number;
+    owner?: string;
+    pipelineId?: string;
+  },
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   try {
@@ -24,6 +29,7 @@ export async function handleSimulateRevenue(
     const simInput = await buildSimulationInput(dataDir, horizon, today, [], {
       actor: getActor(),
       ...(input.owner !== undefined ? { owner: input.owner } : {}),
+      ...(input.pipelineId !== undefined ? { pipelineId: input.pipelineId } : {}),
     });
     if (input.iterations !== undefined) simInput.iterations = input.iterations;
 
@@ -104,6 +110,7 @@ Args:
   horizon: "30d" | "90d" (default, rolling) | "quarter" (calendar) | "year"
   iterations: simulation iterations (default: 10000)
   owner: limit the simulation to a single owner/rep (optional)
+  pipelineId: limit the simulation to one pipeline (optional; stage probabilities come from that pipeline's definition)
 
 Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMonth, topRisks, sensitivityMap }, confidence, dealCount, includedDeals, excludedDeals: [{ slug, name, stage, value, closeDate }], excludedValue, byOwner: { owner: { count, weightedValue } }, horizon }`,
       inputSchema: z.object({
@@ -113,13 +120,15 @@ Returns: { forecast: { p10, p50, p90, expected, stdDev, atRiskRevenue, byCloseMo
           .describe('Forecast horizon (default: "90d" rolling window)'),
         iterations: z.number().optional().describe("Monte Carlo iterations (default: 10000)"),
         owner: z.string().optional().describe("Limit the simulation to a single owner/rep"),
+        pipelineId: z.string().optional().describe("Limit the simulation to one pipeline"),
       }),
     },
-    async ({ horizon, iterations, owner }) =>
+    async ({ horizon, iterations, owner, pipelineId }) =>
       handleSimulateRevenue({
         ...(horizon !== undefined ? { horizon } : {}),
         ...(iterations !== undefined ? { iterations } : {}),
         ...(owner !== undefined ? { owner } : {}),
+        ...(pipelineId !== undefined ? { pipelineId } : {}),
       })
   );
 }

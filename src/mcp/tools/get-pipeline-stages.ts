@@ -1,16 +1,54 @@
 import { type McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getPipelineStages } from "../../core/pipeline-stages.js";
+import { listPipelines, getPipelineDef } from "../../core/pipelines.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
 export async function handleGetPipelineStages(
-  _input: Record<string, never>,
+  input: { pipelineId?: string },
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  const stages = getPipelineStages(dataDir);
+  if (input.pipelineId) {
+    const def = getPipelineDef(dataDir, input.pipelineId);
+    if (!def) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ error: `Pipeline '${input.pipelineId}' not found` }),
+          },
+        ],
+      };
+    }
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ pipeline: def.id, label: def.label, stages: def.stages }, null, 2),
+        },
+      ],
+    };
+  }
+  const pipelines = listPipelines(dataDir);
   return {
-    content: [{ type: "text", text: JSON.stringify({ stages }, null, 2) }],
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(
+          {
+            // Back-compat: `stages` remains the default pipeline's stages.
+            stages: pipelines[0]!.stages,
+            pipelines: pipelines.map((p) => ({
+              id: p.id,
+              label: p.label,
+              stageCount: p.stages.length,
+            })),
+          },
+          null,
+          2
+        ),
+      },
+    ],
   };
 }
 
@@ -20,9 +58,12 @@ export function registerGetPipelineStages(server: McpServer): void {
     {
       title: "Get Pipeline Stages",
       description:
-        "Returns all configured pipeline stages. Falls back to default stages (lead, qualified, proposal, negotiation, won, lost) if no custom stages are configured.",
-      inputSchema: z.object({}),
+        "Returns pipeline stages. Without pipelineId: the default pipeline's stages plus the list of all pipelines. With pipelineId: that pipeline's own stage set (#47). Every pipeline keeps won/lost as final stages.",
+      inputSchema: z.object({
+        pipelineId: z.string().optional().describe("Named pipeline (default: 'default')"),
+      }),
     },
-    async () => handleGetPipelineStages({})
+    async ({ pipelineId }) =>
+      handleGetPipelineStages(pipelineId !== undefined ? { pipelineId } : {})
   );
 }

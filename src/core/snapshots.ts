@@ -18,6 +18,8 @@ export interface SnapshotDeal {
   stage: PipelineDeal["stage"];
   value: number;
   probability: number;
+  /** Pipeline id (#47); missing in old snapshots = the default pipeline. */
+  pipeline?: string;
 }
 
 export interface PipelineSnapshot {
@@ -89,6 +91,7 @@ export function collectDeals(dataDir: string): SnapshotDeal[] {
         stage: d.stage,
         value: d.value ?? 0,
         probability: d.probability ?? 0,
+        ...(d.pipeline ? { pipeline: d.pipeline } : {}),
       });
     }
   }

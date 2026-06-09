@@ -1409,7 +1409,7 @@ Any free-form notes here are preserved by update_customer_facts.</code></pre>
 <tr><td><code>dxcrm metrics</code></td><td>Command-center metrics from the audit trail</td></tr>
 <tr><td><code>dxcrm nba</code></td><td>Next-best-action recommendations for a customer</td></tr>
 <tr><td><code>dxcrm object</code></td><td>Manage custom objects (runtime-defined entities, no-migration)</td></tr>
-<tr><td><code>dxcrm pipeline</code></td><td>Pipeline time-travel: daily snapshots and 'what changed?' diffs</td></tr>
+<tr><td><code>dxcrm pipeline</code></td><td>Pipelines: create named pipelines, daily snapshots and 'what changed?' diffs</td></tr>
 <tr><td><code>dxcrm plugin</code></td><td>Manage dxcrm plugins</td></tr>
 <tr><td><code>dxcrm policy</code></td><td>Autonomy policy per tool/customer (auto|approve|block)</td></tr>
 <tr><td><code>dxcrm product</code></td><td>Reusable product &amp; price catalog for quotes</td></tr>
@@ -1448,13 +1448,13 @@ Any free-form notes here are preserved by update_customer_facts.</code></pre>
 <tr><td><code>search_customer_knowledge</code></td><td>Hybrid vector + full-text search across emails and transcripts for a customer</td><td>any</td></tr>
 <tr><td><code>list_customers</code></td><td>List all customers with stage, last interaction date, and deal value</td><td>any (rep: own only)</td></tr>
 <tr><td><code>log_interaction</code></td><td>Write a new interaction entry (call, email, meeting, note) — immediately searchable</td><td>rep+</td></tr>
-<tr><td><code>update_deal</code></td><td>Create or update a deal in pipeline.md — upserts by deal name</td><td>rep+</td></tr>
+<tr><td><code>update_deal</code></td><td>Create or update a deal — upserts by name; pipeline-aware stage validation (pipelineId)</td><td>rep+</td></tr>
 <tr><td><code>export_customer</code></td><td>Export all customer data (incl. attachment contents) as JSON or Markdown</td><td>admin</td></tr>
 <tr><td><code>update_customer_facts</code></td><td>Update fields in customer profile (domain, contact, stage, tags)</td><td>admin</td></tr>
 <tr><td><code>get_deal_health</code></td><td>Score deal health 0–100 (A–F): weighted blend of stakeholder coverage, recency, stage dwell, sentiment, probability, close date</td><td>any</td></tr>
-<tr><td><code>get_pipeline_forecast</code></td><td>Aggregate weighted pipeline revenue, grouped by stage and by owner (RBAC-aware)</td><td>any</td></tr>
+<tr><td><code>get_pipeline_forecast</code></td><td>Aggregate weighted pipeline revenue, grouped by stage, owner and pipeline (RBAC-aware)</td><td>any</td></tr>
 <tr><td><code>summarize_meeting</code></td><td>LLM-summarize a transcript and log it as a Meeting interaction</td><td>rep+</td></tr>
-<tr><td><code>get_pipeline_stages</code></td><td>List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost)</td><td>any</td></tr>
+<tr><td><code>get_pipeline_stages</code></td><td>Pipeline stages — per pipeline (#47); without pipelineId also lists all pipelines</td><td>any</td></tr>
 <tr><td><code>get_market_intelligence</code></td><td>Semantic search across all customers for patterns and common topics</td><td>any</td></tr>
 <tr><td><code>get_relationship_graph</code></td><td>Stakeholder map: champions, blockers, economic buyers, warm intro paths</td><td>any</td></tr>
 <tr><td><code>get_relationship_health</code></td><td>Health scores (0–100, A–F, trend) per contact with decay detection and risk flags</td><td>any</td></tr>

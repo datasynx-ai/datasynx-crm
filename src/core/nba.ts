@@ -37,7 +37,7 @@ export async function nextBestAction(dataDir: string, slug: string): Promise<Nba
     const { score } = scoreOpportunity(d);
     const priority: Priority = score >= 70 ? "high" : score >= 40 ? "medium" : "low";
     actions.push({
-      action: STAGE_ACTION[d.stage],
+      action: STAGE_ACTION[d.stage] ?? `Advance deal '${d.name}' (stage: ${d.stage})`,
       reason: `Deal '${d.name}' is in ${d.stage} (win-likelihood ${score})`,
       priority,
       deal: d.name,

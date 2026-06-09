@@ -6,8 +6,8 @@ import { assertSafeSlug } from "./customer-dir.js";
 
 const DEFAULT_HEADING = "# Pipeline";
 // Canonical, documented table format (docs/schemas.md + `dxcrm create` scaffold).
-const TABLE_HEADER = `| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner |
-|---|---|---|---|---|---|---|---|---|`;
+const TABLE_HEADER = `| Deal | Stage | Value | Currency | Probability | Close Date | Updated | Notes | Owner | Pipeline |
+|---|---|---|---|---|---|---|---|---|---|`;
 
 function escapeMd(val: string | undefined | null): string {
   if (val === undefined || val === null) return "";
@@ -15,7 +15,7 @@ function escapeMd(val: string | undefined | null): string {
 }
 
 function serializeDeal(deal: PipelineDeal): string {
-  return `| ${escapeMd(deal.name)} | ${escapeMd(deal.stage)} | ${deal.value !== undefined ? String(deal.value) : ""} | ${escapeMd(deal.currency)} | ${deal.probability !== undefined ? String(deal.probability) : ""} | ${escapeMd(deal.close_date)} | ${escapeMd(deal.updated)} | ${escapeMd(deal.notes)} | ${escapeMd(deal.owner)} |`;
+  return `| ${escapeMd(deal.name)} | ${escapeMd(deal.stage)} | ${deal.value !== undefined ? String(deal.value) : ""} | ${escapeMd(deal.currency)} | ${deal.probability !== undefined ? String(deal.probability) : ""} | ${escapeMd(deal.close_date)} | ${escapeMd(deal.updated)} | ${escapeMd(deal.notes)} | ${escapeMd(deal.owner)} | ${escapeMd(deal.pipeline)} |`;
 }
 
 /** Map a (lowercased) table-header cell to a canonical deal field name. */
@@ -37,6 +37,7 @@ const COLUMN_ALIASES: Record<string, keyof PipelineDeal> = {
   note: "notes",
   owner: "owner",
   rep: "owner",
+  pipeline: "pipeline",
 };
 
 function splitRow(line: string): string[] {
@@ -108,6 +109,7 @@ function parseDealsFromMarkdown(content: string): PipelineDeal[] {
     if (row.close_date) raw["close_date"] = row.close_date;
     if (row.notes) raw["notes"] = row.notes;
     if (row.owner) raw["owner"] = row.owner;
+    if (row.pipeline) raw["pipeline"] = row.pipeline;
 
     const result = PipelineDealSchema.safeParse(raw);
     if (result.success) {

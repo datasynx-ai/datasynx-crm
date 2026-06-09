@@ -20,13 +20,13 @@ Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 | `search_customer_knowledge` | Hybrid vector + full-text search across emails and transcripts for a customer | any |
 | `list_customers` | List all customers with stage, last interaction date, and deal value | any (rep: own only) |
 | `log_interaction` | Write a new interaction entry (call, email, meeting, note) — immediately searchable | rep+ |
-| `update_deal` | Create or update a deal in pipeline.md — upserts by deal name | rep+ |
+| `update_deal` | Create or update a deal — upserts by name; pipeline-aware stage validation (pipelineId) | rep+ |
 | `export_customer` | Export all customer data (incl. attachment contents) as JSON or Markdown | admin |
 | `update_customer_facts` | Update fields in customer profile (domain, contact, stage, tags) | admin |
 | `get_deal_health` | Score deal health 0–100 (A–F): weighted blend of stakeholder coverage, recency, stage dwell, sentiment, probability, close date | any |
-| `get_pipeline_forecast` | Aggregate weighted pipeline revenue, grouped by stage and by owner (RBAC-aware) | any |
+| `get_pipeline_forecast` | Aggregate weighted pipeline revenue, grouped by stage, owner and pipeline (RBAC-aware) | any |
 | `summarize_meeting` | LLM-summarize a transcript and log it as a Meeting interaction | rep+ |
-| `get_pipeline_stages` | List all configured pipeline stages (defaults: lead, qualified, proposal, negotiation, won, lost) | any |
+| `get_pipeline_stages` | Pipeline stages — per pipeline (#47); without pipelineId also lists all pipelines | any |
 | `get_market_intelligence` | Semantic search across all customers for patterns and common topics | any |
 | `get_relationship_graph` | Stakeholder map: champions, blockers, economic buyers, warm intro paths | any |
 | `get_relationship_health` | Health scores (0–100, A–F, trend) per contact with decay detection and risk flags | any |

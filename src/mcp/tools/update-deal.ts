@@ -4,6 +4,7 @@ import { upsertDeal, readPipeline } from "../../fs/pipeline-writer.js";
 import type { PipelineDeal } from "../../schemas/pipeline.js";
 import { writeAuditEntry, getActor } from "../../fs/audit-log.js";
 import { enforceRbac } from "../../core/rbac.js";
+import { validStageIds, dealPipelineId, DEFAULT_PIPELINE_ID } from "../../core/pipelines.js";
 
 const DATA_DIR = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
@@ -16,6 +17,7 @@ export async function handleUpdateDeal(
     probability?: number;
     closeDate?: string;
     notes?: string;
+    pipelineId?: string;
   },
   dataDir: string = DATA_DIR
 ): Promise<{
@@ -32,6 +34,22 @@ export async function handleUpdateDeal(
       (d) => d.name === input.dealName
     );
 
+    // Pipeline-aware stage validation (#47): the stage must exist in the
+    // deal's pipeline (explicit pipelineId > existing deal > default).
+    const pipelineId = input.pipelineId ?? dealPipelineId(existing ?? {});
+    const stages = validStageIds(dataDir, pipelineId);
+    if (!stages) {
+      throw new Error(
+        `Pipeline '${pipelineId}' not found. Create it with 'dxcrm pipeline create'.`
+      );
+    }
+    const stage = input.stage ?? existing?.stage ?? "lead";
+    if (!stages.has(stage)) {
+      throw new Error(
+        `Stage '${stage}' is not defined in pipeline '${pipelineId}' (valid: ${[...stages].join(", ")}).`
+      );
+    }
+
     const value = input.value ?? existing?.value;
     const probability = input.probability ?? existing?.probability;
     const closeDate = input.closeDate ?? existing?.close_date;
@@ -39,9 +57,11 @@ export async function handleUpdateDeal(
 
     const deal: PipelineDeal = {
       name: input.dealName,
-      stage: (input.stage as PipelineDeal["stage"]) ?? existing?.stage ?? "lead",
+      stage,
       currency: existing?.currency ?? "EUR",
       updated: today,
+      ...(pipelineId !== DEFAULT_PIPELINE_ID ? { pipeline: pipelineId } : {}),
+      ...(existing?.owner !== undefined ? { owner: existing.owner } : {}),
       ...(value !== undefined ? { value } : {}),
       ...(probability !== undefined ? { probability } : {}),
       ...(closeDate !== undefined ? { close_date: closeDate } : {}),
@@ -103,7 +123,8 @@ Use after pipeline discussions or when deal status changes.
 Args:
   slug: Customer ID
   dealName: Deal name (used as unique key for upsert)
-  stage: Deal stage ("lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost")
+  stage: Deal stage — validated against the deal's pipeline (defaults: lead|qualified|proposal|negotiation|won|lost)
+  pipelineId: Named pipeline (e.g. "renewals"); omit for the default pipeline
   value: Deal value in euros
   probability: Win probability percentage (0-100)
   closeDate: Expected close date (YYYY-MM-DD)
@@ -113,10 +134,11 @@ Returns: { success: boolean, deal: object }`,
       inputSchema: z.object({
         slug: z.string().describe("Customer slug (e.g. 'acme-corp')"),
         dealName: z.string().describe("Deal name (unique identifier for upsert)"),
-        stage: z
-          .enum(["lead", "qualified", "proposal", "negotiation", "won", "lost"])
+        stage: z.string().optional().describe("Deal stage (validated against the deal's pipeline)"),
+        pipelineId: z
+          .string()
           .optional()
-          .describe("Deal stage"),
+          .describe("Named pipeline this deal belongs to (default: 'default')"),
         value: z.number().optional().describe("Deal value in euros"),
         probability: z.number().min(0).max(100).optional().describe("Win probability (0-100)"),
         closeDate: z
@@ -127,7 +149,7 @@ Returns: { success: boolean, deal: object }`,
         notes: z.string().optional().describe("Free-text notes about the deal"),
       }),
     },
-    async ({ slug, dealName, stage, value, probability, closeDate, notes }) =>
+    async ({ slug, dealName, stage, value, probability, closeDate, notes, pipelineId }) =>
       handleUpdateDeal({
         slug,
         dealName,
@@ -136,6 +158,7 @@ Returns: { success: boolean, deal: object }`,
         ...(probability !== undefined ? { probability } : {}),
         ...(closeDate !== undefined ? { closeDate } : {}),
         ...(notes !== undefined ? { notes } : {}),
+        ...(pipelineId !== undefined ? { pipelineId } : {}),
       })
   );
 }

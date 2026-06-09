@@ -55,8 +55,13 @@ describe("PipelineDealSchema", () => {
     }
   });
 
-  it("rejects invalid stage", () => {
-    const result = PipelineDealSchema.safeParse({ ...validDeal, stage: "pending" });
+  it("accepts custom stage ids — pipeline-aware validation happens in update_deal (#47)", () => {
+    const result = PipelineDealSchema.safeParse({ ...validDeal, stage: "renewal-review" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an empty stage", () => {
+    const result = PipelineDealSchema.safeParse({ ...validDeal, stage: "" });
     expect(result.success).toBe(false);
   });
 

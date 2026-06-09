@@ -33,9 +33,21 @@ export const stagesCommand = new Command("stages").description("Manage custom pi
 
 stagesCommand
   .command("list")
-  .description("List all configured pipeline stages")
-  .action(() => {
+  .description("List configured pipeline stages")
+  .option("--pipeline <id>", "Named pipeline (default: 'default')")
+  .action(async (opts: { pipeline?: string }) => {
     const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+    if (opts.pipeline && opts.pipeline !== "default") {
+      const { getPipelineDef } = await import("../core/pipelines.js");
+      const def = getPipelineDef(dataDir, opts.pipeline);
+      if (!def) {
+        console.log(error(`Pipeline '${opts.pipeline}' not found`));
+        process.exitCode = 1;
+        return;
+      }
+      printStagesTable(def.stages);
+      return;
+    }
     const stages = getPipelineStages(dataDir);
     printStagesTable(stages);
   });
@@ -47,11 +59,18 @@ stagesCommand
   .option("--probability <n>", "Default win probability 0-100")
   .option("--color <hex>", "Hex color code (e.g. #3B82F6)")
   .option("--final", "Mark as final stage (won/lost)")
+  .option("--pipeline <pipelineId>", "Named pipeline to modify (default: 'default')")
   .action(
-    (
+    async (
       id: string,
       label: string,
-      opts: { order: string; probability?: string; color?: string; final?: boolean }
+      opts: {
+        order: string;
+        probability?: string;
+        color?: string;
+        final?: boolean;
+        pipeline?: string;
+      }
     ) => {
       const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
       const stage: PipelineStage = {
@@ -62,6 +81,17 @@ stagesCommand
         ...(opts.color ? { color: opts.color } : {}),
         ...(opts.final ? { isFinal: true } : {}),
       };
+      if (opts.pipeline && opts.pipeline !== "default") {
+        const { setStageForPipeline } = await import("../core/pipelines.js");
+        try {
+          setStageForPipeline(dataDir, opts.pipeline, stage);
+          console.log(success(`✓ Stage '${id}' saved in pipeline '${opts.pipeline}'`));
+        } catch (err) {
+          console.error(error((err as Error).message));
+          process.exit(1);
+        }
+        return;
+      }
       setPipelineStage(dataDir, stage);
       console.log(success(`✓ Stage '${id}' saved`));
     }

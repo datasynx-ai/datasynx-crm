@@ -41,7 +41,7 @@
 | `dxcrm metrics` | Command-center metrics from the audit trail |
 | `dxcrm nba` | Next-best-action recommendations for a customer |
 | `dxcrm object` | Manage custom objects (runtime-defined entities, no-migration) |
-| `dxcrm pipeline` | Pipeline time-travel: daily snapshots and 'what changed?' diffs |
+| `dxcrm pipeline` | Pipelines: create named pipelines, daily snapshots and 'what changed?' diffs |
 | `dxcrm plugin` | Manage dxcrm plugins |
 | `dxcrm policy` | Autonomy policy per tool/customer (auto\|approve\|block) |
 | `dxcrm product` | Reusable product & price catalog for quotes |
@@ -553,13 +553,15 @@ dxcrm audit --limit 100              # Show more entries
 
 **Actor resolution**: `DXCRM_ACTOR` env var → `"system"`
 
-## dxcrm pipeline (time-travel)
+## dxcrm pipeline (pipelines & time-travel)
 
 Daily pipeline snapshots and "what changed?" diffs. The daemon takes one snapshot
 per day automatically; you can also snapshot on demand. Answers the classic
 question no CRM gets right: *what moved in my pipeline since last week?*
 
 ```bash
+dxcrm pipeline create renewals --label "Renewals"   # named pipeline with its own stages (#47)
+dxcrm pipeline list-pipelines           # list all pipelines
 dxcrm pipeline snapshot                 # capture the current pipeline now
 dxcrm pipeline list                     # list snapshots (deal count + open value)
 dxcrm pipeline changes                  # what changed since 7 days ago (default)

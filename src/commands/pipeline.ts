@@ -10,8 +10,40 @@ function daysAgoIso(days: number): string {
 }
 
 export const pipelineCommand = new Command("pipeline").description(
-  "Pipeline time-travel: daily snapshots and 'what changed?' diffs"
+  "Pipelines: create named pipelines, daily snapshots and 'what changed?' diffs"
 );
+
+pipelineCommand
+  .command("create <id>")
+  .description("Create a named pipeline with its own stage set (#47)")
+  .option("--label <label>", "Display label")
+  .action(async (id: string, opts: { label?: string }) => {
+    const { createPipeline } = await import("../core/pipelines.js");
+    try {
+      const def = createPipeline(dataDir(), {
+        id,
+        ...(opts.label ? { label: opts.label } : {}),
+      });
+      console.log(
+        success(
+          `Pipeline '${def.id}' created with ${def.stages.length} stages (customize via 'dxcrm stages set … --pipeline ${def.id}').`
+        )
+      );
+    } catch (err) {
+      console.log(error((err as Error).message));
+      process.exitCode = 1;
+    }
+  });
+
+pipelineCommand
+  .command("list-pipelines")
+  .description("List all pipelines and their stage counts")
+  .action(async () => {
+    const { listPipelines } = await import("../core/pipelines.js");
+    for (const p of listPipelines(dataDir())) {
+      console.log(`${p.id.padEnd(20)} ${p.label.padEnd(24)} ${p.stages.length} stages`);
+    }
+  });
 
 pipelineCommand
   .command("snapshot")
