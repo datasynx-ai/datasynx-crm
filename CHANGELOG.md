@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/datasynx/datasynx-crm/compare/v1.23.0...v1.24.0) (2026-06-09)
+
+
+### Features
+
+* **core:** multiple parallel pipelines with per-pipeline stages ([a347358](https://github.com/datasynx/datasynx-crm/commit/a347358788fd4293749f7f50635ae94e49036e75)), closes [#47](https://github.com/datasynx/datasynx-crm/issues/47) [#47](https://github.com/datasynx/datasynx-crm/issues/47)
+
 # [1.23.0](https://github.com/datasynx/datasynx-crm/compare/v1.22.0...v1.23.0) (2026-06-09)
 
 
