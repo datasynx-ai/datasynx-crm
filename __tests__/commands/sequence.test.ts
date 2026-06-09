@@ -9,6 +9,8 @@ const mockWriteSequence = vi.hoisted(() => vi.fn());
 const mockReadEnrollments = vi.hoisted(() => vi.fn());
 const mockWriteEnrollment = vi.hoisted(() => vi.fn());
 const mockRunSequenceCycle = vi.hoisted(() => vi.fn());
+const mockGetTemplate = vi.hoisted(() => vi.fn());
+const mockWriteTemplate = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/fs/sequence-store.js", () => ({
   listSequences: mockListSequences,
@@ -20,6 +22,11 @@ vi.mock("../../src/fs/sequence-store.js", () => ({
 
 vi.mock("../../src/core/sequence-engine.js", () => ({
   runSequenceCycle: mockRunSequenceCycle,
+}));
+
+vi.mock("../../src/fs/template-store.js", () => ({
+  getTemplate: mockGetTemplate,
+  writeTemplate: mockWriteTemplate,
 }));
 
 function makeSeq(overrides: Partial<Sequence> = {}): Sequence {
@@ -105,6 +112,47 @@ describe("sequenceCommand create", () => {
 
     expect(mockWriteSequence).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("created"));
+    consoleSpy.mockRestore();
+  });
+
+  it("scaffolds missing step templates so a fresh sequence is enroll-able out of the box", async () => {
+    mockGetSequence.mockReturnValue(null);
+    mockGetTemplate.mockReturnValue(null); // no templates exist yet
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const { sequenceCommand } = await import("../../src/commands/sequence.js");
+    await sequenceCommand.parseAsync(["node", "sequence", "create", "onboarding"]);
+
+    // Every template referenced by the skeleton's steps must be created.
+    const written = mockWriteTemplate.mock.calls.map((c) => (c[1] as { id: string }).id);
+    expect(written).toEqual(expect.arrayContaining(["intro", "followup-1", "followup-2"]));
+    consoleSpy.mockRestore();
+  });
+
+  it("does not overwrite step templates that already exist", async () => {
+    mockGetSequence.mockReturnValue(null);
+    // "intro" already exists; the two follow-ups do not.
+    mockGetTemplate.mockImplementation((_dir: string, id: string) =>
+      id === "intro"
+        ? {
+            id: "intro",
+            subject: "Existing intro",
+            category: "sequence",
+            variables: [],
+            language: "de",
+            createdAt: "2026-01-01T00:00:00Z",
+            body: "Existing body",
+          }
+        : null
+    );
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const { sequenceCommand } = await import("../../src/commands/sequence.js");
+    await sequenceCommand.parseAsync(["node", "sequence", "create", "onboarding"]);
+
+    const written = mockWriteTemplate.mock.calls.map((c) => (c[1] as { id: string }).id);
+    expect(written).not.toContain("intro");
+    expect(written).toEqual(expect.arrayContaining(["followup-1", "followup-2"]));
     consoleSpy.mockRestore();
   });
 

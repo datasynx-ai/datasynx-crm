@@ -53,25 +53,30 @@ templateCommand
   .command("create <id>")
   .option("--category <category>", "Category", "general")
   .option("--subject <subject>", "Subject line")
-  .action((id: string, opts: { category: string; subject?: string }) => {
-    const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
-    const existing = getTemplate(dataDir, id);
-    if (existing) {
-      console.error(error(`Template '${id}' already exists`));
-      process.exit(1);
+  .option("--body <body>", "Email body (supports {{variables}})")
+  .option("--lang <lang>", "Language code", "de")
+  .action(
+    (id: string, opts: { category: string; subject?: string; body?: string; lang: string }) => {
+      const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+      const existing = getTemplate(dataDir, id);
+      if (existing) {
+        console.error(error(`Template '${id}' already exists`));
+        process.exit(1);
+      }
+      const tmpl: EmailTemplate = {
+        id,
+        subject: opts.subject ?? `Subject for ${id}`,
+        category: opts.category,
+        variables: [],
+        language: opts.lang,
+        createdAt: new Date().toISOString(),
+        body:
+          opts.body ?? `Hi {{firstName}},\n\n[your message here]\n\nBest regards,\n{{senderName}}`,
+      };
+      writeTemplate(dataDir, tmpl);
+      console.log(success(`✓ Template '${id}' created in category '${opts.category}'`));
     }
-    const tmpl: EmailTemplate = {
-      id,
-      subject: opts.subject ?? `Subject for ${id}`,
-      category: opts.category,
-      variables: [],
-      language: "de",
-      createdAt: new Date().toISOString(),
-      body: `Hi {{firstName}},\n\n[your message here]\n\nBest regards,\n{{senderName}}`,
-    };
-    writeTemplate(dataDir, tmpl);
-    console.log(success(`✓ Template '${id}' created in category '${opts.category}'`));
-  });
+  );
 
 templateCommand.command("delete <id>").action((id: string) => {
   const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();

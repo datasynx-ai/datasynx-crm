@@ -277,6 +277,31 @@ describe("templateCommand create", () => {
     consoleSpy.mockRestore();
   });
 
+  it("uses provided --body and --lang when creating template", async () => {
+    mockGetTemplate.mockReturnValue(null);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    const { templateCommand } = await import("../../src/commands/template.js");
+    await templateCommand.parseAsync([
+      "node",
+      "template",
+      "create",
+      "welcome",
+      "--subject",
+      "Hi",
+      "--body",
+      "Custom body for {{firstName}}",
+      "--lang",
+      "en",
+    ]);
+
+    expect(mockWriteTemplate).toHaveBeenCalledWith(
+      DATA_DIR,
+      expect.objectContaining({ body: "Custom body for {{firstName}}", language: "en" })
+    );
+    consoleSpy.mockRestore();
+  });
+
   it("exits when template already exists", async () => {
     mockGetTemplate.mockReturnValue(makeTmpl({ id: "welcome" }));
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -292,6 +317,34 @@ describe("templateCommand create", () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     exitSpy.mockRestore();
     errorSpy.mockRestore();
+  });
+});
+
+// ─── Doc-drift guard: documented `template create` flags must really exist ────
+describe("templateCommand create — documented flags exist (doc-drift guard)", () => {
+  it("every flag shown in docs/cli-reference.md for `template create` is registered", async () => {
+    // The global test setup mocks `fs` with memfs; read the real docs file.
+    const fs = await vi.importActual<typeof import("fs")>("fs");
+    const path = (await import("node:path")).default;
+    const url = await import("node:url");
+
+    const root = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "../..");
+    const ref = fs.readFileSync(path.join(root, "docs/cli-reference.md"), "utf-8");
+
+    const usage = ref.split("\n").find((l) => l.includes("dxcrm template create"));
+    expect(usage, "docs/cli-reference.md should document `dxcrm template create`").toBeDefined();
+    const documentedFlags = [...usage!.matchAll(/--([a-z-]+)/g)].map((m) => m[1]);
+    expect(documentedFlags.length).toBeGreaterThan(0);
+
+    // Resolve the actual `create` subcommand and its registered long options.
+    const { templateCommand } = await import("../../src/commands/template.js");
+    const createCmd = templateCommand.commands.find((c) => c.name() === "create");
+    expect(createCmd, "`template create` subcommand should be registered").toBeDefined();
+    const registeredFlags = createCmd!.options.map((o) => o.long?.replace(/^--/, ""));
+
+    for (const flag of documentedFlags) {
+      expect(registeredFlags, `documented flag --${flag} is not implemented`).toContain(flag);
+    }
   });
 });
 

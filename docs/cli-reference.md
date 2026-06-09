@@ -943,7 +943,7 @@ dxcrm template list [--category <cat>]          # List all templates
 dxcrm template get <id>                          # Show a template
 dxcrm template create <id> --subject <s> --body <b> [--category <cat>] [--lang <lang>]
 dxcrm template delete <id>                       # Delete a template
-dxcrm template render <id> --slug <slug>         # Render template with customer data
+dxcrm template preview <id> [--slug <slug>]      # Preview template rendered with customer data
 ```
 
 **Storage:** `.agentic/templates/<category>/<id>.md`
