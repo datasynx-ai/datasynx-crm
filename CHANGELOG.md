@@ -1,3 +1,10 @@
+## [1.16.4](https://github.com/datasynx/datasynx-crm/compare/v1.16.3...v1.16.4) (2026-06-09)
+
+
+### Bug Fixes
+
+* **mcp:** prevent double stdio init and premature exit in `dxcrm mcp start` ([4e645bc](https://github.com/datasynx/datasynx-crm/commit/4e645bc85af1e289f1f19ab2d7563583aca4d6b2)), closes [#43](https://github.com/datasynx/datasynx-crm/issues/43)
+
 ## [1.16.3](https://github.com/datasynx/datasynx-crm/compare/v1.16.2...v1.16.3) (2026-06-06)
 
 
