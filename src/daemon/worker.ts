@@ -273,6 +273,13 @@ new CronJob(
         logger.error("daemon", "task reminder check failed", { error: (err as Error).message });
       });
     }
+    // SLA monitoring (#59): pre-breach warnings + breach escalation (each once).
+    {
+      const { runSlaMonitor } = await import("./sla-monitor.js");
+      await runSlaMonitor(DATA_DIR).catch((err: unknown) => {
+        logger.error("daemon", "sla monitor failed", { error: (err as Error).message });
+      });
+    }
   },
   null,
   true,

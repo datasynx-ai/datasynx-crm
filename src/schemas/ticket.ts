@@ -19,6 +19,12 @@ export const TicketSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   description: z.string().optional(),
+  /** Routing tags (#59), e.g. "billing", "technical". */
+  tags: z.array(z.string()).optional(),
+  /** Set once a pre-breach SLA warning was sent (one warning per ticket). */
+  slaWarnedAt: z.string().optional(),
+  /** Set once the ticket was escalated after an SLA breach (one escalation). */
+  escalatedAt: z.string().optional(),
 });
 
 export type Ticket = z.infer<typeof TicketSchema>;

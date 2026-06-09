@@ -89,7 +89,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | list_products | List catalog products (SKU, name, price, tax, recurring) | any |
 | update_product | Update fields of a catalog product by SKU | manager+ |
 | get_booking_link | Get a Calendly booking link for a customer — optionally pre-fills name/email | rep+ |
-| create_ticket | Create a support ticket with auto-calculated SLA due date based on priority | rep+ |
+| create_ticket | Create a support ticket — auto-SLA due date + skills-based auto-routing (#59) | rep+ |
 | update_ticket | Update ticket status or assignee (resolved auto-sets resolution date) | rep+ |
 | list_tickets | List tickets filtered by customer, status, priority, or assignee | any |
 | close_ticket | Close a ticket and optionally log resolution as an interaction | rep+ |

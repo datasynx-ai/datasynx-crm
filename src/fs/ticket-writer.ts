@@ -5,8 +5,8 @@ import { listCustomerSlugs, assertSafeSlug } from "./customer-dir.js";
 import { writeFileAtomic } from "./atomic-write.js";
 
 const TICKET_HEADER = "# Tickets\n\n";
-const TABLE_HEADER = `| ID | Title | Status | Priority | Assignee | Created | SLA Due | Resolved |
-|----|-------|--------|----------|----------|---------|---------|---------|`;
+const TABLE_HEADER = `| ID | Title | Status | Priority | Assignee | Created | SLA Due | Resolved | Tags | Warned | Escalated |
+|----|-------|--------|----------|----------|---------|---------|---------|------|--------|-----------|`;
 
 function ticketsPath(dataDir: string, slug: string): string {
   assertSafeSlug(slug);
@@ -38,7 +38,21 @@ function parseTicketsFromMarkdown(content: string): Ticket[] {
       .slice(1, -1)
       .map((c) => c.trim());
     if (cols.length < 8) continue;
-    const [id, title, status, priority, assignee, created, slaDue, resolved] = cols;
+    // Columns 9-11 (tags, slaWarnedAt, escalatedAt) are optional (#59) so files
+    // written before the routing/SLA feature keep parsing.
+    const [
+      id,
+      title,
+      status,
+      priority,
+      assignee,
+      created,
+      slaDue,
+      resolved,
+      tags,
+      warned,
+      escalated,
+    ] = cols;
     if (!id || !title || id === "ID") continue;
 
     const raw = {
@@ -50,6 +64,16 @@ function parseTicketsFromMarkdown(content: string): Ticket[] {
       created: created || new Date().toISOString().slice(0, 10),
       ...(slaDue ? { slaDue } : {}),
       ...(resolved ? { resolved } : {}),
+      ...(tags
+        ? {
+            tags: tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean),
+          }
+        : {}),
+      ...(warned ? { slaWarnedAt: warned } : {}),
+      ...(escalated ? { escalatedAt: escalated } : {}),
     };
 
     const parsed = TicketSchema.safeParse(raw);
@@ -61,7 +85,7 @@ function parseTicketsFromMarkdown(content: string): Ticket[] {
 function serializeTickets(tickets: Ticket[]): string {
   const rows = tickets.map(
     (t) =>
-      `| ${t.id} | ${escapeMd(t.title)} | ${t.status} | ${t.priority} | ${t.assignee ?? ""} | ${t.created} | ${t.slaDue ?? ""} | ${t.resolved ?? ""} |`
+      `| ${t.id} | ${escapeMd(t.title)} | ${t.status} | ${t.priority} | ${t.assignee ?? ""} | ${t.created} | ${t.slaDue ?? ""} | ${t.resolved ?? ""} | ${(t.tags ?? []).join(",")} | ${t.slaWarnedAt ?? ""} | ${t.escalatedAt ?? ""} |`
   );
   return `${TICKET_HEADER}${TABLE_HEADER}\n${rows.join("\n")}\n`;
 }

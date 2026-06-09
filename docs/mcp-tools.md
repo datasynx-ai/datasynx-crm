@@ -58,7 +58,7 @@ Tool prefix in Claude Code: `mcp__datasynx-opencrm__`
 | `list_products` | List catalog products (SKU, name, price, tax, recurring) | any |
 | `update_product` | Update fields of a catalog product by SKU | manager+ |
 | `get_booking_link` | Get a Calendly booking link for a customer — optionally pre-fills name/email | rep+ |
-| `create_ticket` | Create a support ticket with auto-calculated SLA due date based on priority | rep+ |
+| `create_ticket` | Create a support ticket — auto-SLA due date + skills-based auto-routing (#59) | rep+ |
 | `update_ticket` | Update ticket status or assignee (resolved auto-sets resolution date) | rep+ |
 | `list_tickets` | List tickets filtered by customer, status, priority, or assignee | any |
 | `close_ticket` | Close a ticket and optionally log resolution as an interaction | rep+ |
@@ -1509,6 +1509,23 @@ Engagement per contact for a customer. Reply tracking works without a pixel.
 **Returns:** `{ slug, trackingMode, totals: { sent, opens, clicks, replies }, contacts: [{ contactEmail, sent, opens, clicks, replies, lastOpenAt?, lastReplyAt?, avgReplyLatencyHours? }] }`
 
 Engagement also feeds `get_proactive_briefing` ("contact opened your email 3× — warm, follow up now").
+
+---
+
+## Ticket Routing & SLA Escalation (#59)
+
+Rule-based routing in `.agentic/routing.json` (first matching rule wins):
+match by `slug`, `priority` or `tag` → assign directly, by `skill` (resolved
+against `.agentic/routing-agents.json`: available + least-loaded), or
+round-robin. `create_ticket` applies the rules automatically when no assignee
+is given (audited as `ticket_auto_route`).
+
+The daemon's SLA monitor warns **once** when a ticket is due today/tomorrow and
+escalates **once** on breach: priority → urgent, reassign via the rules
+(excluding the current assignee), Slack/Telegram alert, `ticket.sla_breached`
+event (workflow-engine ready) and an audit entry.
+
+CLI: `dxcrm ticket route-rules` · `dxcrm ticket route-rules-add [--slug|--priority|--tag] [--assignee|--skill|--round-robin]`
 
 ---
 

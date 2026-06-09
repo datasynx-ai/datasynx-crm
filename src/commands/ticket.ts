@@ -122,3 +122,61 @@ ticketCommand
     await upsertTicket(dataDir, opts.slug, updated);
     console.log(success(`✓ Ticket ${bold(ticketId)} closed`));
   });
+
+ticketCommand
+  .command("route-rules")
+  .description("List ticket routing rules (#59)")
+  .action(async () => {
+    const { loadRoutingRules } = await import("../core/ticket-routing.js");
+    const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+    const rules = loadRoutingRules(dataDir);
+    if (rules.length === 0) {
+      console.log("No routing rules. Add one with 'dxcrm ticket route-rules-add'.");
+      return;
+    }
+    for (const r of rules) {
+      const match =
+        Object.entries(r.match)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(",") || "*";
+      const assign =
+        r.assign.assignee ?? (r.assign.skill ? `skill:${r.assign.skill}` : "round-robin");
+      console.log(`  ${r.id}  match[${match}] → ${assign}`);
+    }
+  });
+
+ticketCommand
+  .command("route-rules-add")
+  .description("Add a routing rule (first matching rule wins)")
+  .option("--slug <slug>", "Match customer slug")
+  .option("--priority <p>", "Match priority (urgent|high|normal|low)")
+  .option("--tag <tag>", "Match ticket tag")
+  .option("--assignee <name>", "Assign directly to this actor")
+  .option("--skill <skill>", "Route to an available agent with this skill")
+  .option("--round-robin", "Route to the least-loaded available agent")
+  .action(
+    async (opts: {
+      slug?: string;
+      priority?: string;
+      tag?: string;
+      assignee?: string;
+      skill?: string;
+      roundRobin?: boolean;
+    }) => {
+      const { addRoutingRule } = await import("../core/ticket-routing.js");
+      const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
+      const rule = addRoutingRule(dataDir, {
+        match: {
+          ...(opts.slug ? { slug: opts.slug } : {}),
+          ...(opts.priority ? { priority: opts.priority } : {}),
+          ...(opts.tag ? { tag: opts.tag } : {}),
+        },
+        assign: opts.assignee
+          ? { assignee: opts.assignee }
+          : opts.skill
+            ? { skill: opts.skill }
+            : { roundRobin: true },
+      });
+      console.log(`Rule ${rule.id} added.`);
+    }
+  );

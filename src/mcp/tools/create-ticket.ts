@@ -13,6 +13,7 @@ export async function handleCreateTicket(
     description?: string;
     priority?: Ticket["priority"];
     assignee?: string;
+    tags?: string[];
   },
   dataDir: string = DATA_DIR
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
@@ -23,18 +24,47 @@ export async function handleCreateTicket(
   const id = nextTicketId(existing);
   const slaDue = calcSlaDue(today, priority, rules);
 
+  // Skills-based auto-routing (#59): when no assignee is given, resolve one
+  // from the routing rules (customer/priority/tag → assignee|skill|round-robin).
+  let assignee = input.assignee;
+  let autoRouted = false;
+  if (!assignee) {
+    const { resolveAssignee } = await import("../../core/ticket-routing.js");
+    const routed = resolveAssignee(dataDir, {
+      slug: input.slug,
+      priority,
+      ...(input.tags ? { tags: input.tags } : {}),
+    });
+    if (routed) {
+      assignee = routed;
+      autoRouted = true;
+    }
+  }
+
   const ticket: Ticket = {
     id,
     title: input.title,
     status: "open",
     priority,
-    ...(input.assignee ? { assignee: input.assignee } : {}),
+    ...(assignee ? { assignee } : {}),
     created: today,
     slaDue,
     ...(input.description ? { description: input.description } : {}),
+    ...(input.tags ? { tags: input.tags } : {}),
   };
 
   await upsertTicket(dataDir, input.slug, ticket);
+
+  if (autoRouted) {
+    const { writeAuditEntry } = await import("../../fs/audit-log.js");
+    writeAuditEntry(dataDir, {
+      timestamp: new Date().toISOString(),
+      actor: "router",
+      tool: "ticket_auto_route",
+      slug: input.slug,
+      summary: `${ticket.id} auto-routed → ${assignee}`,
+    });
+  }
 
   // Event for outbound webhooks + workflow automation (#48).
   {
@@ -57,6 +87,7 @@ Returns: { ticket } with id T-NNN, status=open, slaDue`,
         slug: z.string().describe("Customer slug"),
         title: z.string().min(1).describe("Ticket title"),
         description: z.string().optional().describe("Detailed description"),
+        tags: z.array(z.string()).optional().describe("Routing tags, e.g. ['billing']"),
         priority: z
           .enum(["urgent", "high", "normal", "low"])
           .optional()
@@ -64,7 +95,7 @@ Returns: { ticket } with id T-NNN, status=open, slaDue`,
         assignee: z.string().optional().describe("Assignee name or email"),
       }),
     },
-    ({ slug, title, description, priority, assignee }) =>
+    ({ slug, title, description, priority, assignee, tags }) =>
       handleCreateTicket(
         {
           slug,
@@ -72,6 +103,7 @@ Returns: { ticket } with id T-NNN, status=open, slaDue`,
           ...(description !== undefined ? { description } : {}),
           ...(priority !== undefined ? { priority } : {}),
           ...(assignee !== undefined ? { assignee } : {}),
+          ...(tags !== undefined ? { tags } : {}),
         },
         dataDir
       )
