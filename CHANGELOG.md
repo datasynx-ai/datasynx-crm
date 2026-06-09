@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/datasynx/datasynx-crm/compare/v1.22.0...v1.23.0) (2026-06-09)
+
+
+### Features
+
+* **core:** quote-to-cash — online acceptance, e-signature & payment links ([38ef7a3](https://github.com/datasynx/datasynx-crm/commit/38ef7a3ba1aa23acd87d1b210dfad14906ed8365)), closes [#49](https://github.com/datasynx/datasynx-crm/issues/49) [#49](https://github.com/datasynx/datasynx-crm/issues/49)
+
 # [1.22.0](https://github.com/datasynx/datasynx-crm/compare/v1.21.0...v1.22.0) (2026-06-09)
 
 
