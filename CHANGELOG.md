@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/datasynx/datasynx-crm/compare/v1.17.0...v1.18.0) (2026-06-09)
+
+
+### Features
+
+* **core:** simulate_revenue rolling window + explicit exclusions ([fa594ae](https://github.com/datasynx/datasynx-crm/commit/fa594ae54eb72891eae20e6152a304bc176194ca)), closes [#55](https://github.com/datasynx/datasynx-crm/issues/55) [#55](https://github.com/datasynx/datasynx-crm/issues/55)
+
 # [1.17.0](https://github.com/datasynx/datasynx-crm/compare/v1.16.5...v1.17.0) (2026-06-09)
 
 
