@@ -39,6 +39,7 @@ import { surveyCommand } from "./survey.js";
 import { kbCommand } from "./kb.js";
 import { fieldsCommand, objectCommand } from "./fields.js";
 import { webhookCommand } from "./webhook.js";
+import { workflowCommand } from "./workflow.js";
 import { segmentCommand } from "./segment.js";
 import { identityCommand } from "./identity.js";
 import { metricsCommand } from "./metrics.js";
@@ -107,6 +108,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   fieldsCommand,
   objectCommand,
   webhookCommand,
+  workflowCommand,
   segmentCommand,
   identityCommand,
   metricsCommand,

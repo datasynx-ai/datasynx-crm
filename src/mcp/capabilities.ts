@@ -98,6 +98,9 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | complete_task | Mark a task as done | rep+ |
 | snooze_task | Defer a task; it resurfaces on the given date | rep+ |
 | get_email_engagement | Outbound email opens/clicks/replies + reply latency per contact (tracking default off) | any |
+| create_workflow | Declarative if-then automation rule on internal events (policy-gated, audited) | manager+ |
+| list_workflows | List automation rules with run counters | any |
+| toggle_workflow | Enable/disable an automation rule | manager+ |
 | send_nps_survey | Generate NPS/CSAT survey token + HTML email draft (does not send automatically) | rep+ |
 | get_survey_results | NPS score, promoter/passive/detractor breakdown, all responses for a survey | any |
 | search_knowledge_base | Full-text search across KB articles (title, body, tags) with category and public filters | any |
@@ -494,6 +497,21 @@ Mark a task as done (sets completedAt).
 Defer a task: it disappears from "due today" and resurfaces (incl. daemon reminders) on the given date.
 - Input: { taskId, until: "YYYY-MM-DD" }
 - Returns: { success, task }
+
+### create_workflow({ name, trigger, conditions?, actions, enabled?, dryRun?, sampleEvent? })
+If-then automation (#48): on internal events (deal.updated, ticket.created, quote.accepted,
+quote.paid, email.replied, record.created; wildcards like "deal.*"), when all conditions match
+the payload (dot paths, ops eq/neq/gt/gte/lt/lte/contains/exists), run whitelisted actions
+(enroll_in_sequence, create_ticket, create_task, log_interaction, update_deal, notify).
+String args support {{payload.path}}. Actions pass the autonomy-policy gate and are audited.
+dryRun validates + simulates without saving.
+- Returns: { success, workflow } or { dryRun, wouldMatch, actions }
+
+### list_workflows()
+All automation rules with enabled state, runCount, lastRunAt.
+
+### toggle_workflow({ id, enabled })
+Enable or disable a rule.
 
 ### get_email_engagement({ slug })
 Outbound email engagement per contact (#45): sent/opens/clicks/replies, last open, average reply

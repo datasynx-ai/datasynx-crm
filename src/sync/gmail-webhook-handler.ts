@@ -131,11 +131,16 @@ export async function handleGmailPushEvent(
       // and record reply latency — no pixel required.
       try {
         const { correlateReply } = await import("./../fs/sent-store.js");
-        correlateReply(dataDir, {
+        const reply = correlateReply(dataDir, {
           threadId: full.threadId,
           from: full.from,
           at: full.date || new Date().toISOString(),
         });
+        if (reply) {
+          // Event for workflow automation (#48), e.g. "on reply, create a task".
+          const { emitEvent } = await import("../core/webhooks.js");
+          await emitEvent(dataDir, "email.replied", reply).catch(() => undefined);
+        }
       } catch {
         // tracking is best-effort; never block inbound sync
       }

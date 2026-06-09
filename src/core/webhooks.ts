@@ -111,6 +111,14 @@ async function deliver(
 
 /** Emit an event to all matching subscriptions; queue failures for replay. */
 export async function emitEvent(dataDir: string, event: string, payload: unknown): Promise<void> {
+  // Declarative workflow automation (#48): rules react to internal events.
+  // Best-effort and depth-guarded inside the engine — never blocks delivery.
+  try {
+    const { runWorkflowsForEvent } = await import("./workflow-engine.js");
+    await runWorkflowsForEvent(dataDir, event, payload);
+  } catch {
+    // workflows must never break event emission
+  }
   const matched = matchSubscriptions(loadWebhooks(dataDir), event);
   if (matched.length === 0) return;
   const failures = loadFailures(dataDir);
