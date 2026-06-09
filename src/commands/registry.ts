@@ -41,6 +41,7 @@ import { fieldsCommand, objectCommand } from "./fields.js";
 import { webhookCommand } from "./webhook.js";
 import { workflowCommand } from "./workflow.js";
 import { dashboardCommand } from "./dashboard.js";
+import { formCommand } from "./form.js";
 import { segmentCommand } from "./segment.js";
 import { identityCommand } from "./identity.js";
 import { metricsCommand } from "./metrics.js";
@@ -111,6 +112,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   webhookCommand,
   workflowCommand,
   dashboardCommand,
+  formCommand,
   segmentCommand,
   identityCommand,
   metricsCommand,

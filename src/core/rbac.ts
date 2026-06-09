@@ -18,6 +18,8 @@ const TASK_TOOLS = ["create_task", "complete_task", "snooze_task"];
 const CATALOG_TOOLS = ["create_product", "update_product"];
 // Workflows are shared automation — manager/admin only (issue #48).
 const WORKFLOW_TOOLS = ["create_workflow", "toggle_workflow"];
+// Lead-capture forms are shared config — manager/admin only (issue #60).
+const FORM_TOOLS = ["create_form"];
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: [
@@ -32,6 +34,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     ...TASK_TOOLS,
     ...CATALOG_TOOLS,
     ...WORKFLOW_TOOLS,
+    ...FORM_TOOLS,
   ],
   manager: [
     "log_interaction",
@@ -41,6 +44,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     ...TASK_TOOLS,
     ...CATALOG_TOOLS,
     ...WORKFLOW_TOOLS,
+    ...FORM_TOOLS,
   ],
   rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS],
 };

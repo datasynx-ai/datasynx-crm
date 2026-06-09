@@ -84,6 +84,7 @@ import {
   registerToggleWorkflow,
 } from "./tools/workflow-tools.js";
 import { registerGetDashboardLink } from "./tools/get-dashboard-link.js";
+import { registerCreateForm, registerListForms } from "./tools/form-tools.js";
 import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
 import { registerGetSurveyResults } from "./tools/get-survey-results.js";
 import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
@@ -195,6 +196,8 @@ export function createMcpServer(): McpServer {
   registerListWorkflows(server);
   registerToggleWorkflow(server);
   registerGetDashboardLink(server);
+  registerCreateForm(server);
+  registerListForms(server);
   registerSendNpsSurvey(server);
   registerGetSurveyResults(server);
   registerSearchKnowledgeBase(server);
@@ -557,6 +560,57 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
       url: payload.u,
     });
     res.redirect(302, payload.u);
+  });
+
+  // Inbound lead capture (#60): embeddable forms POST straight into the CRM.
+  app.post("/forms/:id", express.urlencoded({ extended: false }), async (req, res) => {
+    const { processFormSubmission, getForm } = await import("../core/forms.js");
+    const formId = (req.params as Record<string, string>)["id"] ?? "";
+    const ip =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+      req.socket.remoteAddress ??
+      "unknown";
+    const result = await processFormSubmission(
+      dataDir,
+      formId,
+      (req.body ?? {}) as Record<string, unknown>,
+      { ip }
+    );
+    if (result.status === "rate_limited") {
+      res.status(429).send("Too many submissions — try again later.");
+      return;
+    }
+    if (result.status === "invalid") {
+      res.status(400).send(result.error ?? "Invalid submission.");
+      return;
+    }
+    // spam_ignored intentionally looks like success to the bot.
+    const form = getForm(dataDir, formId);
+    if (result.status === "created" && form?.redirectUrl) {
+      res.redirect(302, form.redirectUrl);
+      return;
+    }
+    res.setHeader("content-type", "text/html");
+    res.send(
+      result.status === "pending_confirmation"
+        ? "<h2>Almost there — please confirm via the link we sent you.</h2>"
+        : "<h2>Thank you! We will be in touch shortly.</h2>"
+    );
+  });
+
+  // GDPR double-opt-in confirmation (#60): the lead is only created here.
+  app.get("/forms/:id/confirm", async (req, res) => {
+    const { verifyConfirmToken, createLead } = await import("../core/forms.js");
+    const token = (req.query as Record<string, string | undefined>)["token"] ?? "";
+    const payload = verifyConfirmToken(token);
+    const formId = (req.params as Record<string, string>)["id"] ?? "";
+    if (!payload || payload.f !== formId) {
+      res.status(400).send("<h2>Invalid or expired confirmation link.</h2>");
+      return;
+    }
+    await createLead(dataDir, payload.f, payload.d);
+    res.setHeader("content-type", "text/html");
+    res.send("<h2>Confirmed — thank you!</h2>");
   });
 
   // Read-only dashboard (#52): token-secured, RBAC-aware, server-rendered.
