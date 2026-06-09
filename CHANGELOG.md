@@ -1,3 +1,10 @@
+## [1.16.5](https://github.com/datasynx/datasynx-crm/compare/v1.16.4...v1.16.5) (2026-06-09)
+
+
+### Bug Fixes
+
+* **qa:** resolve 3 minor MCP/CLI findings from the 62-tool sweep ([4ef2ba1](https://github.com/datasynx/datasynx-crm/commit/4ef2ba1a9f39f6e53589dd87282e73ed51405765)), closes [#44](https://github.com/datasynx/datasynx-crm/issues/44) [#44](https://github.com/datasynx/datasynx-crm/issues/44)
+
 ## [1.16.4](https://github.com/datasynx/datasynx-crm/compare/v1.16.3...v1.16.4) (2026-06-09)
 
 
