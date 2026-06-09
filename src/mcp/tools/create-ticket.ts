@@ -36,6 +36,12 @@ export async function handleCreateTicket(
 
   await upsertTicket(dataDir, input.slug, ticket);
 
+  // Event for outbound webhooks + workflow automation (#48).
+  {
+    const { emitEvent } = await import("../../core/webhooks.js");
+    await emitEvent(dataDir, "ticket.created", { slug: input.slug, ticket }).catch(() => undefined);
+  }
+
   return {
     content: [{ type: "text", text: JSON.stringify({ ticket }, null, 2) }],
   };

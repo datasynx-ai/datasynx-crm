@@ -16,6 +16,8 @@ export interface RbacConfig {
 const TASK_TOOLS = ["create_task", "complete_task", "snooze_task"];
 // Catalog is shared pricing config — manager/admin only (issue #50).
 const CATALOG_TOOLS = ["create_product", "update_product"];
+// Workflows are shared automation — manager/admin only (issue #48).
+const WORKFLOW_TOOLS = ["create_workflow", "toggle_workflow"];
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: [
@@ -29,6 +31,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     "create_record",
     ...TASK_TOOLS,
     ...CATALOG_TOOLS,
+    ...WORKFLOW_TOOLS,
   ],
   manager: [
     "log_interaction",
@@ -37,6 +40,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     "create_record",
     ...TASK_TOOLS,
     ...CATALOG_TOOLS,
+    ...WORKFLOW_TOOLS,
   ],
   rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS],
 };

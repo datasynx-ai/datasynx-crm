@@ -70,6 +70,16 @@ export async function handleUpdateDeal(
 
     await upsertDeal(dataDir, input.slug, deal);
 
+    // Event for outbound webhooks + workflow automation (#48).
+    {
+      const { emitEvent } = await import("../../core/webhooks.js");
+      await emitEvent(dataDir, "deal.updated", {
+        slug: input.slug,
+        deal,
+        previousStage: existing?.stage,
+      }).catch(() => undefined);
+    }
+
     writeAuditEntry(dataDir, {
       timestamp: new Date().toISOString(),
       actor: getActor(),

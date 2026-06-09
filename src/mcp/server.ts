@@ -78,6 +78,11 @@ import {
   registerUpdateProduct,
 } from "./tools/product-tools.js";
 import { registerSendQuote } from "./tools/send-quote.js";
+import {
+  registerCreateWorkflow,
+  registerListWorkflows,
+  registerToggleWorkflow,
+} from "./tools/workflow-tools.js";
 import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
 import { registerGetSurveyResults } from "./tools/get-survey-results.js";
 import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
@@ -185,6 +190,9 @@ export function createMcpServer(): McpServer {
   registerListProducts(server);
   registerUpdateProduct(server);
   registerSendQuote(server);
+  registerCreateWorkflow(server);
+  registerListWorkflows(server);
+  registerToggleWorkflow(server);
   registerSendNpsSurvey(server);
   registerGetSurveyResults(server);
   registerSearchKnowledgeBase(server);
