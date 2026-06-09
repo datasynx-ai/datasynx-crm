@@ -19,13 +19,30 @@ function pipeline(rows: Array<[string, string, number, number]>): string {
 }
 
 describe("handleGetPipelineChanges", () => {
-  it("reports an error when no baseline snapshot exists", async () => {
+  it("returns an empty, non-error result when no baseline snapshot exists", async () => {
     vol.fromJSON({ "/crm/customers/acme/pipeline.md": pipeline([["D", "lead", 1, 10]]) });
     const { handleGetPipelineChanges } =
       await import("../../../src/mcp/tools/get-pipeline-changes.js");
     const res = await handleGetPipelineChanges({ since: "2026-06-01" }, DATA_DIR);
-    const payload = JSON.parse(res.content[0]!.text) as { error?: string };
-    expect(payload.error).toMatch(/no pipeline snapshot/i);
+    const payload = JSON.parse(res.content[0]!.text) as {
+      error?: string;
+      note?: string;
+      fromId: string | null;
+      added: unknown[];
+      won: unknown[];
+      valueChanged: unknown[];
+      openValueDelta: number;
+    };
+    // Consistent with get_pipeline_velocity / get_pipeline_funnel: a missing
+    // baseline is an empty result with a hint, not a failure (agents read
+    // `error` as a defect).
+    expect(payload.error).toBeUndefined();
+    expect(payload.note).toMatch(/snapshot/i);
+    expect(payload.fromId).toBeNull();
+    expect(payload.added).toEqual([]);
+    expect(payload.won).toEqual([]);
+    expect(payload.valueChanged).toEqual([]);
+    expect(payload.openValueDelta).toBe(0);
   });
 
   it("returns the diff against the latest baseline snapshot", async () => {

@@ -14,11 +14,23 @@ export async function handleGetPipelineChanges(
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
   const since = input.since ?? daysAgoIso(input.days ?? 7);
   const diff = diffAgainstNow(dataDir, since);
-  const payload = diff
-    ? diff
-    : {
-        error: `No pipeline snapshot at or before ${since}. Snapshots accrue daily via the daemon.`,
-      };
+  // Consistent with get_pipeline_velocity / get_pipeline_funnel: a missing
+  // baseline yields a valid empty result with a hint, not an `error` (an agent
+  // would otherwise read `error` as a defect).
+  const payload = diff ?? {
+    fromId: null,
+    toId: since,
+    added: [],
+    removed: [],
+    advanced: [],
+    won: [],
+    lost: [],
+    valueChanged: [],
+    openValueBefore: 0,
+    openValueAfter: 0,
+    openValueDelta: 0,
+    note: `No pipeline snapshot at or before ${since} yet. Snapshots accrue daily via the daemon — this is an empty baseline, not an error.`,
+  };
   return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
 }
 
@@ -36,8 +48,9 @@ Args:
   days: Look back this many days instead of a date (default 7)
 
 Returns: { fromId, toId, added[], removed[], advanced[{from,to}], won[], lost[],
-valueChanged[{from,to}], openValueBefore, openValueAfter, openValueDelta }
-or { error } when no baseline snapshot exists yet.`,
+valueChanged[{from,to}], openValueBefore, openValueAfter, openValueDelta }.
+When no baseline snapshot exists yet, returns the same shape with empty arrays,
+fromId=null and a note field (an empty baseline, not an error).`,
       inputSchema: z.object({
         since: z.string().optional().describe("Baseline date YYYY-MM-DD"),
         days: z

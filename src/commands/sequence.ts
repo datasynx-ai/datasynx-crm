@@ -8,7 +8,9 @@ import {
   writeEnrollment,
 } from "../fs/sequence-store.js";
 import { runSequenceCycle } from "../core/sequence-engine.js";
+import { getTemplate, writeTemplate } from "../fs/template-store.js";
 import type { Sequence } from "../schemas/sequence.js";
+import type { EmailTemplate } from "../schemas/email-template.js";
 
 export const sequenceCommand = new Command("sequence").description("Manage email sequences");
 
@@ -57,6 +59,30 @@ sequenceCommand
 
     writeSequence(dataDir, seq);
     console.log(success(`✓ Sequence '${id}' created with ${seq.steps.length} steps`));
+
+    // Scaffold any referenced template that doesn't exist yet, so the fresh
+    // sequence is enroll-able out of the box (enroll_in_sequence validates that
+    // step 0's template exists, and the engine skips steps with missing ones).
+    const scaffolded: string[] = [];
+    for (const step of seq.steps) {
+      if (getTemplate(dataDir, step.templateId)) continue;
+      const tmpl: EmailTemplate = {
+        id: step.templateId,
+        subject: `[${seq.name}] ${step.templateId}`,
+        category: "sequence",
+        variables: [],
+        language: "de",
+        createdAt: new Date().toISOString(),
+        body: `Hi {{firstName}},\n\n[your message for step "${step.templateId}" here]\n\nBest regards,\n{{senderName}}`,
+      };
+      writeTemplate(dataDir, tmpl);
+      scaffolded.push(step.templateId);
+    }
+    if (scaffolded.length > 0) {
+      console.log(
+        success(`✓ Scaffolded ${scaffolded.length} starter template(s): ${scaffolded.join(", ")}`)
+      );
+    }
     console.log(info(`Edit .agentic/sequences/${id}.yaml to customize steps and templates`));
   });
 
