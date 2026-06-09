@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/datasynx/datasynx-crm/compare/v1.16.5...v1.17.0) (2026-06-09)
+
+
+### Features
+
+* **core:** deal-health v2 — structural risk scoring, not recency alone ([b768cdc](https://github.com/datasynx/datasynx-crm/commit/b768cdcada7213ff71871242f5da44c3d0b06eb2)), closes [#54](https://github.com/datasynx/datasynx-crm/issues/54) [#54](https://github.com/datasynx/datasynx-crm/issues/54)
+
 ## [1.16.5](https://github.com/datasynx/datasynx-crm/compare/v1.16.4...v1.16.5) (2026-06-09)
 
 
