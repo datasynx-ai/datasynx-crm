@@ -53,6 +53,7 @@ const ALL_TOOLS = [
   // Quote Generator (H4)
   "generate_quote",
   "get_quote_status",
+  "send_quote",
   // Product Catalog (#50)
   "create_product",
   "list_products",
@@ -98,7 +99,7 @@ const ALL_TOOLS = [
 ] as const;
 
 export { ALL_TOOLS };
-export const TOOL_COUNT = ALL_TOOLS.length; // 70
+export const TOOL_COUNT = ALL_TOOLS.length; // 71
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
@@ -200,6 +201,7 @@ It combines graph, health, revenue simulation, playbook, and org intelligence in
 ### Quotes & Invoices (H4)
 - \`generate_quote({ slug, dealName, lineItems, vatPercent?, validUntilDays? })\` — create HTML quote with auto-numbering Q-YYYY-NNN
 - \`get_quote_status({ quoteNumber?, slug? })\` — get quote or list all quotes for customer
+- \`send_quote({ slug, quoteNumber })\` — mint the public accept/decline link (e-signature receipt, optional Stripe payment link)
 
 ### Product Catalog (#50)
 - \`create_product({ sku, name, unitPrice, currency?, taxRate?, recurring? })\` — add/update a catalog product
@@ -345,7 +347,7 @@ summarize_meeting · get_pipeline_stages · get_market_intelligence
 
 **Email Sequences (H1):** enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences
 
-**Quotes (H4):** generate_quote · get_quote_status
+**Quotes (H4):** generate_quote · get_quote_status · send_quote
 
 **Product Catalog (#50):** create_product · list_products · update_product
 
@@ -515,7 +517,7 @@ pursue_goal · get_goal_status · register_push_subscription · get_push_status 
 open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
-generate_quote · get_quote_status · create_product · list_products · update_product · get_booking_link ·
+generate_quote · get_quote_status · send_quote · create_product · list_products · update_product · get_booking_link ·
 create_ticket · update_ticket · list_tickets · close_ticket ·
 create_task · list_tasks · complete_task · snooze_task · get_email_engagement ·
 send_nps_survey · get_survey_results ·
@@ -593,7 +595,7 @@ pursue_goal · get_goal_status · register_push_subscription · get_push_status 
 open_deal_room · get_proactive_briefing ·
 list_email_templates · get_email_template · draft_email ·
 enroll_in_sequence · list_sequence_enrollments · unenroll_from_sequence · list_sequences ·
-generate_quote · get_quote_status · create_product · list_products · update_product · get_booking_link ·
+generate_quote · get_quote_status · send_quote · create_product · list_products · update_product · get_booking_link ·
 create_ticket · update_ticket · list_tickets · close_ticket ·
 create_task · list_tasks · complete_task · snooze_task · get_email_engagement ·
 send_nps_survey · get_survey_results ·

@@ -32,7 +32,7 @@ export function registerGetQuoteStatus(server: McpServer, dataDir: string = DATA
     "get_quote_status",
     {
       description: `Get quote status and details. Filter by quoteNumber (single quote) or slug (all quotes for a customer).
-Returns quote with status: draft | sent | viewed | accepted | declined`,
+Returns quote with status: draft | sent | viewed | accepted | declined | paid (plus signature receipt and paymentLinkUrl when present)`,
       inputSchema: z.object({
         quoteNumber: z.string().optional().describe("Specific quote number (e.g. Q-2026-001)"),
         slug: z.string().optional().describe("Customer slug to list all quotes for"),

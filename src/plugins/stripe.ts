@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { DxcrmPlugin } from "../core/plugin-registry.js";
 
 export interface StripeContext {
@@ -96,4 +97,89 @@ export function createStripePlugin(stripeToken: string): DxcrmPlugin {
     description: "Stripe subscription and revenue context for CRM customers",
     mcpTools: ["get_stripe_context"],
   };
+}
+
+/**
+ * Create a Stripe payment link for a quote total (#49). Creates an ad-hoc
+ * price + payment link via the REST API; the quote number rides along as
+ * metadata so the webhook can map the payment back to the quote.
+ * Returns the hosted payment URL, or null when Stripe is unreachable.
+ */
+export async function createStripePaymentLink(
+  token: string,
+  opts: { amount: number; currency: string; quoteNumber: string; description: string }
+): Promise<string | null> {
+  try {
+    const form = (o: Record<string, string>) =>
+      Object.entries(o)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join("&");
+
+    const priceRes = await fetch("https://api.stripe.com/v1/prices", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form({
+        unit_amount: String(Math.round(opts.amount * 100)),
+        currency: opts.currency.toLowerCase(),
+        "product_data[name]": opts.description,
+      }),
+    });
+    if (!priceRes.ok) return null;
+    const price = (await priceRes.json()) as { id: string };
+
+    const linkRes = await fetch("https://api.stripe.com/v1/payment_links", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form({
+        "line_items[0][price]": price.id,
+        "line_items[0][quantity]": "1",
+        "metadata[quoteNumber]": opts.quoteNumber,
+      }),
+    });
+    if (!linkRes.ok) return null;
+    const link = (await linkRes.json()) as { url: string };
+    return link.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Verify a Stripe webhook signature (Stripe-Signature header: `t=...,v1=...`).
+ * Implements Stripe's scheme: HMAC-SHA256 over `${t}.${rawBody}` with the
+ * webhook secret, timing-safe compare, and a tolerance window on `t`.
+ */
+export function verifyStripeSignature(
+  rawBody: string,
+  signatureHeader: string | undefined,
+  webhookSecret: string,
+  toleranceSeconds = 300,
+  nowMs: number = Date.now()
+): boolean {
+  if (!signatureHeader) return false;
+  const parts = new Map(
+    signatureHeader.split(",").map((p) => {
+      const eq = p.indexOf("=");
+      return [p.slice(0, eq).trim(), p.slice(eq + 1).trim()] as const;
+    })
+  );
+  const t = parts.get("t");
+  const v1 = parts.get("v1");
+  if (!t || !v1) return false;
+  const ts = parseInt(t, 10);
+  if (isNaN(ts) || Math.abs(nowMs / 1000 - ts) > toleranceSeconds) return false;
+
+  const expected = createHmac("sha256", webhookSecret).update(`${t}.${rawBody}`).digest("hex");
+  if (expected.length !== v1.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
+  } catch {
+    return false;
+  }
 }
