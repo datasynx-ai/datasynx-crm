@@ -1,0 +1,102 @@
+# Roadmap — DatasynxOpenCRM
+
+> Stand: 2026-06-10 · npm `datasynx-opencrm` 1.33.0 · Phase: **Härtung & erster externer User**
+>
+> Dieses Dokument ist die **mittelfristige Steuerungssicht** (Meilensteine, Reihenfolge,
+> Exit-Kriterien). Das operative Session-Handoff (Checklisten, Fallstricke, Arbeitsweise)
+> steht in [`next-session-sop.md`](./next-session-sop.md). Die öffentliche Kurzfassung
+> steht in der [README](../README.md#roadmap).
+
+---
+
+## Nordstern
+
+**Kill-Condition:** Der erste externe User nutzt `dxcrm` **7 Tage täglich ohne HubSpot**.
+
+Jede Priorisierung wird an genau einer Frage gemessen: *Bringt das den ersten externen
+User näher an „7 Tage ohne HubSpot"?*
+
+## Wo wir stehen
+
+- Phasen 1–5 abgeschlossen: 82 MCP-Tools · 69 CLI-Commands · lokale Markdown-/NDJSON-Stores · ~3543 Tests grün.
+- Zuletzt geliefert: Self-Service-Portal (#58), nativer Scheduler (#53), Teams/Meet-Transcript-Auto-Discovery (#56), Omnichannel-Inbox Web-Chat + WhatsApp (#57), Rollen-Erkennung (#41 A5).
+- Einziges offenes Issue: **#20** (Embedding-Eval, blockiert durch fehlenden Modell-Zugriff in der Sandbox).
+- **Engpass:** Viele Live-Pfade sind credential-gated No-ops. Kern-Logik und Routing sind
+  getestet, aber Teams/Meet-Subscriptions, WhatsApp-Versand, Kalender-Free/Busy und Stripe
+  laufen offline nicht. Der Weg zur Kill-Condition führt über **Aktivieren & Härten**, nicht
+  über weitere Feature-Breite.
+
+---
+
+## Meilensteine
+
+### M1 — Live-ready *(P0, jetzt)*
+
+**Ziel:** Ein externer User kann jede Kernintegration real aktivieren — kein Live-Pfad ist
+mehr ein Offline-No-op, kein öffentlicher Endpoint ungehärtet.
+
+| # | Item | Done wenn… |
+|---|---|---|
+| 1 | **Integrations-Setup-Guide + `dxcrm doctor`-Checks je Provider** (Gmail/Graph-Mailbox, Teams/Meet, WhatsApp Cloud API, Kalender, Stripe) | `doctor` zeigt pro Provider grün/rot mit konkreter Ursache; Setup-Doku copy-pasteable |
+| 2 | **Web-Chat-Rückkanal** (`GET /chat/poll` oder SSE) + Widget-Polling — Folgelücke aus #57 | Agent-Antwort kommt im Widget an, E2E gegen echten Server |
+| 3 | **Rate-Limit + Honeypot** für `/chat` & `/webhooks/whatsapp` (Parität zu `/forms`) — Folgelücke aus #57 | Beide Endpoints gedrosselt + Honeypot-geschützt, Tests vorhanden |
+| 4 | **Echte Subscription-Anlage** (Graph `POST /subscriptions`, Workspace-Events) + `dxcrm transcripts subscribe` — heute existiert nur Empfang/Renewal | Subscription wird real angelegt, Renewal greift, #56-Live-Loop geschlossen |
+
+**Exit-Kriterium:** Alle Live-Pfade dokumentiert und per `doctor` verifizierbar; beide
+#57-Lücken geschlossen; Subscription-Anlage live.
+
+### M2 — Der 7-Tage-Härtetest *(P1, direkt nach M1)*
+
+**Ziel:** Das Akzeptanzkriterium selbst fahren — mit echtem oder Test-Tenant.
+
+- Täglicher Betrieb: Morgens-Briefing, Forecast, Öffnungs-/Antwort-Signale, Task-Queue, Online-Angebotsannahme.
+- Jede Reibung → **neues, eng geschnittenes Issue** mit Repro (Muster: #41).
+- Kritischer Pfad (Link 1–8) bleibt zu 100 % abgedeckt.
+
+**Exit-Kriterium:** 7 aufeinanderfolgende Tage ohne HubSpot; alle dabei entstandenen
+P0/P1-Friction-Issues geschlossen. **→ Kill-Condition erfüllt.**
+
+### M3 — Qualität, Robustheit & #20 *(P2/P3, teils parallel zu M1/M2)*
+
+| Item | Hinweis |
+|---|---|
+| **#20 Embedding-Eval abschließen** | Braucht Umgebung mit HF-Modell-Zugriff; Fixtures + Leitfaden liegen bereit (`eval/embedding-fixtures.json`, `docs/embeddings.md`). Default-Wechsel nur bei klarem Gewinn (recall@k/MRR, vollständig lokal) — **kein blind swap** |
+| HTTP-Routen-Integrationstests (supertest-Stil) für `/chat`, `/webhooks/whatsapp`, `/book/:id`, `/webhooks/google`, `/portal` | Regressionsschutz der neuen Flächen |
+| Fehler-/Retry-Verhalten der credential-gated `fetch`-Pfade (Graph/Meet/WhatsApp) | Plus strukturiertes Logging/Metriken für `conversation.*`, `meeting.transcribed`, `meeting.booked` |
+| Unmatched-Queue-Workflow/Reminder (Transcripts, perspektivisch Conversations) | Sonst stauen sich unzugeordnete Daten lautlos |
+
+### M4 — Nach der Kill-Condition *(bewusst nicht begonnen)*
+
+Erst wenn M2 bestanden ist:
+
+- Weitere Notification-Channels (Slack)
+- Optionales Read-only-Web-Dashboard
+- Zusätzliche LLM-Provider für On-Device-Summarization
+- Community-Plugin-Marketplace
+
+---
+
+## Sequenzierung & Abhängigkeiten
+
+```
+M1 (Live-ready) ──→ M2 (7-Tage-Härtetest) ──→ M4 (Wachstum)
+        │
+M3 läuft teilweise parallel; #20 ist umgebungsabhängig (HF-Zugriff)
+```
+
+- M2 setzt M1 voraus: ohne Rückkanal, Subscription-Anlage und Setup-Doku ist ein ehrlicher Härtetest nicht möglich.
+- M3-Items sind einzeln pickbar und blockieren nichts; #20 wird gezogen, sobald eine Umgebung mit Modell-Zugriff verfügbar ist.
+- M4 ist hart durch M2 gegated — keine neue Feature-Breite vor bestandener Kill-Condition.
+
+## Nicht-Ziele (bewusst)
+
+- Keine neuen Feature-Flächen vor M2 (der Engpass ist Aktivierung, nicht Breite).
+- Kein Embedding-Default-Wechsel ohne Messung (#20-Regel).
+- Kein eigenes Web-UI über Portal + Chat-Widget hinaus vor M4.
+- Keine Änderung an strategischer Richtung, Kill-Conditions oder externen Verträgen ohne Rückfrage (siehe `CLAUDE.md`).
+
+## Pflege
+
+Diese Roadmap wird bei jedem Meilenstein-Abschluss (und bei neuen Erkenntnissen aus dem
+Härtetest) aktualisiert. Operative Details und Lessons Learned gehören ins
+[SOP](./next-session-sop.md), nicht hierher.

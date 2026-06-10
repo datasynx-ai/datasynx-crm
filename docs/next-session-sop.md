@@ -2,6 +2,7 @@
 
 > Handoff-Dokument für den Start einer neuen Claude-Code-Session. Lies dies
 > **zuerst**, dann `CLAUDE.md`. Stand: nach Abschluss von #58, #53, #56, #57, #41.
+> Mittelfristige Meilenstein-Sicht: [`roadmap.md`](./roadmap.md).
 
 ---
 

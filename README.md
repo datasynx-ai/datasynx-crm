@@ -394,6 +394,8 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 
 ## Roadmap
 
+→ Full roadmap with milestones and exit criteria: [docs/roadmap.md](./docs/roadmap.md)
+
 **Shipped**
 
 - ✅ 82 MCP tools · 69 CLI commands · local-first Markdown store
@@ -405,10 +407,19 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 - ✅ RBAC, append-only audit, AES-256-GCM vault, GDPR erasure
 - ✅ Shared HTTP MCP server, SSO (WorkOS), outbound webhooks
 - ✅ Wake-triggered per-customer agents (Telegram)
+- ✅ Customer self-service portal, native meeting scheduler
+- ✅ Omnichannel inbox: embeddable web chat + WhatsApp Cloud API
+- ✅ Teams/Meet transcript auto-discovery & routing
+
+**Hardening (current focus)**
+
+- 🔧 Per-provider setup guides + `dxcrm doctor` connectivity checks
+- 🔧 Web-chat delivery channel (polling/SSE) & public endpoint hardening
+- 🔧 First external user: 7 days fully HubSpot-free
 
 **Exploring**
 
-- ⚪ More notification channels (Slack, WhatsApp)
+- ⚪ More notification channels (Slack)
 - ⚪ Optional read-only web dashboard
 - ⚪ Additional LLM providers for on-device summarization
 - ⚪ Community plugin marketplace
