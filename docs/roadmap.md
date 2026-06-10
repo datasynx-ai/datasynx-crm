@@ -19,7 +19,7 @@ User näher an „7 Tage ohne HubSpot"?*
 ## Wo wir stehen
 
 - Phasen 1–5 abgeschlossen: 82 MCP-Tools · 69 CLI-Commands · lokale Markdown-/NDJSON-Stores · ~3726 Tests grün · Coverage-Gate (80 % Branches) grün.
-- Zuletzt geliefert: zweite Routen-Test-Tranche + Quote-State-Machine-Fix (#68), Coverage-Lücken kritischer Pfad (#69), Doku-Link-Check in CI (#71); davor M1 (#61–#64) und M3-Robustheit (#65–#67).
+- Zuletzt geliefert: zweite Routen-Test-Tranche + Quote-State-Machine-Fix (#68), Coverage-Lücken kritischer Pfad (#69), Doku-Link-Check in CI (#71), Vault-Fallback für Integrations-Secrets (#72); davor M1 (#61–#64) und M3-Robustheit (#65–#67).
 - Offene Issues: **#20** (Embedding-Eval, blockiert durch fehlenden Modell-Zugriff in der Sandbox) · **#70** (Dependabot-Triage, wartet auf Operator).
 - **Engpass:** Viele Live-Pfade sind credential-gated No-ops. Kern-Logik und Routing sind
   getestet, aber Teams/Meet-Subscriptions, WhatsApp-Versand, Kalender-Free/Busy und Stripe

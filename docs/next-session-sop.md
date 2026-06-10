@@ -17,6 +17,7 @@
   - #68 Zweite Routen-Test-Tranche: `/q/:token` (+accept/decline), `/webhooks/stripe`, `/portal` (+ticket/reply), `/survey/respond`, `/t/o`/`/t/c`, `/dashboard` → `src/mcp/routes/{quote,portal,engagement}-routes.ts` + 43 Routen-Tests. **Bugfix:** Accept/Decline konnten eine **bezahlte** Quote überschreiben (`paid` ist jetzt terminal); Accept/Decline prüfen Token-Slug ↔ Quote wie der GET-Pfad. Stripe-Signatur lief bereits korrekt über `rawBody` (per Test gepinnt).
   - #69 Coverage-Lücken: Branches 77,7 % → **80,1 %** (50 Tests: transcript-discovery-Attendee-Lookups, subscription-renew-Fehlerpfade, quote-link/portal-Links, webhooks-Failure-Queue, Dashboard-Tiles, 0 %-MCP-Tools product/form/workflow/send_quote/get_logs, Stripe-Payment-Link-Fehlerpfade).
   - #71 Doku-Hygiene: `npm run docs:check` (relativer Link-/Anker-Check über README+docs, offline) + CI-Hook in der Quality-Stage.
+  - #72 Vault-Fallback: `WHATSAPP_*`/`STRIPE_*`/`MS_GRAPH_CLIENT_STATE` lösen jetzt **env → Vault** auf (`core/secrets.ts#resolveSecret`, env gewinnt immer); `doctor --integrations` spiegelt dieselbe Auflösung.
 
 ---
 
