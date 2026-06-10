@@ -1,0 +1,26 @@
+{
+  "_comment": "Representative CRM retrieval fixtures for `dxcrm eval-embeddings` (#20). Documents are anonymized, synthetic interaction/KB snippets spanning the topics that matter for a sales+support CRM (pricing, security, onboarding, churn risk, integrations, renewals, billing). Queries are phrased the way a rep/agent actually asks. Run: `dxcrm eval-embeddings eval/embedding-fixtures.json --k 5` for the current model, then re-run with DXCRM_EMBED_MODEL=<candidate> to compare recall@k / MRR before any default swap.",
+  "documents": [
+    { "id": "doc-pricing-1", "text": "CFO raised concerns about the enterprise license price; asked for a 15% discount and annual prepay terms before signing the renewal." },
+    { "id": "doc-pricing-2", "text": "Sent the updated quote with volume tiers. Procurement wants net-60 payment terms instead of net-30." },
+    { "id": "doc-security-1", "text": "Security review: customer requires SOC 2 Type II report and SSO via SAML before go-live. Sent the trust center link." },
+    { "id": "doc-security-2", "text": "InfoSec questionnaire returned. They flagged data residency — need EU hosting and a signed DPA under GDPR." },
+    { "id": "doc-onboarding-1", "text": "Kickoff call done. Onboarding plan: data import week 1, admin training week 2, go-live week 3. Champion is the VP of Ops." },
+    { "id": "doc-onboarding-2", "text": "Admin training completed; users created. Outstanding: configure the Slack integration and import historical tickets." },
+    { "id": "doc-churn-1", "text": "Usage dropped 40% this month and the main champion left the company. High churn risk — schedule an executive business review." },
+    { "id": "doc-churn-2", "text": "Customer opened three support tickets about slow exports and is unhappy. Sentiment negative; renewal at risk in 60 days." },
+    { "id": "doc-integration-1", "text": "They want a two-way Salesforce sync and a webhook into their data warehouse. Asked about API rate limits." },
+    { "id": "doc-integration-2", "text": "Configured the HubSpot import and the Gmail sync. Next: connect the Stripe payment link for online quote acceptance." },
+    { "id": "doc-renewal-1", "text": "Annual renewal is up in 30 days. Economic buyer confirmed budget; legal is reviewing the MSA redlines." },
+    { "id": "doc-billing-1", "text": "Invoice dispute: customer was double-charged for seats after an upgrade. Issued a credit and escalated to finance." }
+  ],
+  "queries": [
+    { "query": "Who is worried about the contract price and wants a discount?", "relevantIds": ["doc-pricing-1", "doc-pricing-2"] },
+    { "query": "What are the security and compliance requirements (SOC 2, SSO, GDPR)?", "relevantIds": ["doc-security-1", "doc-security-2"] },
+    { "query": "Where are we in the onboarding plan?", "relevantIds": ["doc-onboarding-1", "doc-onboarding-2"] },
+    { "query": "Which accounts are at risk of churning?", "relevantIds": ["doc-churn-1", "doc-churn-2"] },
+    { "query": "What integrations does the customer need?", "relevantIds": ["doc-integration-1", "doc-integration-2"] },
+    { "query": "When is the renewal and who signs off on budget?", "relevantIds": ["doc-renewal-1"] },
+    { "query": "Was there a billing or invoice problem?", "relevantIds": ["doc-billing-1"] }
+  ]
+}

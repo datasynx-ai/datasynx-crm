@@ -22,8 +22,32 @@ offline. You can swap in a stronger local model (e.g. `Xenova/bge-small-en-v1.5`
 
 ## Evaluating a model (measure before you switch)
 
-Model choice should be data-driven, not a guess. Build a small fixtures file
-with representative queries and their known-relevant documents:
+Model choice should be data-driven, not a guess.
+
+A ready-to-run, representative fixtures set ships in the repo at
+[`eval/embedding-fixtures.json`](../eval/embedding-fixtures.json) (CRM topics:
+pricing, security/compliance, onboarding, churn risk, integrations, renewals,
+billing). Run the comparison straight away:
+
+```bash
+# current default
+dxcrm eval-embeddings eval/embedding-fixtures.json --k 5
+# a candidate (rebuild not needed for eval — it embeds the fixtures in-memory)
+DXCRM_EMBED_MODEL=Xenova/bge-small-en-v1.5 dxcrm eval-embeddings eval/embedding-fixtures.json --k 5
+DXCRM_EMBED_MODEL=Xenova/bge-base-en-v1.5  dxcrm eval-embeddings eval/embedding-fixtures.json --k 5
+```
+
+Record the numbers and only switch the default if a candidate **clearly** wins
+on _your_ corpus (and stays fully local):
+
+| Model | dim | recall@5 | MRR | local? |
+|---|---|---|---|---|
+| Xenova/all-MiniLM-L6-v2 (default) | 384 | _tbd_ | _tbd_ | ✅ |
+| Xenova/bge-small-en-v1.5 | 384 | _tbd_ | _tbd_ | ✅ |
+| Xenova/bge-base-en-v1.5 | 768 | _tbd_ | _tbd_ | ✅ |
+
+You can also build your own fixtures file from anonymized real queries and their
+known-relevant documents:
 
 ```json
 {
