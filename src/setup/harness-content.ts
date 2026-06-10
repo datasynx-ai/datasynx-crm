@@ -60,6 +60,8 @@ const ALL_TOOLS = [
   "update_product",
   // Calendly Scheduler (H3)
   "get_booking_link",
+  // Native Meeting Scheduler (#53)
+  "create_booking_page",
   // Ticket Management (H6)
   "create_ticket",
   "update_ticket",
@@ -110,7 +112,7 @@ const ALL_TOOLS = [
 ] as const;
 
 export { ALL_TOOLS };
-export const TOOL_COUNT = ALL_TOOLS.length; // 78
+export const TOOL_COUNT = ALL_TOOLS.length; // 79
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {

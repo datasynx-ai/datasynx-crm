@@ -86,6 +86,7 @@ import {
 import { registerGetDashboardLink } from "./tools/get-dashboard-link.js";
 import { registerCreateForm, registerListForms } from "./tools/form-tools.js";
 import { registerGetPortalLink } from "./tools/get-portal-link.js";
+import { registerCreateBookingPage } from "./tools/create-booking-page.js";
 import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
 import { registerGetSurveyResults } from "./tools/get-survey-results.js";
 import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
@@ -200,6 +201,7 @@ export function createMcpServer(): McpServer {
   registerCreateForm(server);
   registerListForms(server);
   registerGetPortalLink(server);
+  registerCreateBookingPage(server);
   registerSendNpsSurvey(server);
   registerGetSurveyResults(server);
   registerSearchKnowledgeBase(server);
@@ -630,6 +632,73 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
         flash: `Reply added to ${b["ticketId"]}.`,
       })
     );
+  });
+
+  // Native meeting scheduler (#53): public booking page with real free slots.
+  app.get("/book/:id", async (req, res) => {
+    const { getBookingPage, availableSlots, renderBookingHtml } =
+      await import("../core/booking.js");
+    const { getBusyIntervals } = await import("../sync/calendar-availability.js");
+    const id = (req.params as Record<string, string>)["id"] ?? "";
+    const page = getBookingPage(dataDir, id);
+    if (!page) {
+      res.status(404).send("<h2>Booking page not found.</h2>");
+      return;
+    }
+    const now = Date.now();
+    const busy = await getBusyIntervals(dataDir, page.reps, {
+      start: now,
+      end: now + page.days * 86_400_000,
+    });
+    const slots = availableSlots(page, busy, now);
+    res.setHeader("content-type", "text/html");
+    res.setHeader("cache-control", "no-store");
+    res.send(renderBookingHtml(page, slots, {}));
+  });
+
+  app.post("/book/:id", express.urlencoded({ extended: false }), async (req, res) => {
+    const {
+      getBookingPage,
+      createBooking,
+      availableSlots,
+      renderBookingHtml,
+      renderConfirmedHtml,
+    } = await import("../core/booking.js");
+    const { getBusyIntervals } = await import("../sync/calendar-availability.js");
+    const id = (req.params as Record<string, string>)["id"] ?? "";
+    const page = getBookingPage(dataDir, id);
+    if (!page) {
+      res.status(404).send("<h2>Booking page not found.</h2>");
+      return;
+    }
+    const b = req.body as Record<string, string | undefined>;
+    const start = Number(b["start"]);
+    if (!Number.isFinite(start) || !b["name"] || !b["email"]) {
+      res.status(400).send("<h2>Please pick a slot and provide your name and email.</h2>");
+      return;
+    }
+    const result = await createBooking(dataDir, page, {
+      start,
+      name: b["name"]!.slice(0, 120),
+      email: b["email"]!.slice(0, 200),
+      ...(b["notes"] ? { notes: b["notes"].slice(0, 1000) } : {}),
+    });
+    res.setHeader("content-type", "text/html");
+    if (!result) {
+      // Slot was taken between render and submit — re-render with fresh slots.
+      const now = Date.now();
+      const busy = await getBusyIntervals(dataDir, page.reps, {
+        start: now,
+        end: now + page.days * 86_400_000,
+      });
+      res.status(409).send(
+        renderBookingHtml(page, availableSlots(page, busy, now), {
+          flash: "That slot is no longer available — please pick another.",
+        })
+      );
+      return;
+    }
+    res.send(renderConfirmedHtml(page, result));
   });
 
   // Inbound lead capture (#60): embeddable forms POST straight into the CRM.

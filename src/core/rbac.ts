@@ -20,6 +20,8 @@ const CATALOG_TOOLS = ["create_product", "update_product"];
 const WORKFLOW_TOOLS = ["create_workflow", "toggle_workflow"];
 // Lead-capture forms are shared config — manager/admin only (issue #60).
 const FORM_TOOLS = ["create_form"];
+// Booking pages are shared scheduling config — manager/admin only (issue #53).
+const BOOKING_TOOLS = ["create_booking_page"];
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: [
@@ -35,6 +37,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     ...CATALOG_TOOLS,
     ...WORKFLOW_TOOLS,
     ...FORM_TOOLS,
+    ...BOOKING_TOOLS,
   ],
   manager: [
     "log_interaction",
@@ -45,6 +48,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     ...CATALOG_TOOLS,
     ...WORKFLOW_TOOLS,
     ...FORM_TOOLS,
+    ...BOOKING_TOOLS,
   ],
   rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS],
 };

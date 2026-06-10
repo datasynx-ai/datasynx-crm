@@ -43,6 +43,7 @@ import { workflowCommand } from "./workflow.js";
 import { dashboardCommand } from "./dashboard.js";
 import { formCommand } from "./form.js";
 import { portalCommand } from "./portal.js";
+import { bookingCommand } from "./booking.js";
 import { segmentCommand } from "./segment.js";
 import { identityCommand } from "./identity.js";
 import { metricsCommand } from "./metrics.js";
@@ -115,6 +116,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   dashboardCommand,
   formCommand,
   portalCommand,
+  bookingCommand,
   segmentCommand,
   identityCommand,
   metricsCommand,

@@ -89,6 +89,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | list_products | List catalog products (SKU, name, price, tax, recurring) | any |
 | update_product | Update fields of a catalog product by SKU | manager+ |
 | get_booking_link | Get a Calendly booking link for a customer — optionally pre-fills name/email | rep+ |
+| create_booking_page | Native scheduler: public booking page with real free slots + round-robin (#53) | manager+ |
 | create_ticket | Create a support ticket — auto-SLA due date + skills-based auto-routing (#59) | rep+ |
 | update_ticket | Update ticket status or assignee (resolved auto-sets resolution date) | rep+ |
 | list_tickets | List tickets filtered by customer, status, priority, or assignee | any |
@@ -450,6 +451,16 @@ Requires CALENDLY_API_KEY env var or .agentic/integrations/calendly.yaml config.
 RBAC: rep+
 - Input: { slug, eventType?: string, prefillName?: boolean }
 - Returns: { bookingUrl, eventType, duration }
+
+### create_booking_page({ id, title, reps, durationMin?, bufferMin?, days?, startHour?, endHour?, slotStepMin?, slug?, location? })
+Native meeting scheduler (#53): a public booking page at /book/:id that shows REAL free slots
+derived from the connected calendars (Microsoft Graph getSchedule / Google freebusy), distributes
+team bookings round-robin across the listed reps, and on confirmation writes a calendar event and
+logs a Meeting interaction (fires meeting.booked for workflows). Local-first: with no connected
+calendar every rep is treated as free. The Calendly get_booking_link tool stays as a fallback.
+RBAC: manager+
+- Input: { id, title, reps: string[], durationMin?, bufferMin?, days?, startHour?, endHour?, slotStepMin?, slug?, location? }
+- Returns: { page, url, embedSnippet }
 
 ### create_ticket({ slug, title, description?, priority?, assignee? })
 Create a support ticket. Auto-calculates SLA due date based on priority.
