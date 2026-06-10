@@ -61,11 +61,20 @@ inboxCommand
   .option("--by <actor>", "Replying actor")
   .option("--close", "Close after replying")
   .action(async (id: string, message: string, opts: { by?: string; close?: boolean }) => {
-    const c = await replyConversation(dataDir(), id, {
-      message,
-      ...(opts.by ? { by: opts.by } : {}),
-      ...(opts.close ? { close: true } : {}),
-    });
+    // Same outbound delivery as the MCP tool (#67) — before this, CLI replies
+    // were recorded-only even with WhatsApp credentials configured.
+    const { buildSender } = await import("../mcp/tools/conversation-tools.js");
+    const send = await buildSender(dataDir());
+    const c = await replyConversation(
+      dataDir(),
+      id,
+      {
+        message,
+        ...(opts.by ? { by: opts.by } : {}),
+        ...(opts.close ? { close: true } : {}),
+      },
+      send ? { send } : {}
+    );
     console.log(c ? info(`Replied to ${id} (status: ${c.status}).`) : info(`'${id}' not found.`));
   });
 

@@ -155,7 +155,8 @@ RBAC: rep+. Returns: { success, id, status, assignee, slug, ticketId }`,
 
 // ─── outbound sender (best-effort, credential-gated) ────────────────────────────
 
-async function buildSender(
+/** Default outbound sender — shared by the MCP tool and `dxcrm inbox reply` (#67). */
+export async function buildSender(
   _dataDir: string
 ): Promise<
   | ((msg: {
@@ -171,15 +172,9 @@ async function buildSender(
   if (!token || !phoneId) return null; // offline → reply is recorded only
   return async (msg) => {
     if (msg.channel !== "whatsapp" || !msg.contact.phone) return;
-    await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: msg.contact.phone,
-        type: "text",
-        text: { body: msg.text },
-      }),
-    });
+    // Throws on non-ok / exhausted retries (#67) so replyConversation's
+    // "recorded but undelivered" warning actually fires on auth errors.
+    const { sendWhatsAppText } = await import("../../sync/whatsapp-send.js");
+    await sendWhatsAppText({ token, phoneId, to: msg.contact.phone, text: msg.text });
   };
 }

@@ -262,9 +262,20 @@ export async function fetchTeamsAttendees(
     : `https://graph.microsoft.com/v1.0/communications/onlineMeetings/${ref.meetingId}`;
   try {
     const res = await fetchFn(base, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      // Contract stays []/skip, but the cause must be visible to operators (#67).
+      logger.warn("transcript-discovery", "teams attendee lookup failed", {
+        meetingId: ref.meetingId,
+        status: (res as { status?: number }).status,
+      });
+      return [];
+    }
     return harvestEmails(await res.json());
-  } catch {
+  } catch (err) {
+    logger.warn("transcript-discovery", "teams attendee lookup failed", {
+      meetingId: ref.meetingId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return [];
   }
 }
@@ -278,9 +289,19 @@ export async function fetchMeetAttendees(
   const url = `https://meet.googleapis.com/v2/${conferenceRecordId}/participants`;
   try {
     const res = await fetchFn(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      logger.warn("transcript-discovery", "meet attendee lookup failed", {
+        conferenceRecordId,
+        status: (res as { status?: number }).status,
+      });
+      return [];
+    }
     return harvestEmails(await res.json());
-  } catch {
+  } catch (err) {
+    logger.warn("transcript-discovery", "meet attendee lookup failed", {
+      conferenceRecordId,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return [];
   }
 }

@@ -326,8 +326,11 @@ Point your WhatsApp Business webhook at the CRM:
   `WHATSAPP_APP_SECRET` (`X-Hub-Signature-256`); inbound texts open/continue a
   thread keyed by the sender's `wa_id`.
 - **Outbound replies:** set `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` to deliver
-  agent replies back via the Cloud API. Without them, replies are still recorded
-  on the thread (local-first no-op).
+  agent replies back via the Cloud API (both `reply_conversation` and
+  `dxcrm inbox reply`). Without them, replies are still recorded on the thread
+  (local-first no-op). Delivery failures are visible: transient errors
+  (network/429/5xx) are retried with backoff, auth errors fail fast — either
+  way an undelivered reply logs `outbound send failed (reply still recorded)`.
 - **Rate limit:** inbound POSTs are capped at 100/min per IP (`429` beyond) —
   abuse protection for setups where `WHATSAPP_APP_SECRET` is not configured.
   Always set the secret in production; the HMAC signature is the real
