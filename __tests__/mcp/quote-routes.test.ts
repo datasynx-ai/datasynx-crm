@@ -194,6 +194,25 @@ describe("POST /q/:token/accept (#68)", () => {
       expect.objectContaining({ quoteNumber: "Q-2026-001", signedBy: "Jane Doe" })
     );
   });
+
+  it("404s when the token slug does not match the quote (regression #68)", async () => {
+    seedQuote({ slug: "other-customer" });
+    const token = await signToken(validPayload());
+    const res = await postForm(`/q/${token}/accept`, { name: "Jane" });
+    expect(res.status).toBe(404);
+    expect(readQuoteFile().status).toBe("sent");
+  });
+
+  it("does not overwrite a paid quote (regression #68)", async () => {
+    seedQuote({ status: "paid", paidAt: "2026-06-05T00:00:00.000Z" });
+    const token = await signToken(validPayload());
+    const res = await postForm(`/q/${token}/accept`, { name: "Mallory" });
+    expect(res.status).toBe(200);
+    const after = readQuoteFile();
+    expect(after.status).toBe("paid");
+    expect(after.paidAt).toBe("2026-06-05T00:00:00.000Z");
+    expect(mockEmitEvent).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /q/:token/decline (#68)", () => {
@@ -216,6 +235,23 @@ describe("POST /q/:token/decline (#68)", () => {
     const res = await fetch(`${base}/q/${token}/decline`, { method: "POST" });
     expect(res.status).toBe(400);
     expect(readQuoteFile().status).toBe("sent");
+  });
+
+  it("404s when the token slug does not match the quote (regression #68)", async () => {
+    seedQuote({ slug: "other-customer" });
+    const token = await signToken(validPayload());
+    const res = await fetch(`${base}/q/${token}/decline`, { method: "POST" });
+    expect(res.status).toBe(404);
+    expect(readQuoteFile().status).toBe("sent");
+  });
+
+  it("does not overwrite a paid quote (regression #68)", async () => {
+    seedQuote({ status: "paid", paidAt: "2026-06-05T00:00:00.000Z" });
+    const token = await signToken(validPayload());
+    const res = await fetch(`${base}/q/${token}/decline`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect(readQuoteFile().status).toBe("paid");
+    expect(mockEmitEvent).not.toHaveBeenCalled();
   });
 });
 

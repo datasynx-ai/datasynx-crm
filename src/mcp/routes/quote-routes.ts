@@ -44,6 +44,14 @@ export function registerQuoteRoutes(app: Express, dataDir: string): void {
       res.status(400).send("<h2>Invalid request.</h2>");
       return;
     }
+    // Same slug consistency check as the GET route: the token must belong to
+    // the customer the quote is for (#68).
+    const { readQuote } = await import("../../core/quote-generator.js");
+    const existing = readQuote(dataDir, payload.q);
+    if (!existing || existing.slug !== payload.s) {
+      res.status(404).send("<h2>Quote not found.</h2>");
+      return;
+    }
     const ip =
       (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
       req.socket.remoteAddress ??
@@ -64,6 +72,12 @@ export function registerQuoteRoutes(app: Express, dataDir: string): void {
     const payload = verifyQuoteToken(raw);
     if (!payload) {
       res.status(400).send("<h2>Invalid request.</h2>");
+      return;
+    }
+    const { readQuote } = await import("../../core/quote-generator.js");
+    const existing = readQuote(dataDir, payload.q);
+    if (!existing || existing.slug !== payload.s) {
+      res.status(404).send("<h2>Quote not found.</h2>");
       return;
     }
     const quote = await declineQuote(dataDir, payload.q);

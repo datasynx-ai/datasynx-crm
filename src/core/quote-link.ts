@@ -150,6 +150,9 @@ export async function acceptQuote(
 ): Promise<Quote | null> {
   const quote = readQuote(dataDir, quoteNumber);
   if (!quote) return null;
+  // `paid` is terminal: the public quote link stays valid for weeks, so a
+  // late accept/decline must never clobber a recorded payment (#68).
+  if (quote.status === "paid") return quote;
   const signedAt = new Date().toISOString();
   const updated: Quote = {
     ...quote,
@@ -197,6 +200,7 @@ export async function acceptQuote(
 export async function declineQuote(dataDir: string, quoteNumber: string): Promise<Quote | null> {
   const quote = readQuote(dataDir, quoteNumber);
   if (!quote) return null;
+  if (quote.status === "paid") return quote; // terminal — see acceptQuote
   const now = new Date().toISOString();
   const updated: Quote = { ...quote, status: "declined", declinedAt: now };
   writeQuote(dataDir, updated);
