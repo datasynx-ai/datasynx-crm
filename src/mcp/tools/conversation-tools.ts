@@ -83,10 +83,10 @@ export function registerReplyConversation(server: McpServer): void {
     {
       title: "Reply to Conversation",
       description: `Send an agent reply on an inbox conversation (#57). The reply is delivered back
-on the originating channel (best-effort; WhatsApp/web outbound is credential-
-gated), recorded on the thread and the customer timeline, and fires
-conversation.replied. Set close to resolve the thread. RBAC: rep+.
-Returns: { success, id, status, messages }`,
+on the originating channel: web-chat via the widget's poll loop (#62), WhatsApp
+via the Cloud API (best-effort, credential-gated). Recorded on the thread and
+the customer timeline, fires conversation.replied. Set close to resolve the
+thread. RBAC: rep+. Returns: { success, id, status, messages }`,
       inputSchema: z.object({
         id: z.string().describe("Conversation id (conv_…)"),
         message: z.string().describe("Agent reply text"),

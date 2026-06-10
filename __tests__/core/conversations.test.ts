@@ -200,3 +200,95 @@ describe("WhatsApp payload parsing (#57)", () => {
     expect(parseWhatsAppInbound({})).toEqual([]);
   });
 });
+
+describe("pollMessages (#62)", () => {
+  it("returns all messages and a cursor for a known session", async () => {
+    const { ingestInbound, replyConversation, pollMessages } =
+      await import("../../src/core/conversations.js");
+    const conv = await ingestInbound(DATA_DIR, {
+      channel: "web",
+      threadKey: "sess-poll",
+      contact: {},
+      text: "hello?",
+    });
+    await replyConversation(DATA_DIR, conv.id, { message: "Hi, how can I help?", by: "alice" });
+
+    const result = pollMessages(DATA_DIR, { channel: "web", threadKey: "sess-poll" });
+    expect(result.cursor).toBe(2);
+    expect(result.status).toBe("open");
+    expect(result.messages.map((m) => m.from)).toEqual(["customer", "agent"]);
+    expect(result.messages[1]?.text).toBe("Hi, how can I help?");
+  });
+
+  it("returns only messages after the cursor", async () => {
+    const { ingestInbound, replyConversation, pollMessages } =
+      await import("../../src/core/conversations.js");
+    const conv = await ingestInbound(DATA_DIR, {
+      channel: "web",
+      threadKey: "sess-cursor",
+      contact: {},
+      text: "first",
+    });
+    const first = pollMessages(DATA_DIR, { channel: "web", threadKey: "sess-cursor" });
+    expect(first.cursor).toBe(1);
+
+    await replyConversation(DATA_DIR, conv.id, { message: "answer" });
+    const next = pollMessages(DATA_DIR, {
+      channel: "web",
+      threadKey: "sess-cursor",
+      after: first.cursor,
+    });
+    expect(next.messages).toHaveLength(1);
+    expect(next.messages[0]).toMatchObject({ from: "agent", text: "answer" });
+    expect(next.cursor).toBe(2);
+
+    const idle = pollMessages(DATA_DIR, {
+      channel: "web",
+      threadKey: "sess-cursor",
+      after: next.cursor,
+    });
+    expect(idle.messages).toHaveLength(0);
+    expect(idle.cursor).toBe(2);
+  });
+
+  it("still delivers a reply that closed the thread", async () => {
+    const { ingestInbound, replyConversation, pollMessages } =
+      await import("../../src/core/conversations.js");
+    const conv = await ingestInbound(DATA_DIR, {
+      channel: "web",
+      threadKey: "sess-closed",
+      contact: {},
+      text: "are you open tomorrow?",
+    });
+    await replyConversation(DATA_DIR, conv.id, { message: "Yes — see you!", close: true });
+
+    const result = pollMessages(DATA_DIR, { channel: "web", threadKey: "sess-closed", after: 1 });
+    expect(result.status).toBe("closed");
+    expect(result.messages.map((m) => m.text)).toEqual(["Yes — see you!"]);
+  });
+
+  it("returns an empty result for unknown sessions", async () => {
+    const { pollMessages } = await import("../../src/core/conversations.js");
+    expect(pollMessages(DATA_DIR, { channel: "web", threadKey: "nope" })).toEqual({
+      messages: [],
+      cursor: 0,
+      status: null,
+    });
+  });
+});
+
+describe("renderChatWidget (#61/#62)", () => {
+  it("ships a honeypot field and posts it with each message", async () => {
+    const { renderChatWidget } = await import("../../src/core/conversations.js");
+    const js = renderChatWidget("https://crm.example.com/");
+    expect(js).toContain("_hp");
+    expect(js).toContain("https://crm.example.com/chat");
+  });
+
+  it("polls /chat/poll for agent replies", async () => {
+    const { renderChatWidget } = await import("../../src/core/conversations.js");
+    const js = renderChatWidget("https://crm.example.com");
+    expect(js).toContain("/chat/poll");
+    expect(js).toContain("cursor");
+  });
+});

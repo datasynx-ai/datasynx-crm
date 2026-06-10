@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { readJsonFile, writeJsonFile } from "../fs/json-store.js";
+import { createRateLimiter } from "./http-guard.js";
 import { emitEvent } from "./webhooks.js";
 import { logger } from "./logger.js";
 
@@ -61,23 +62,14 @@ export function createForm(
 
 // ─── Spam protection ──────────────────────────────────────────────────────────
 
-const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 5;
-const hits = new Map<string, number[]>();
+const limiter = createRateLimiter({ windowMs: 60_000, max: 5 });
 
 /** Sliding-window per-IP throttle. Exported reset for tests. */
 export function rateLimited(ip: string, now: number = Date.now()): boolean {
-  const arr = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (arr.length >= MAX_PER_WINDOW) {
-    hits.set(ip, arr);
-    return true;
-  }
-  arr.push(now);
-  hits.set(ip, arr);
-  return false;
+  return limiter.limited(ip, now);
 }
 export function resetRateLimiter(): void {
-  hits.clear();
+  limiter.reset();
 }
 
 // ─── Double-opt-in tokens ─────────────────────────────────────────────────────

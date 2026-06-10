@@ -245,6 +245,17 @@ Embed the widget on any page — it POSTs messages to the CRM HTTP server:
 Messages land via `POST /chat` (`{ sessionId, email?, name?, message }`) and open
 or continue a conversation keyed by the browser session.
 
+**Two-way:** the widget polls `GET /chat/poll?sessionId=…&after=<cursor>` every
+3 s for agent replies (`{ messages, cursor, status }`). Replies sent with
+`dxcrm inbox reply` / `reply_conversation` reach the visitor automatically —
+including a final answer sent with `--close`. Polling starts with the first
+message (or immediately for returning sessions), so idle embeds are silent.
+
+**Spam protection** (same model as `/forms`): a hidden honeypot field `_hp` —
+non-empty submissions are silently dropped but look like a success to the bot —
+plus per-IP rate limits: `POST /chat` 20/min, `GET /chat/poll` 120/min
+(comfortable for one widget polling every 3 s). Over-limit requests get `429`.
+
 ### WhatsApp (Meta Cloud API)
 
 Point your WhatsApp Business webhook at the CRM:
@@ -257,6 +268,10 @@ Point your WhatsApp Business webhook at the CRM:
 - **Outbound replies:** set `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` to deliver
   agent replies back via the Cloud API. Without them, replies are still recorded
   on the thread (local-first no-op).
+- **Rate limit:** inbound POSTs are capped at 100/min per IP (`429` beyond) —
+  abuse protection for setups where `WHATSAPP_APP_SECRET` is not configured.
+  Always set the secret in production; the HMAC signature is the real
+  authentication.
 
 ### Handling the inbox
 

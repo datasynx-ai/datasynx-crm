@@ -557,8 +557,9 @@ RBAC: any
 
 ### reply_conversation({ id, message, by?, close? })
 Send an agent reply on an inbox conversation. The reply is delivered back on the originating
-channel (best-effort; WhatsApp/web outbound is credential-gated), recorded on the thread and
-the customer timeline, and fires conversation.replied. Set close to resolve the thread.
+channel: web-chat visitors receive it via the widget's poll loop, WhatsApp via the Cloud API
+(credential-gated, best-effort). Recorded on the thread and the customer timeline, fires
+conversation.replied. Set close to resolve the thread.
 RBAC: rep+
 - Returns: { success, id, status, messages }
 

@@ -408,13 +408,12 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 - ✅ Shared HTTP MCP server, SSO (WorkOS), outbound webhooks
 - ✅ Wake-triggered per-customer agents (Telegram)
 - ✅ Customer self-service portal, native meeting scheduler
-- ✅ Omnichannel inbox: embeddable web chat + WhatsApp Cloud API
+- ✅ Omnichannel inbox: embeddable two-way web chat + WhatsApp Cloud API (rate-limited, honeypot-protected endpoints)
 - ✅ Teams/Meet transcript auto-discovery & routing
 
 **Hardening (current focus)**
 
 - 🔧 Per-provider setup guides + `dxcrm doctor` connectivity checks
-- 🔧 Web-chat delivery channel (polling/SSE) & public endpoint hardening
 - 🔧 First external user: 7 days fully HubSpot-free
 
 **Exploring**

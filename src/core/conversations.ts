@@ -345,6 +345,42 @@ export async function assignConversation(
   return conv;
 }
 
+// ─── Delivery channel (#62) ───────────────────────────────────────────────────
+
+export interface PollInput {
+  channel: ConversationChannel;
+  threadKey: string;
+  /** Message-count cursor from the previous poll; 0 returns the full thread. */
+  after?: number;
+}
+
+export interface PollResult {
+  messages: ConversationMessage[];
+  cursor: number;
+  status: ConversationStatus | null;
+}
+
+/**
+ * Cursor-based read for the web-chat delivery loop: the widget polls with the
+ * last cursor and receives everything newer. Reads the *latest* thread for the
+ * key — including closed ones, so a reply sent with `close` still reaches the
+ * visitor. Unknown keys yield an empty result (no session enumeration).
+ */
+export function pollMessages(dataDir: string, input: PollInput): PollResult {
+  // listConversations sorts by lastMessageAt desc → first match is the latest.
+  const conv =
+    listConversations(dataDir, { channel: input.channel }).find(
+      (c) => c.threadKey === input.threadKey
+    ) ?? null;
+  if (!conv) return { messages: [], cursor: 0, status: null };
+  const after = Math.max(0, Math.floor(input.after ?? 0));
+  return {
+    messages: conv.messages.slice(after),
+    cursor: conv.messages.length,
+    status: conv.status,
+  };
+}
+
 // ─── WhatsApp inbound parsing (Meta Cloud API) ──────────────────────────────────
 
 export interface WhatsAppInboundMessage {
@@ -379,12 +415,20 @@ export function parseWhatsAppInbound(payload: unknown): WhatsAppInboundMessage[]
 
 // ─── Web-chat widget ────────────────────────────────────────────────────────────
 
-/** Minimal embeddable web-chat widget that POSTs to /chat. */
+/**
+ * Minimal embeddable web-chat widget: POSTs to /chat (with a hidden honeypot,
+ * #61) and polls /chat/poll every 3 s for agent replies (#62). Polling starts
+ * with the first interaction — or immediately for returning sessions — so idle
+ * embeds generate no traffic. Customer messages are echoed locally and skipped
+ * on poll to avoid duplicates.
+ */
 export function renderChatWidget(baseUrl: string): string {
   const base = baseUrl.replace(/\/+$/, "");
   return `(function(){
-  var sid = localStorage.getItem('dxcrm_chat_sid') || ('web-' + Math.random().toString(36).slice(2));
+  var existing = localStorage.getItem('dxcrm_chat_sid');
+  var sid = existing || ('web-' + Math.random().toString(36).slice(2));
   localStorage.setItem('dxcrm_chat_sid', sid);
+  var cursor = 0, timer = null;
   var box = document.createElement('div');
   box.style.cssText = 'position:fixed;bottom:20px;right:20px;width:300px;font-family:Arial,sans-serif;border:1px solid #ddd;border-radius:10px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.15);overflow:hidden;z-index:99999';
   box.innerHTML = '<div style="background:#1a1a2e;color:#fff;padding:10px;font-weight:bold">Chat with us</div>'
@@ -394,16 +438,35 @@ export function renderChatWidget(baseUrl: string): string {
     + '</form>'
     + '<form id="dxcrm-m" style="display:flex;border-top:1px solid #eee">'
     + '<input id="dxcrm-t" placeholder="Type a message…" required style="flex:1;border:0;padding:8px">'
+    + '<input id="dxcrm-hp" name="_hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">'
     + '<button style="border:0;background:#1a1a2e;color:#fff;padding:0 14px;cursor:pointer">Send</button></form>';
   document.body.appendChild(box);
+  function esc(s){ return String(s).replace(/[<>&]/g,''); }
+  function poll(){
+    fetch('${base}/chat/poll?sessionId=' + encodeURIComponent(sid) + '&after=' + cursor)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var log = document.getElementById('dxcrm-log');
+        (d.messages || []).forEach(function(m){
+          if (m.from === 'customer') return;
+          log.innerHTML += '<div style="margin:4px 0"><span style="background:#f1f5f9;padding:4px 8px;border-radius:8px;display:inline-block">' + esc(m.text) + '</span></div>';
+          log.scrollTop = log.scrollHeight;
+        });
+        if (typeof d.cursor === 'number') cursor = d.cursor;
+      }).catch(function(){});
+  }
+  function startPolling(){ if (!timer) { poll(); timer = setInterval(poll, 3000); } }
+  if (existing) startPolling();
   document.getElementById('dxcrm-m').addEventListener('submit', function(e){
     e.preventDefault();
     var t = document.getElementById('dxcrm-t').value;
     var email = document.getElementById('dxcrm-email').value;
+    var hp = document.getElementById('dxcrm-hp').value;
     var log = document.getElementById('dxcrm-log');
-    log.innerHTML += '<div style="text-align:right;margin:4px 0"><span style="background:#dbeafe;padding:4px 8px;border-radius:8px;display:inline-block">' + t.replace(/[<>&]/g,'') + '</span></div>';
+    log.innerHTML += '<div style="text-align:right;margin:4px 0"><span style="background:#dbeafe;padding:4px 8px;border-radius:8px;display:inline-block">' + esc(t) + '</span></div>';
     document.getElementById('dxcrm-t').value = '';
-    fetch('${base}/chat', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId:sid,email:email,message:t})});
+    fetch('${base}/chat', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId:sid,email:email,message:t,_hp:hp})})
+      .then(function(){ startPolling(); });
   });
 })();`;
 }
