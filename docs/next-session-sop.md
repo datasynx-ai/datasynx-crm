@@ -1,23 +1,22 @@
 # SOP — Nächste Session (DatasynxOpenCRM)
 
 > Handoff-Dokument für den Start einer neuen Claude-Code-Session. Lies dies
-> **zuerst**, dann `CLAUDE.md`. Stand: **M1 abgeschlossen** (#61–#64) **+ M3 weitgehend
-> abgeschlossen** (#65 Routen-Tests, #66 Unmatched-Workflow, #67 Outbound-Robustheit).
+> **zuerst**, dann `CLAUDE.md`. Stand: **M1 ✅ + M3 (Sandbox-Anteil) ✅ abgeschlossen**
+> (#61–#69). Einziger Sandbox-Blocker: #20; #70 wartet auf Operator-Input.
 > Mittelfristige Meilenstein-Sicht: [`roadmap.md`](./roadmap.md).
 
 ---
 
 ## 0. Aktueller Stand (Snapshot)
 
-- **Phase:** Härtung & erster externer User · **M1 ✅ abgeschlossen** (2026-06-10).
+- **Phase:** Härtung & erster externer User · **M1 ✅** (2026-06-10) · **M3 Sandbox-Anteil ✅** (2026-06-10).
 - **Nordstern / Kill-Condition:** Erster externer User nutzt `dxcrm` **7 Tage täglich ohne HubSpot**.
-- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3630 Tests grün · npm 1.37.0+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
-- **Offene Issues:** nur **#20** (Embedding-Eval) — blockiert durch fehlenden HF-Modell-Zugriff in der Sandbox.
-- **Zuletzt geliefert (M1):**
-  - #61 Rate-Limit + Honeypot für `/chat` & `/webhooks/whatsapp` (`src/core/http-guard.ts`, Routen extrahiert nach `src/mcp/routes/conversation-routes.ts` → erste echte Routen-Integrationstests).
-  - #62 Web-Chat-Rückkanal: `GET /chat/poll` + Widget-Polling (`pollMessages` in conversations.ts) — Web-Chat ist jetzt two-way ohne Credentials.
-  - #63 Echte Subscription-Anlage: `dxcrm transcripts subscribe teams|meet` (`src/sync/subscription-create.ts`), Provider `google-workspace`, Renewal pro Provider. **3 Bugfixes:** Renewal-Cross-Talk (Provider-Filter), Renewal-Skip ohne Gmail, `runCli` schluckte `process.exitCode`.
-  - #64 `dxcrm doctor --integrations [--live]` — Readiness je Provider mit Live-Probes; Checkliste in `docs/integrations.md`.
+- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3726 Tests grün · Coverage-Gate (80 % Branches) wieder grün · npm 1.37.2+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
+- **Offene Issues:** **#20** (Embedding-Eval, HF-Zugriff fehlt in der Sandbox) · **#70** (Dependabot-Alert-Triage — wartet auf Operator: Alert öffnen, Paket+Version+GHSA posten).
+- **Zuletzt geliefert (Session 2026-06-10, zweiter Teil):**
+  - #68 Zweite Routen-Test-Tranche: `/q/:token` (+accept/decline), `/webhooks/stripe`, `/portal` (+ticket/reply), `/survey/respond`, `/t/o`/`/t/c`, `/dashboard` → `src/mcp/routes/{quote,portal,engagement}-routes.ts` + 43 Routen-Tests. **Bugfix:** Accept/Decline konnten eine **bezahlte** Quote überschreiben (`paid` ist jetzt terminal); Accept/Decline prüfen Token-Slug ↔ Quote wie der GET-Pfad. Stripe-Signatur lief bereits korrekt über `rawBody` (per Test gepinnt).
+  - #69 Coverage-Lücken: Branches 77,7 % → **80,1 %** (50 Tests: transcript-discovery-Attendee-Lookups, subscription-renew-Fehlerpfade, quote-link/portal-Links, webhooks-Failure-Queue, Dashboard-Tiles, 0 %-MCP-Tools product/form/workflow/send_quote/get_logs, Stripe-Payment-Link-Fehlerpfade).
+  - #71 Doku-Hygiene: `npm run docs:check` (relativer Link-/Anker-Check über README+docs, offline) + CI-Hook in der Quality-Stage.
 
 ---
 
@@ -64,14 +63,14 @@ M1 hat alle Live-Pfade aktivierbar gemacht. Jetzt entscheidet sich die Kill-Cond
 
 ### 🥈 P1 — M3-Restarbeiten (sandbox-tauglich)
 
-M3 ist weitgehend erledigt (#65 Routen-Tests forms/booking/webhooks, #66 Unmatched-Workflow,
-#67 Outbound-Robustheit). Verbleibend:
+M3 ist im Sandbox-Umfang **abgeschlossen** (#65/#68 Routen-Tests aller öffentlichen
+Flächen, #66 Unmatched-Workflow, #67 Outbound-Robustheit, #69 Coverage-Gate). Verbleibend:
 
-- **Zweite Routen-Test-Tranche:** `/q/:token` (Quote accept/decline), `/portal(+ticket/reply)`,
-  `/survey/respond`, `/dashboard`, `/webhooks/stripe`, Tracking-Pixel `/t/o`/`/t/c` —
-  jeweils erst in `register<X>Routes`-Module extrahieren (Muster: `src/mcp/routes/`).
 - **Unmatched Conversations:** das #66-Muster (Event + Digest + resolve) auf unzugeordnete
   Conversations übertragen, sobald der Härtetest zeigt, dass es gebraucht wird.
+- **Coverage-Randlücken** (bewusst zurückgestellt, siehe #69-Abschluss): `sync/calendly.ts`
+  (0 %, raw `https.request`, Legacy-Pfad), `core/llm.ts`-Provider-Branches,
+  `sync/calendar-availability`-Provider-Branches (credential-gated).
 
 ### 🥉 P2 — #20 Embedding-Eval abschließen
 
@@ -81,8 +80,10 @@ M3 ist weitgehend erledigt (#65 Routen-Tests forms/booking/webhooks, #66 Unmatch
 ### Dauerläufer
 
 - **Dependabot:** 1 kritische Meldung auf `main`
-  (https://github.com/datasynx/datasynx-crm/security/dependabot/1) — `npm audit` lokal sauber,
-  Details nur über die GitHub-UI einsehbar. Vor M2-Abschluss klären.
+  (https://github.com/datasynx/datasynx-crm/security/dependabot/1) — Triage in **#70**:
+  `npm audit` sauber, Lockfile gegen die bekannten 2025/26-Criticals geprüft (kein Treffer),
+  vermutlich staler Alert. **Wartet auf Operator** (Alert öffnen → Paket+Version+GHSA in #70
+  posten), dann Update/Override oder Dismiss.
 
 ---
 
@@ -109,6 +110,10 @@ M3 ist weitgehend erledigt (#65 Routen-Tests forms/booking/webhooks, #66 Unmatch
   `capabilities.ts` (Tabelle + Detail), `npm run docs:generate`, Pin-Test aktualisieren.
   CLI-**Subcommands** zählen dagegen nicht in die 69 (nur Top-Level via registry).
 - **Zähl-Strings in README/Doc-Headern** sind teils außerhalb der AUTOGEN-Blöcke → manuell.
+- **Doku-Links:** `npm run docs:check` prüft alle relativen Links/Anker in README+docs
+  (läuft in der CI-Quality-Stage); externe URLs sind bewusst außen vor.
+- **Quote-State-Machine:** `paid` ist terminal — `acceptQuote`/`declineQuote` geben die
+  Quote dann unverändert zurück (kein Event). Nicht "vereinfachen" (#68-Bug).
 - **commitlint:** Subject ≤ 72 Zeichen; Scopes enum-beschränkt (`cli, mcp, core, sync, …`).
 - **ESM:** kein `require()`; Type-only Imports für zirkuläre Typen.
 - **Wiederverwendbare Muster:** HMAC-Token, Config-Store `.agentic/<feature>/<id>.json`,

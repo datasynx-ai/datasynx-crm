@@ -395,11 +395,12 @@ git clone https://github.com/datasynx/datasynx-crm
 cd datasynx-crm
 npm ci
 
-npm test               # Vitest (TDD) — 3,600+ tests
+npm test               # Vitest (TDD) — 3,700+ tests
 npm run build          # tsdown → dist/
 npm run typecheck      # strict TypeScript
 npm run lint           # ESLint (zero warnings)
 npm run docs:generate  # regenerate the CLI/MCP reference from code
+npm run docs:check     # verify all relative doc links & anchors resolve
 ```
 
 New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workflow, Conventional Commits, docs generation). The published reference is generated from code and guarded by a drift test, so the docs can never fall behind what ships.

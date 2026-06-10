@@ -1,6 +1,6 @@
 # Roadmap — DatasynxOpenCRM
 
-> Stand: 2026-06-10 · npm `datasynx-opencrm` 1.33.0 · Phase: **Härtung & erster externer User**
+> Stand: 2026-06-10 (abends) · npm `datasynx-opencrm` 1.37.2+ · Phase: **Härtung & erster externer User**
 >
 > Dieses Dokument ist die **mittelfristige Steuerungssicht** (Meilensteine, Reihenfolge,
 > Exit-Kriterien). Das operative Session-Handoff (Checklisten, Fallstricke, Arbeitsweise)
@@ -18,9 +18,9 @@ User näher an „7 Tage ohne HubSpot"?*
 
 ## Wo wir stehen
 
-- Phasen 1–5 abgeschlossen: 82 MCP-Tools · 69 CLI-Commands · lokale Markdown-/NDJSON-Stores · ~3543 Tests grün.
-- Zuletzt geliefert: Self-Service-Portal (#58), nativer Scheduler (#53), Teams/Meet-Transcript-Auto-Discovery (#56), Omnichannel-Inbox Web-Chat + WhatsApp (#57), Rollen-Erkennung (#41 A5).
-- Einziges offenes Issue: **#20** (Embedding-Eval, blockiert durch fehlenden Modell-Zugriff in der Sandbox).
+- Phasen 1–5 abgeschlossen: 82 MCP-Tools · 69 CLI-Commands · lokale Markdown-/NDJSON-Stores · ~3726 Tests grün · Coverage-Gate (80 % Branches) grün.
+- Zuletzt geliefert: zweite Routen-Test-Tranche + Quote-State-Machine-Fix (#68), Coverage-Lücken kritischer Pfad (#69), Doku-Link-Check in CI (#71); davor M1 (#61–#64) und M3-Robustheit (#65–#67).
+- Offene Issues: **#20** (Embedding-Eval, blockiert durch fehlenden Modell-Zugriff in der Sandbox) · **#70** (Dependabot-Triage, wartet auf Operator).
 - **Engpass:** Viele Live-Pfade sind credential-gated No-ops. Kern-Logik und Routing sind
   getestet, aber Teams/Meet-Subscriptions, WhatsApp-Versand, Kalender-Free/Busy und Stripe
   laufen offline nicht. Der Weg zur Kill-Condition führt über **Aktivieren & Härten**, nicht
@@ -61,7 +61,9 @@ P0/P1-Friction-Issues geschlossen. **→ Kill-Condition erfüllt.**
 | Item | Status |
 |---|---|
 | **#20 Embedding-Eval abschließen** | ⏳ blockiert — braucht Umgebung mit HF-Modell-Zugriff; Fixtures + Leitfaden liegen bereit. **Kein blind swap** |
-| HTTP-Routen-Integrationstests | ✅ #61/#65 — `/chat(+poll)`, `/webhooks/whatsapp|gmail|microsoft|google|slack`, `/forms`, `/book` (Express auf Port 0 + fetch); fanden 2 echte Bugs (Slack-Signatur, Offline-Double-Booking). Offen: `/q/:token`, `/portal`, `/survey`, `/dashboard`, `/webhooks/stripe` |
+| HTTP-Routen-Integrationstests | ✅ #61/#65/#68 — **alle** öffentlichen Flächen: `/chat(+poll)`, `/webhooks/*` (inkl. Stripe), `/forms`, `/book`, `/q/:token(+accept/decline)`, `/portal(+ticket/reply)`, `/survey`, `/t/o`/`/t/c`, `/dashboard`; fanden 3 echte Bugs (Slack-Signatur, Offline-Double-Booking, Paid-Quote-Überschreiben) |
+| Coverage kritischer Pfad | ✅ #69 — Branches 77,7 → 80,1 %, `test:coverage`-Gate grün; Restlücken (calendly, llm-Provider) dokumentiert |
+| Doku-Hygiene | ✅ #71 — `npm run docs:check` (Link-/Anker-Check) in der CI-Quality-Stage |
 | Fehler-/Retry-Verhalten der credential-gated `fetch`-Pfade | ✅ #67 — WhatsApp-Versand failt auf non-ok + Retry nur bei transienten Fehlern; CLI `inbox reply` liefert jetzt auch aus; Attendee-Lookups loggen Ursachen |
 | Unmatched-Queue-Workflow/Reminder | ✅ #66 — `transcript.unmatched`-Event, täglicher `queue.unmatched_digest`, `dxcrm transcripts resolve <ref>` |
 
