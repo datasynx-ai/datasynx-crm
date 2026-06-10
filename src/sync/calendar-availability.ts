@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { logger } from "../core/logger.js";
 import type { Interval } from "../core/booking.js";
 
@@ -22,15 +24,41 @@ export async function getBusyIntervals(
 ): Promise<Record<string, Interval[]>> {
   const out: Record<string, Interval[]> = {};
   for (const rep of reps) {
-    out[rep] = await busyForRep(dataDir, rep, range).catch((err) => {
+    const calendarBusy = await busyForRep(dataDir, rep, range).catch((err) => {
       logger.warn("booking", "free/busy lookup failed — treating rep as free", {
         rep,
         error: err instanceof Error ? err.message : String(err),
       });
-      return [];
+      return [] as Interval[];
     });
+    // Locally recorded bookings always count as busy (#65): without this,
+    // offline setups (no connected calendar) could double-book a slot.
+    out[rep] = [...calendarBusy, ...localBookingsBusy(dataDir, rep, range)];
   }
   return out;
+}
+
+/** Busy intervals from `.agentic/bookings.ndjson` for a rep within `range`. */
+function localBookingsBusy(dataDir: string, rep: string, range: Interval): Interval[] {
+  const file = path.join(dataDir, ".agentic", "bookings.ndjson");
+  if (!fs.existsSync(file)) return [];
+  try {
+    return (fs.readFileSync(file, "utf-8") as string)
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as { rep?: string; start?: number; end?: number })
+      .filter(
+        (b): b is { rep: string; start: number; end: number } =>
+          b.rep === rep &&
+          typeof b.start === "number" &&
+          typeof b.end === "number" &&
+          b.end > range.start &&
+          b.start < range.end
+      )
+      .map((b) => ({ start: b.start, end: b.end }));
+  } catch {
+    return [];
+  }
 }
 
 /**

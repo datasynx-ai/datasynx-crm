@@ -6,23 +6,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { initOAuthFromDisk } from "../core/oauth-store.js";
 import { VERSION } from "../version.js";
-import {
-  decodeGmailPubSubPayload,
-  verifyGmailPubSubSignature,
-  handleGmailPushEvent,
-} from "../sync/gmail-webhook-handler.js";
-import {
-  handleMicrosoftValidationRequest,
-  verifyMicrosoftGraphSignature,
-  handleMicrosoftPushEvent,
-  type MicrosoftGraphNotification,
-} from "../sync/microsoft-webhook-handler.js";
-import {
-  verifySlackSignature,
-  handleSlackUrlVerification,
-  handleSlackPushEvent,
-  type SlackEvent,
-} from "../sync/slack-webhook-handler.js";
 import { registerGetCapabilities } from "./tools/get-capabilities.js";
 import { registerGetActiveSession } from "./tools/get-active-session.js";
 import { registerGetCustomerContext } from "./tools/get-customer-context.js";
@@ -391,114 +374,10 @@ export async function startHttp(port = 3847): Promise<void> {
     res.status(result.status).json(result.body);
   });
 
-  // Gmail Pub/Sub webhook
-  app.post("/webhooks/gmail", async (req, res) => {
-    const token = process.env["GMAIL_PUBSUB_TOKEN"] ?? "";
-    if (!verifyGmailPubSubSignature(req.headers["authorization"] as string | undefined, token)) {
-      res.status(401).json({ error: "unauthorized" });
-      return;
-    }
-    const payload = decodeGmailPubSubPayload(req.body);
-    if (!payload) {
-      res.status(400).json({ error: "invalid_payload" });
-      return;
-    }
-    const result = await handleGmailPushEvent(dataDir, payload, "").catch(() => ({
-      processed: 0,
-      slug: null,
-    }));
-    res.json({ ok: true, processed: result.processed });
-  });
-
-  // Microsoft Graph webhook
-  app.all("/webhooks/microsoft", async (req, res) => {
-    const validation = handleMicrosoftValidationRequest(req.query as Record<string, string>);
-    if (validation.isValidation) {
-      res.setHeader("content-type", "text/plain");
-      res.status(200).send(validation.token);
-      return;
-    }
-    const clientState = process.env["MS_GRAPH_CLIENT_STATE"] ?? "";
-    const body = req.body as { value?: MicrosoftGraphNotification[] };
-    if (!verifyMicrosoftGraphSignature(body, clientState)) {
-      res.status(401).json({ error: "unauthorized" });
-      return;
-    }
-    // Auto-discover online-meeting transcripts (#56) when a Graph token exists.
-    const { getMicrosoftToken } = await import("../sync/microsoft-auth.js");
-    const msToken = await getMicrosoftToken(dataDir).catch(() => null);
-    let opts = {};
-    if (msToken) {
-      const { fetchTeamsAttendees } = await import("../sync/transcript-discovery.js");
-      opts = {
-        transcriptDeps: { accessToken: msToken, fetchAttendees: fetchTeamsAttendees },
-      };
-    }
-    const result = await handleMicrosoftPushEvent(
-      dataDir,
-      body.value ?? [],
-      msToken ?? "",
-      opts
-    ).catch(() => ({ processed: 0, skipped: 0 }));
-    res.json({ ok: true, ...result });
-  });
-
-  // Google Workspace-Events webhook (#56): Meet transcript.fileGenerated →
-  // auto-discover the conference record and route it to a customer.
-  app.post("/webhooks/google", async (req, res) => {
-    const { extractConferenceRecordId, discoverMeetTranscript, fetchMeetAttendees } =
-      await import("../sync/transcript-discovery.js");
-    const conferenceRecordId = extractConferenceRecordId(req.body);
-    if (!conferenceRecordId) {
-      res.json({ ok: true, status: "skipped" });
-      return;
-    }
-    const { getGoogleToken } = await import("../sync/google-auth.js");
-    const gToken = await getGoogleToken(dataDir).catch(() => null);
-    const result = await discoverMeetTranscript(
-      dataDir,
-      { conferenceRecordId },
-      { accessToken: gToken ?? "", fetchAttendees: fetchMeetAttendees }
-    ).catch(() => ({ status: "skipped" as const }));
-    res.json({ ok: true, ...result });
-  });
-
-  // Slack Events API webhook
-  app.post("/webhooks/slack", express.text({ type: "*/*" }), async (req, res) => {
-    const rawBody = req.body as string;
-    const signingSecret = process.env["SLACK_SIGNING_SECRET"] ?? "";
-    if (
-      !verifySlackSignature(
-        rawBody,
-        req.headers as { "x-slack-signature"?: string; "x-slack-request-timestamp"?: string },
-        signingSecret
-      )
-    ) {
-      res.status(401).json({ error: "unauthorized" });
-      return;
-    }
-    let parsed: { type?: string; challenge?: string; event?: SlackEvent; team_id?: string };
-    try {
-      parsed = JSON.parse(rawBody) as typeof parsed;
-    } catch {
-      res.status(400).json({ error: "invalid_json" });
-      return;
-    }
-    const verification = handleSlackUrlVerification(parsed);
-    if (verification.isVerification) {
-      res.json({ challenge: verification.challenge });
-      return;
-    }
-    if (!parsed.event) {
-      res.json({ ok: true, processed: 0 });
-      return;
-    }
-    const botToken = process.env["SLACK_BOT_TOKEN"] ?? "";
-    const result = await handleSlackPushEvent(dataDir, parsed.event, botToken, {
-      ...(parsed.team_id !== undefined ? { teamId: parsed.team_id } : {}),
-    }).catch(() => ({ processed: 0, skipped: 1 }));
-    res.json({ ok: true, ...result });
-  });
+  // Inbound sync webhooks (gmail, microsoft, google, slack) — extracted for
+  // route-level testing (#65).
+  const { registerWebhookRoutes } = await import("./routes/webhook-routes.js");
+  registerWebhookRoutes(app, dataDir);
 
   // NPS/CSAT survey response endpoint — linked from survey emails
   // GET  /survey/respond?token=<t>&score=<0-10>   → record score + thank-you page
@@ -674,126 +553,15 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
     );
   });
 
-  // Native meeting scheduler (#53): public booking page with real free slots.
-  app.get("/book/:id", async (req, res) => {
-    const { getBookingPage, availableSlots, renderBookingHtml } =
-      await import("../core/booking.js");
-    const { getBusyIntervals } = await import("../sync/calendar-availability.js");
-    const id = (req.params as Record<string, string>)["id"] ?? "";
-    const page = getBookingPage(dataDir, id);
-    if (!page) {
-      res.status(404).send("<h2>Booking page not found.</h2>");
-      return;
-    }
-    const now = Date.now();
-    const busy = await getBusyIntervals(dataDir, page.reps, {
-      start: now,
-      end: now + page.days * 86_400_000,
-    });
-    const slots = availableSlots(page, busy, now);
-    res.setHeader("content-type", "text/html");
-    res.setHeader("cache-control", "no-store");
-    res.send(renderBookingHtml(page, slots, {}));
-  });
-
-  app.post("/book/:id", express.urlencoded({ extended: false }), async (req, res) => {
-    const {
-      getBookingPage,
-      createBooking,
-      availableSlots,
-      renderBookingHtml,
-      renderConfirmedHtml,
-    } = await import("../core/booking.js");
-    const { getBusyIntervals } = await import("../sync/calendar-availability.js");
-    const id = (req.params as Record<string, string>)["id"] ?? "";
-    const page = getBookingPage(dataDir, id);
-    if (!page) {
-      res.status(404).send("<h2>Booking page not found.</h2>");
-      return;
-    }
-    const b = req.body as Record<string, string | undefined>;
-    const start = Number(b["start"]);
-    if (!Number.isFinite(start) || !b["name"] || !b["email"]) {
-      res.status(400).send("<h2>Please pick a slot and provide your name and email.</h2>");
-      return;
-    }
-    const result = await createBooking(dataDir, page, {
-      start,
-      name: b["name"]!.slice(0, 120),
-      email: b["email"]!.slice(0, 200),
-      ...(b["notes"] ? { notes: b["notes"].slice(0, 1000) } : {}),
-    });
-    res.setHeader("content-type", "text/html");
-    if (!result) {
-      // Slot was taken between render and submit — re-render with fresh slots.
-      const now = Date.now();
-      const busy = await getBusyIntervals(dataDir, page.reps, {
-        start: now,
-        end: now + page.days * 86_400_000,
-      });
-      res.status(409).send(
-        renderBookingHtml(page, availableSlots(page, busy, now), {
-          flash: "That slot is no longer available — please pick another.",
-        })
-      );
-      return;
-    }
-    res.send(renderConfirmedHtml(page, result));
-  });
+  // Lead capture (#60 forms) + native scheduler (#53 booking) — extracted for
+  // route-level testing (#65).
+  const { registerLeadRoutes } = await import("./routes/lead-routes.js");
+  registerLeadRoutes(app, dataDir);
 
   // Omnichannel inbox (#57): web-chat widget + inbound/poll + WhatsApp webhook.
   // Hardened (#61) and two-way (#62); extracted for route-level testing.
   const { registerConversationRoutes } = await import("./routes/conversation-routes.js");
   registerConversationRoutes(app, dataDir);
-
-  // Inbound lead capture (#60): embeddable forms POST straight into the CRM.
-  app.post("/forms/:id", express.urlencoded({ extended: false }), async (req, res) => {
-    const { processFormSubmission, getForm } = await import("../core/forms.js");
-    const { clientIp } = await import("../core/http-guard.js");
-    const formId = (req.params as Record<string, string>)["id"] ?? "";
-    const ip = clientIp(req);
-    const result = await processFormSubmission(
-      dataDir,
-      formId,
-      (req.body ?? {}) as Record<string, unknown>,
-      { ip }
-    );
-    if (result.status === "rate_limited") {
-      res.status(429).send("Too many submissions — try again later.");
-      return;
-    }
-    if (result.status === "invalid") {
-      res.status(400).send(result.error ?? "Invalid submission.");
-      return;
-    }
-    // spam_ignored intentionally looks like success to the bot.
-    const form = getForm(dataDir, formId);
-    if (result.status === "created" && form?.redirectUrl) {
-      res.redirect(302, form.redirectUrl);
-      return;
-    }
-    res.setHeader("content-type", "text/html");
-    res.send(
-      result.status === "pending_confirmation"
-        ? "<h2>Almost there — please confirm via the link we sent you.</h2>"
-        : "<h2>Thank you! We will be in touch shortly.</h2>"
-    );
-  });
-
-  // GDPR double-opt-in confirmation (#60): the lead is only created here.
-  app.get("/forms/:id/confirm", async (req, res) => {
-    const { verifyConfirmToken, createLead } = await import("../core/forms.js");
-    const token = (req.query as Record<string, string | undefined>)["token"] ?? "";
-    const payload = verifyConfirmToken(token);
-    const formId = (req.params as Record<string, string>)["id"] ?? "";
-    if (!payload || payload.f !== formId) {
-      res.status(400).send("<h2>Invalid or expired confirmation link.</h2>");
-      return;
-    }
-    await createLead(dataDir, payload.f, payload.d);
-    res.setHeader("content-type", "text/html");
-    res.send("<h2>Confirmed — thank you!</h2>");
-  });
 
   // Read-only dashboard (#52): token-secured, RBAC-aware, server-rendered.
   app.get("/dashboard", async (req, res) => {
