@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/datasynx/datasynx-crm/compare/v1.34.0...v1.35.0) (2026-06-10)
+
+
+### Features
+
+* **sync:** create Graph/Workspace-Events transcript subscriptions ([#63](https://github.com/datasynx/datasynx-crm/issues/63)) ([eb05d77](https://github.com/datasynx/datasynx-crm/commit/eb05d776817a9751add71b218756a86deadd3612))
+
 # [1.34.0](https://github.com/datasynx/datasynx-crm/compare/v1.33.0...v1.34.0) (2026-06-10)
 
 
