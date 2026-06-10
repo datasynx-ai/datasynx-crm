@@ -12,10 +12,42 @@ function icon(status: CheckStatus): string {
   return error("✗");
 }
 
+/** `dxcrm doctor --integrations [--live]` — per-provider readiness (#64). */
+export async function runDoctorIntegrations(opts: { live?: boolean }): Promise<void> {
+  const { runIntegrationChecks } = await import("../core/doctor-integrations.js");
+  const checks = await runIntegrationChecks(dataDir(), { live: opts.live ?? false });
+
+  console.log(bold(`dxcrm doctor --integrations${opts.live ? " --live" : ""}`));
+  for (const c of checks) {
+    const mark = c.status === "off" ? "○" : icon(c.status);
+    console.log(`  ${mark} ${c.provider.padEnd(20)} ${c.detail}`);
+    if (c.hint && c.status !== "ok") console.log(`      ↳ ${c.hint}`);
+  }
+  const warns = checks.filter((c) => c.status === "warn");
+  const okCount = checks.filter((c) => c.status === "ok").length;
+  if (warns.length > 0) {
+    console.log(warning(`\n${okCount} ready, ${warns.length} need attention (⚠ above).`));
+    process.exitCode = 1;
+  } else {
+    console.log(success(`\n${okCount} integration(s) ready; unconfigured ones (○) are optional.`));
+  }
+  if (!opts.live) {
+    console.log("Run with --live to verify tokens against the real APIs.");
+  }
+}
+
 export const doctorCommand = new Command("doctor")
-  .description("Run self-diagnostics: data integrity, temp files, log errors, backup freshness")
+  .description(
+    "Run self-diagnostics: data integrity, temp files, log errors, backups — or per-provider integration readiness"
+  )
   .option("--fix", "Clean up safely-fixable issues (orphaned temp files)")
-  .action(async (opts: { fix?: boolean }) => {
+  .option("--integrations", "Check per-provider integration readiness (#64)")
+  .option("--live", "With --integrations: probe the real APIs to verify tokens")
+  .action(async (opts: { fix?: boolean; integrations?: boolean; live?: boolean }) => {
+    if (opts.integrations) {
+      await runDoctorIntegrations({ live: opts.live ?? false });
+      return;
+    }
     const { runDiagnostics, cleanupTempFiles } = await import("../core/doctor.js");
 
     if (opts.fix) {
@@ -43,4 +75,5 @@ export const doctorCommand = new Command("doctor")
       console.log(error("\nProblems found — see the ✗ checks above."));
       process.exitCode = 1;
     }
+    console.log("Integration readiness: dxcrm doctor --integrations [--live]");
   });

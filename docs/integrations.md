@@ -4,6 +4,35 @@
 
 ---
 
+## Live Integration Checklist (#64)
+
+One command answers "which live paths are actually wired up, and why not":
+
+```bash
+dxcrm doctor --integrations          # config-only: ok / ⚠ inconsistent / ○ off
+dxcrm doctor --integrations --live   # additionally verifies tokens against the real APIs
+```
+
+Per provider it checks (with a concrete cause + fix hint on every ⚠):
+
+| Provider | Ready when… | Live probe |
+|---|---|---|
+| `public-url` | `DXCRM_PUBLIC_URL` set (webhooks, chat widget, portal links) | — |
+| `gmail` | `.agentic/gmail-credentials.json` **+** `gmail-token.json` | — |
+| `mailboxes` | ≥1 OAuth mailbox connected, tokens unexpired | — |
+| `microsoft-graph` | `.agentic/microsoft-token.json` + `MS_GRAPH_CLIENT_STATE` | Graph `/v1.0/me` |
+| `google` | `.agentic/google-token.json` | OAuth tokeninfo |
+| `whatsapp` | all of `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN` | phone-number endpoint |
+| `stripe` | `STRIPE_API_KEY` + `STRIPE_WEBHOOK_SECRET` | `/v1/account` |
+| `slack` | `SLACK_BOT_TOKEN` + `SLACK_SIGNING_SECRET` | — |
+| `telegram` | `TELEGRAM_BOT_TOKEN` | `getMe` |
+| `push-subscriptions` | no expired / failed subscriptions in the store | — |
+
+Unconfigured providers show as ○ — local-first, nothing is required. Exit code
+is 1 when anything needs attention (CI-friendly).
+
+---
+
 ## Claude Code
 
 **Config:** `~/.claude.json` (User scope — applies to all projects)

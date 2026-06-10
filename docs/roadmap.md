@@ -30,20 +30,20 @@ User näher an „7 Tage ohne HubSpot"?*
 
 ## Meilensteine
 
-### M1 — Live-ready *(P0, jetzt)*
+### M1 — Live-ready *(P0)* — ✅ abgeschlossen 2026-06-10
 
 **Ziel:** Ein externer User kann jede Kernintegration real aktivieren — kein Live-Pfad ist
 mehr ein Offline-No-op, kein öffentlicher Endpoint ungehärtet.
 
-| # | Item | Done wenn… |
+| # | Item | Status |
 |---|---|---|
-| 1 | **Integrations-Setup-Guide + `dxcrm doctor`-Checks je Provider** (Gmail/Graph-Mailbox, Teams/Meet, WhatsApp Cloud API, Kalender, Stripe) | `doctor` zeigt pro Provider grün/rot mit konkreter Ursache; Setup-Doku copy-pasteable |
-| 2 | **Web-Chat-Rückkanal** (`GET /chat/poll` oder SSE) + Widget-Polling — Folgelücke aus #57 | Agent-Antwort kommt im Widget an, E2E gegen echten Server |
-| 3 | **Rate-Limit + Honeypot** für `/chat` & `/webhooks/whatsapp` (Parität zu `/forms`) — Folgelücke aus #57 | Beide Endpoints gedrosselt + Honeypot-geschützt, Tests vorhanden |
-| 4 | **Echte Subscription-Anlage** (Graph `POST /subscriptions`, Workspace-Events) + `dxcrm transcripts subscribe` — heute existiert nur Empfang/Renewal | Subscription wird real angelegt, Renewal greift, #56-Live-Loop geschlossen |
+| 1 | **Integrations-Setup-Guide + `dxcrm doctor --integrations [--live]`** je Provider | ✅ #64 — Checkliste in `docs/integrations.md`, Live-Probes für Graph/Google/WhatsApp/Stripe/Telegram |
+| 2 | **Web-Chat-Rückkanal** (`GET /chat/poll`) + Widget-Polling | ✅ #62 — E2E verifiziert gegen echten Server |
+| 3 | **Rate-Limit + Honeypot** für `/chat` & `/webhooks/whatsapp` | ✅ #61 — plus erste echte Routen-Integrationstests |
+| 4 | **Echte Subscription-Anlage** + `dxcrm transcripts subscribe` | ✅ #63 — Graph + Workspace Events, inkl. 3 Bugfixes (Renewal-Cross-Talk, übersprungene Renewals, CLI-Exit-Codes) |
 
-**Exit-Kriterium:** Alle Live-Pfade dokumentiert und per `doctor` verifizierbar; beide
-#57-Lücken geschlossen; Subscription-Anlage live.
+**Verifikation durch den externen User:** `dxcrm doctor --integrations --live` muss
+für die von ihm genutzten Provider grün sein — das ist der Einstiegspunkt für M2.
 
 ### M2 — Der 7-Tage-Härtetest *(P1, direkt nach M1)*
 

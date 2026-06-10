@@ -411,9 +411,11 @@ New contributors: start with **[CONTRIBUTING.md](./CONTRIBUTING.md)** (TDD workf
 - ✅ Omnichannel inbox: embeddable two-way web chat + WhatsApp Cloud API (rate-limited, honeypot-protected endpoints)
 - ✅ Teams/Meet transcript auto-discovery & routing
 
+- ✅ Live transcript subscriptions (`dxcrm transcripts subscribe teams|meet`)
+- ✅ Per-provider readiness checks: `dxcrm doctor --integrations [--live]`
+
 **Hardening (current focus)**
 
-- 🔧 Per-provider setup guides + `dxcrm doctor` connectivity checks
 - 🔧 First external user: 7 days fully HubSpot-free
 
 **Exploring**

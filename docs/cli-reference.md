@@ -21,7 +21,7 @@
 | `dxcrm create` | Create a new customer |
 | `dxcrm daemon` | Manage the background sync daemon |
 | `dxcrm dashboard` | Read-only web dashboard (forecast, funnel, velocity, goals) |
-| `dxcrm doctor` | Run self-diagnostics: data integrity, temp files, log errors, backup freshness |
+| `dxcrm doctor` | Run self-diagnostics: data integrity, temp files, log errors, backups — or per-provider integration readiness |
 | `dxcrm enrich` | Enrich a customer's facts (offline domain-from-email + plugins) |
 | `dxcrm eval-embeddings` | Measure retrieval quality (recall@k, MRR) of the configured embedding model |
 | `dxcrm fields` | Manage custom fields (metadata-driven extensibility) |
