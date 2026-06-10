@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/datasynx/datasynx-crm/compare/v1.31.0...v1.32.0) (2026-06-10)
+
+
+### Features
+
+* **core:** omnichannel conversations inbox — web-chat & WhatsApp ([#57](https://github.com/datasynx/datasynx-crm/issues/57)) ([cd73920](https://github.com/datasynx/datasynx-crm/commit/cd7392056225ba44975a5d99ee49fe99ebd0b46a))
+
 # [1.31.0](https://github.com/datasynx/datasynx-crm/compare/v1.30.0...v1.31.0) (2026-06-10)
 
 
