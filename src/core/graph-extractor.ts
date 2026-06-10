@@ -2,8 +2,9 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import type { GraphNode, GraphEdge, EdgeType, CustomerGraph } from "./graph.js";
-import { writeGraph, upsertNode, upsertEdge } from "./graph.js";
+import { writeGraph, upsertNode, upsertEdge, setNodeRole } from "./graph.js";
 import { normalizeEmail } from "./email-normalizer.js";
+import { detectStakeholderRoles } from "./role-detection.js";
 
 export interface ExtractionInput {
   slug: string;
@@ -111,9 +112,14 @@ export function extractEdges(
 export async function updateGraphFromInteraction(
   dataDir: string,
   slug: string,
-  input: { withStr: string; interactionDate: string }
+  input: { withStr: string; interactionDate: string; text?: string }
 ): Promise<void> {
   if (!input.withStr.trim()) return;
+
+  // Auto-detect stakeholder roles from the interaction text (#41 A5) so a
+  // contact described as e.g. "CFO … Budget-Bedenken" is tagged economic_buyer
+  // instead of staying role: unknown.
+  const detectedRoles = input.text ? detectStakeholderRoles(input.text) : [];
 
   let domain: string | undefined;
   let companyName: string | undefined;
@@ -155,6 +161,11 @@ export async function updateGraphFromInteraction(
     let graph = current ?? empty;
     for (const node of nodes) graph = upsertNode(graph, node);
     for (const edge of edges) graph = upsertEdge(graph, edge);
+    // Attribute detected roles to the person who was on this interaction.
+    const roleTarget = companyId ?? personId;
+    for (const { role } of detectedRoles) {
+      graph = setNodeRole(graph, personId, roleTarget, role);
+    }
     return graph;
   });
 }

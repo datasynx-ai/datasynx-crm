@@ -57,6 +57,7 @@ export async function handleLogInteraction(
     updateGraphFromInteraction(dataDir, input.slug, {
       withStr: input.with,
       interactionDate: interactionDate,
+      text: [input.subject, input.summary].filter(Boolean).join(" — "),
     }).catch(() => {
       // non-critical — interaction already written
     });

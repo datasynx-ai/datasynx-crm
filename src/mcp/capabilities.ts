@@ -180,6 +180,9 @@ RBAC: rep role only sees owned customers.
 ### log_interaction({ slug, type, summary, with, nextSteps?, direction?, source?, date? })
 Write a new interaction entry to interactions.md. Immediately searchable.
 Also auto-updates the relationship graph and health scores (fire-and-forget).
+Stakeholder roles are auto-detected from the text (#41 A5): strong signals like
+"CFO … budget" tag the contact as economic_buyer, "champion/will push internally"
+as champion, "blocker/won't approve" as blocker — no manual setNodeRole needed.
 Use after every call, meeting, or email.
 RBAC: rep+
 - Input:
