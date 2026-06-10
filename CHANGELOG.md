@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/datasynx/datasynx-crm/compare/v1.28.0...v1.29.0) (2026-06-10)
+
+
+### Features
+
+* **core:** customer self-service portal (tickets & public KB) ([#58](https://github.com/datasynx/datasynx-crm/issues/58)) ([da082d0](https://github.com/datasynx/datasynx-crm/commit/da082d004bbf3f80eea00ca832bcd539729fb3a3)), closes [#59](https://github.com/datasynx/datasynx-crm/issues/59)
+
 # [1.28.0](https://github.com/datasynx/datasynx-crm/compare/v1.27.0...v1.28.0) (2026-06-09)
 
 
