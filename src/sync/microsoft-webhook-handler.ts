@@ -1,5 +1,6 @@
 import { readSubscriptions, writeSubscriptions, type PushSubscription } from "./push-manager.js";
 import { appendInteraction } from "../fs/interactions-writer.js";
+import type { TeamsDiscoverDeps } from "./transcript-discovery.js";
 
 export interface MicrosoftGraphNotification {
   subscriptionId: string;
@@ -47,6 +48,8 @@ export type AppendInteractionFn = typeof appendInteraction;
 export interface HandleMicrosoftPushOptions {
   fetchMessageFn?: FetchGraphMessageFn;
   appendInteractionFn?: AppendInteractionFn;
+  /** When present, transcript notifications (#56) are auto-discovered + routed. */
+  transcriptDeps?: TeamsDiscoverDeps;
 }
 
 export { readSubscriptions };
@@ -72,13 +75,26 @@ export async function handleMicrosoftPushEvent(
   options: HandleMicrosoftPushOptions = {}
 ): Promise<{ processed: number; skipped: number }> {
   const subs = await readSubscriptions(dataDir);
-  const { fetchMessageFn, appendInteractionFn = appendInteraction } = options;
+  const { fetchMessageFn, appendInteractionFn = appendInteraction, transcriptDeps } = options;
 
   let processed = 0;
   let skipped = 0;
   let anyProcessed = false;
 
   for (const notification of notifications) {
+    // Online-meeting transcript notifications (#56) are auto-discovered and
+    // routed to a customer by their attendees — no slug needed up front.
+    if (transcriptDeps) {
+      const { isTeamsTranscriptResource, discoverTeamsTranscript } =
+        await import("./transcript-discovery.js");
+      if (isTeamsTranscriptResource(notification.resource)) {
+        const result = await discoverTeamsTranscript(dataDir, notification, transcriptDeps);
+        if (result.status === "routed") processed++;
+        else skipped++;
+        continue;
+      }
+    }
+
     const sub = findSubscriptionByMsId(subs, notification.subscriptionId);
     if (!sub) {
       skipped++;

@@ -336,6 +336,23 @@ new CronJob(
       if (result.errors.length > 0) {
         logger.warn("push", "renewal errors", { errors: result.errors });
       }
+
+      // Microsoft Graph subscriptions (incl. transcript auto-discovery #56).
+      const msSubs = subs.filter((s) => s.provider === "microsoft-graph" && s.status === "active");
+      if (msSubs.length > 0) {
+        const { getMicrosoftToken } = await import("../sync/microsoft-auth.js");
+        const msToken = await getMicrosoftToken(DATA_DIR);
+        if (msToken) {
+          const { buildMicrosoftRenewFn } = await import("../sync/transcript-discovery.js");
+          const ms = await renewExpiringSubscriptions(DATA_DIR, buildMicrosoftRenewFn(msToken), 24);
+          if (ms.renewed.length > 0) {
+            logger.info("push", "renewed microsoft subscriptions", { count: ms.renewed.length });
+          }
+          if (ms.errors.length > 0) {
+            logger.warn("push", "microsoft renewal errors", { errors: ms.errors });
+          }
+        }
+      }
     } catch (err) {
       logger.error("push", "renewal failed", { error: (err as Error).message });
     }

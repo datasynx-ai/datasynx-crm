@@ -192,6 +192,41 @@ dxcrm sync --provider google-meet
 
 ---
 
+## Automatic Transcript Discovery & Routing (#56)
+
+After every online call, the meeting summary can land on the right customer
+**automatically** — no manual meeting/transcript IDs.
+
+**How it works:**
+- **Teams:** a Graph change-notification subscription on
+  `communications/onlineMeetings/getAllTranscripts` hits the existing
+  `POST /webhooks/microsoft` endpoint. Transcript notifications are detected,
+  the meeting's attendee emails are resolved, and the email router maps them to
+  a customer slug — then the existing Teams transcript sync runs for that slug.
+- **Meet:** a Workspace-Events subscription for `transcript.fileGenerated`
+  posts to `POST /webhooks/google`; the conference record id is extracted and
+  routed the same way.
+- **No match → unmatched queue:** transcripts whose attendees match no customer
+  are queued, never silently dropped:
+
+  ```bash
+  dxcrm transcripts unmatched   # list transcripts that could not be routed
+  dxcrm transcripts clear       # clear the queue after fixing main_facts
+  ```
+
+  Add the meeting domain/email to a customer's `main_facts` (`domain` / `email`
+  / `primary_contact`) so the next event routes correctly.
+- **Subscription renewal:** Microsoft Graph subscriptions (3-day expiry) are
+  renewed automatically by the daemon's daily 06:00 job (alongside Gmail).
+- **Event:** every routed transcript emits `meeting.transcribed`
+  `{ slug, source: "teams" | "meet", sourceRef }` for workflow automation (#48).
+
+Live subscription creation and attendee/transcript fetches are credential-gated
+(require connected Graph/Workspace tokens). Without them the pipeline is a clean
+no-op, consistent with the local-first model.
+
+---
+
 ## Manual Registration
 
 If automatic detection doesn't work:

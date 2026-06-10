@@ -416,10 +416,42 @@ export async function startHttp(port = 3847): Promise<void> {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
-    const result = await handleMicrosoftPushEvent(dataDir, body.value ?? [], "").catch(() => ({
-      processed: 0,
-      skipped: 0,
-    }));
+    // Auto-discover online-meeting transcripts (#56) when a Graph token exists.
+    const { getMicrosoftToken } = await import("../sync/microsoft-auth.js");
+    const msToken = await getMicrosoftToken(dataDir).catch(() => null);
+    let opts = {};
+    if (msToken) {
+      const { fetchTeamsAttendees } = await import("../sync/transcript-discovery.js");
+      opts = {
+        transcriptDeps: { accessToken: msToken, fetchAttendees: fetchTeamsAttendees },
+      };
+    }
+    const result = await handleMicrosoftPushEvent(
+      dataDir,
+      body.value ?? [],
+      msToken ?? "",
+      opts
+    ).catch(() => ({ processed: 0, skipped: 0 }));
+    res.json({ ok: true, ...result });
+  });
+
+  // Google Workspace-Events webhook (#56): Meet transcript.fileGenerated →
+  // auto-discover the conference record and route it to a customer.
+  app.post("/webhooks/google", async (req, res) => {
+    const { extractConferenceRecordId, discoverMeetTranscript, fetchMeetAttendees } =
+      await import("../sync/transcript-discovery.js");
+    const conferenceRecordId = extractConferenceRecordId(req.body);
+    if (!conferenceRecordId) {
+      res.json({ ok: true, status: "skipped" });
+      return;
+    }
+    const { getGoogleToken } = await import("../sync/google-auth.js");
+    const gToken = await getGoogleToken(dataDir).catch(() => null);
+    const result = await discoverMeetTranscript(
+      dataDir,
+      { conferenceRecordId },
+      { accessToken: gToken ?? "", fetchAttendees: fetchMeetAttendees }
+    ).catch(() => ({ status: "skipped" as const }));
     res.json({ ok: true, ...result });
   });
 
