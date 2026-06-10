@@ -88,3 +88,29 @@ describe("emitEvent + retryFailures", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("delivery failures (#69)", () => {
+  it("queues a failure when the endpoint answers non-2xx", async () => {
+    const { addWebhook, emitEvent, loadFailures } = await mod();
+    addWebhook(DATA_DIR, "https://hooks.example.com/x", ["deal.updated"]);
+    fetchMock.mockResolvedValue({ ok: false, status: 500 });
+    await emitEvent(DATA_DIR, "deal.updated", { slug: "acme" });
+    const failures = loadFailures(DATA_DIR);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]!.lastError).toBe("HTTP 500");
+  });
+
+  it("keeps still-failing deliveries in the retry queue with attempts+1", async () => {
+    const { addWebhook, emitEvent, retryFailures, loadFailures } = await mod();
+    addWebhook(DATA_DIR, "https://hooks.example.com/x", ["deal.updated"]);
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    await emitEvent(DATA_DIR, "deal.updated", { slug: "acme" });
+    const before = loadFailures(DATA_DIR)[0]!;
+
+    const result = await retryFailures(DATA_DIR);
+    expect(result).toEqual({ retried: 0, stillFailing: 1 });
+    const after = loadFailures(DATA_DIR)[0]!;
+    expect(after.attempts).toBe(before.attempts + 1);
+    expect(after.lastError).toBe("HTTP 503");
+  });
+});

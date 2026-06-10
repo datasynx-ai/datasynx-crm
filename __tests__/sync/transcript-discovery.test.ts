@@ -299,3 +299,72 @@ describe("transcript.unmatched event (#66)", () => {
     );
   });
 });
+
+describe("attendee resolution — fetchTeamsAttendees / fetchMeetAttendees (#69)", () => {
+  const payload = {
+    participants: {
+      attendees: [
+        { upn: "Jane@Acme.com" },
+        { identity: { user: { email: "bob@acme.com" } } },
+        { displayName: "no email here" },
+      ],
+    },
+  };
+
+  it("resolves teams attendees via the users-scoped endpoint, lowercased + deduped", async () => {
+    const { fetchTeamsAttendees } = await import("../../src/sync/transcript-discovery.js");
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => payload });
+    const emails = await fetchTeamsAttendees(
+      { userId: "u-1", meetingId: "m-9" },
+      "tok",
+      fetchFn as never
+    );
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://graph.microsoft.com/v1.0/users/u-1/onlineMeetings/m-9",
+      { headers: { Authorization: "Bearer tok" } }
+    );
+    expect(emails.sort()).toEqual(["bob@acme.com", "jane@acme.com"]);
+  });
+
+  it("falls back to the communications endpoint without a user id", async () => {
+    const { fetchTeamsAttendees } = await import("../../src/sync/transcript-discovery.js");
+    const fetchFn = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    await fetchTeamsAttendees({ meetingId: "m-2" }, "tok", fetchFn as never);
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://graph.microsoft.com/v1.0/communications/onlineMeetings/m-2",
+      expect.anything()
+    );
+  });
+
+  it("returns [] on a non-ok response and on network errors (offline contract)", async () => {
+    const { fetchTeamsAttendees } = await import("../../src/sync/transcript-discovery.js");
+    const denied = vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({}) });
+    expect(await fetchTeamsAttendees({ meetingId: "m" }, "t", denied as never)).toEqual([]);
+    const down = vi.fn().mockRejectedValue(new Error("socket hang up"));
+    expect(await fetchTeamsAttendees({ meetingId: "m" }, "t", down as never)).toEqual([]);
+  });
+
+  it("resolves meet attendees from the conferenceRecord participants", async () => {
+    const { fetchMeetAttendees } = await import("../../src/sync/transcript-discovery.js");
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        participants: [{ signedinUser: { user: "users/1", email: "sam@acme.com" } }],
+      }),
+    });
+    const emails = await fetchMeetAttendees("conferenceRecords/c-1", "tok", fetchFn as never);
+    expect(fetchFn).toHaveBeenCalledWith(
+      "https://meet.googleapis.com/v2/conferenceRecords/c-1/participants",
+      { headers: { Authorization: "Bearer tok" } }
+    );
+    expect(emails).toEqual(["sam@acme.com"]);
+  });
+
+  it("meet lookup returns [] on non-ok and on errors", async () => {
+    const { fetchMeetAttendees } = await import("../../src/sync/transcript-discovery.js");
+    const denied = vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) });
+    expect(await fetchMeetAttendees("conferenceRecords/c", "t", denied as never)).toEqual([]);
+    const down = vi.fn().mockRejectedValue(new Error("offline"));
+    expect(await fetchMeetAttendees("conferenceRecords/c", "t", down as never)).toEqual([]);
+  });
+});

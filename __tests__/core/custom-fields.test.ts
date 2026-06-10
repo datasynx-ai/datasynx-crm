@@ -70,3 +70,31 @@ describe("validateCustomFields", () => {
     expect(validateCustomFields({ arr: "not-a-number" }, defs).valid).toBe(false);
   });
 });
+
+describe("validateCustomFields — full type matrix (#69)", () => {
+  it("validates boolean variants, dates and free-text fields", async () => {
+    const { validateCustomFields } = await import("../../src/core/custom-fields.js");
+    const defs = [
+      { name: "active", type: "boolean" as const },
+      { name: "renewal", type: "date" as const },
+      { name: "note", type: "text" as const },
+    ];
+    const ok = validateCustomFields(
+      { active: "No", renewal: "2026-12-31", note: "  hello  " },
+      defs
+    );
+    expect(ok.valid).toBe(true);
+    expect(ok.values).toEqual({ active: false, renewal: "2026-12-31", note: "hello" });
+
+    expect(validateCustomFields({ active: "maybe" }, defs).errors[0]).toContain("not a boolean");
+    expect(validateCustomFields({ renewal: "31.12.2026" }, defs).errors[0]).toContain("YYYY-MM-DD");
+  });
+
+  it("reports a select without options as invalid", async () => {
+    const { validateCustomFields } = await import("../../src/core/custom-fields.js");
+    const defs = [{ name: "tier", type: "select" as const }];
+    const r = validateCustomFields({ tier: "gold" }, defs);
+    expect(r.valid).toBe(false);
+    expect(r.errors[0]).toContain("must be one of");
+  });
+});

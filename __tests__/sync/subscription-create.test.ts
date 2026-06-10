@@ -198,3 +198,48 @@ describe("buildGoogleWorkspaceRenewFn (#63)", () => {
     await expect(renew({ providerData: {} } as never)).rejects.toThrow(/googleSubscriptionName/);
   });
 });
+
+describe("workspace renew + create fallback branches (#69)", () => {
+  it("renew throws with the API error on non-ok responses", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 403, text: async () => "permission denied" });
+    const { buildGoogleWorkspaceRenewFn } = await import("../../src/sync/subscription-create.js");
+    const renew = buildGoogleWorkspaceRenewFn("gtok", fetchFn as never);
+    await expect(
+      renew({ providerData: { googleSubscriptionName: "subscriptions/ws-1" } } as never)
+    ).rejects.toThrow(/Workspace Events renew failed/);
+  });
+
+  it("renew computes a local expiry when the response carries no expireTime", async () => {
+    const fetchFn = okFetch({});
+    const { buildGoogleWorkspaceRenewFn } = await import("../../src/sync/subscription-create.js");
+    const renew = buildGoogleWorkspaceRenewFn("gtok", fetchFn as never);
+    const before = Date.now();
+    const result = await renew({
+      providerData: { googleSubscriptionName: "subscriptions/ws-2" },
+    } as never);
+    const exp = new Date(result.expiresAt).getTime();
+    // 7-day Workspace Events TTL, computed locally
+    expect(exp).toBeGreaterThanOrEqual(before + 604_800_000 - 5000);
+    expect(exp).toBeLessThanOrEqual(Date.now() + 604_800_000 + 5000);
+  });
+
+  it("create registers without expiry/name when the API omits them", async () => {
+    const fetchFn = okFetch({});
+    const { createMeetTranscriptSubscription } =
+      await import("../../src/sync/subscription-create.js");
+    const sub = await createMeetTranscriptSubscription({
+      dataDir: "/data",
+      accessToken: "gtok",
+      pubsubTopic: "projects/p/topics/t",
+      fetchFn: fetchFn as never,
+    });
+    expect(sub.provider).toBe("google-workspace");
+    // without an API expireTime, push-manager applies its provider default
+    const exp = new Date(sub.expiresAt ?? 0).getTime();
+    expect(exp).toBeGreaterThan(Date.now());
+    expect(sub.providerData["googleSubscriptionName"]).toBeUndefined();
+    expect(sub.providerData["googlePubsubTopic"]).toBe("projects/p/topics/t");
+  });
+});

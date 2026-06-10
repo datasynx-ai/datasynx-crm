@@ -135,3 +135,50 @@ describe("createStripePlugin", () => {
     expect(plugin.description).toBeDefined();
   });
 });
+
+describe("createStripePaymentLink (#69)", () => {
+  it("creates price + link and rides the quote number in the metadata", async () => {
+    const { createStripePaymentLink } = await import("../../src/plugins/stripe.js");
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "price_1" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ url: "https://pay.example/x" }) });
+    const url = await createStripePaymentLink("sk", {
+      amount: 1190.5,
+      currency: "EUR",
+      quoteNumber: "Q-2026-001",
+      description: "Enterprise (Q-2026-001)",
+    });
+    expect(url).toBe("https://pay.example/x");
+    const priceBody = fetchMock.mock.calls[0]![1].body as string;
+    expect(priceBody).toContain("unit_amount=119050");
+    expect(priceBody).toContain("currency=eur");
+    const linkBody = fetchMock.mock.calls[1]![1].body as string;
+    expect(linkBody).toContain("metadata%5BquoteNumber%5D=Q-2026-001");
+  });
+
+  it("returns null when the price or the link call fails", async () => {
+    const { createStripePaymentLink } = await import("../../src/plugins/stripe.js");
+    const opts = { amount: 1, currency: "EUR", quoteNumber: "Q", description: "d" };
+
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401 });
+    expect(await createStripePaymentLink("sk", opts)).toBeNull();
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "price_1" }) })
+      .mockResolvedValueOnce({ ok: false, status: 400 });
+    expect(await createStripePaymentLink("sk", opts)).toBeNull();
+  });
+
+  it("returns null when the link response has no url and on network errors", async () => {
+    const { createStripePaymentLink } = await import("../../src/plugins/stripe.js");
+    const opts = { amount: 1, currency: "EUR", quoteNumber: "Q", description: "d" };
+
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: "price_1" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    expect(await createStripePaymentLink("sk", opts)).toBeNull();
+
+    fetchMock.mockRejectedValueOnce(new Error("offline"));
+    expect(await createStripePaymentLink("sk", opts)).toBeNull();
+  });
+});

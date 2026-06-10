@@ -323,3 +323,13 @@ describe("POST /webhooks/stripe (#68)", () => {
     expect(mockEmitEvent).not.toHaveBeenCalled();
   });
 });
+
+describe("accept signature IP fallback (#69)", () => {
+  it("records the socket address when no x-forwarded-for is present", async () => {
+    seedQuote();
+    const token = await signToken(validPayload());
+    const res = await postForm(`/q/${token}/accept`, { name: "Local Jane" });
+    expect(res.status).toBe(200);
+    expect(readQuoteFile().signature?.ip).toBe("127.0.0.1");
+  });
+});

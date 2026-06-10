@@ -95,3 +95,23 @@ describe("portal rendering (#58)", () => {
     expect(evil).not.toContain("<script>alert(1)</script>");
   });
 });
+
+describe("buildPortalLink (#69)", () => {
+  it("builds a verifiable magic link against the configured server url", async () => {
+    const { buildPortalLink, verifyPortalToken } = await import("../../src/core/portal.js");
+    const env = { DXCRM_SERVER_URL: "https://crm.example.com//" } as NodeJS.ProcessEnv;
+    const link = buildPortalLink("acme", "jane@acme.com", 7, env);
+    expect(link.startsWith("https://crm.example.com/portal?token=")).toBe(true);
+    const token = link.split("token=")[1]!;
+    const payload = verifyPortalToken(token, Date.now(), env);
+    expect(payload).toMatchObject({ s: "acme", c: "jane@acme.com" });
+    expect(payload!.exp).toBeLessThanOrEqual(Date.now() + 7 * 86_400_000 + 1000);
+  });
+
+  it("defaults to localhost:3847", async () => {
+    const { buildPortalLink } = await import("../../src/core/portal.js");
+    expect(buildPortalLink("acme", "j@a.com", 1, {} as NodeJS.ProcessEnv)).toContain(
+      "http://localhost:3847/portal?token="
+    );
+  });
+});

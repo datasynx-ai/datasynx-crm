@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+const mockCallLlm = vi.hoisted(() => vi.fn());
+vi.mock("../../src/core/llm.js", () => ({ callLlm: mockCallLlm }));
 import { heuristicExtract, extractAutofill } from "../../src/core/autofill.js";
 
 const TRANSCRIPT = [
@@ -28,9 +31,47 @@ describe("heuristicExtract", () => {
 
 describe("extractAutofill", () => {
   it("falls back to the heuristic when no LLM is available", async () => {
-    // No ANTHROPIC_API_KEY in tests → callLlm throws → heuristic fallback.
+    mockCallLlm.mockRejectedValueOnce(new Error("no llm configured"));
     const r = await extractAutofill(TRANSCRIPT);
     expect(r.stage).toBe("negotiation");
     expect(r.nextSteps.length).toBeGreaterThan(0);
+  });
+});
+
+describe("extractAutofill — LLM paths (#69)", () => {
+  it("uses LLM fields incl. stage when the model returns full JSON", async () => {
+    const { extractAutofill } = await import("../../src/core/autofill.js");
+    mockCallLlm.mockResolvedValueOnce(
+      JSON.stringify({
+        summary: "Pricing call",
+        nextSteps: ["Send proposal"],
+        objections: ["too expensive"],
+        stage: "proposal",
+      })
+    );
+    const r = await extractAutofill(TRANSCRIPT);
+    expect(r).toEqual({
+      summary: "Pricing call",
+      nextSteps: ["Send proposal"],
+      objections: ["too expensive"],
+      stage: "proposal",
+    });
+  });
+
+  it("fills defaults when the model returns sparse JSON without a stage", async () => {
+    const { extractAutofill } = await import("../../src/core/autofill.js");
+    mockCallLlm.mockResolvedValueOnce(JSON.stringify({ nextSteps: "not-an-array" }));
+    const r = await extractAutofill(TRANSCRIPT);
+    expect(r.summary).toBe(TRANSCRIPT.slice(0, 400));
+    expect(r.nextSteps).toEqual([]);
+    expect(r.objections).toEqual([]);
+    expect(r.stage).toBeUndefined();
+  });
+
+  it("falls back to the heuristic on malformed model output", async () => {
+    const { extractAutofill } = await import("../../src/core/autofill.js");
+    mockCallLlm.mockResolvedValueOnce("Sure! Here is the JSON you asked for…");
+    const r = await extractAutofill(TRANSCRIPT);
+    expect(r.stage).toBe("negotiation");
   });
 });

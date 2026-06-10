@@ -61,3 +61,26 @@ describe("assessChurn", () => {
     expect(ranked[0]!.riskScore).toBeGreaterThan(ranked[1]!.riskScore);
   });
 });
+
+describe("assessChurn — edge signals (#69)", () => {
+  it("treats a customer without any logged interactions as at-risk", async () => {
+    vol.fromJSON({ "/crm/customers/ghost/main_facts.md": facts("Ghost") });
+    const { assessChurn } = await import("../../src/core/churn.js");
+    const res = assessChurn(DATA_DIR, "ghost", TODAY);
+    expect(res.riskScore).toBeGreaterThanOrEqual(65);
+    expect(res.signals.join(" ")).toContain("never established");
+  });
+
+  it("adds a moderate penalty for 14+ (but <30) days of silence", async () => {
+    vol.fromJSON({
+      "/crm/customers/mid/main_facts.md": facts("Mid"),
+      // 17 days before TODAY → NO_CONTACT_14D, not yet the 30-day flag
+      "/crm/customers/mid/interactions.md":
+        "# Interactions\n\n## 2026-05-18 · Call\n**With:** Kim <kim@mid.com>\n**Summary:** check-in\n---\n",
+    });
+    const { assessChurn } = await import("../../src/core/churn.js");
+    const res = assessChurn(DATA_DIR, "mid", TODAY);
+    expect(res.signals.join(" ")).toContain("14+ days");
+    expect(res.signals.join(" ")).not.toContain("30+ days");
+  });
+});

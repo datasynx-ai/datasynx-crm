@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { vol } from "memfs";
 
 const mockEmitEvent = vi.hoisted(() => vi.fn());
@@ -165,5 +165,80 @@ describe("verifyStripeSignature", () => {
     const stale = Math.floor(Date.now() / 1000) - 3600;
     const v1 = createHmac("sha256", secret).update(`${stale}.${body}`).digest("hex");
     expect(verifyStripeSignature(body, `t=${stale},v1=${v1}`, secret)).toBe(false);
+  });
+});
+
+describe("buildQuoteLink / quoteBaseUrl (#69)", () => {
+  it("builds a verifiable link against the configured server url", async () => {
+    const { buildQuoteLink, verifyQuoteToken } = await import("../../src/core/quote-link.js");
+    const quote = await seedQuote();
+    const env = { DXCRM_SERVER_URL: "https://crm.example.com/" } as NodeJS.ProcessEnv;
+    const link = buildQuoteLink(quote, 7, env);
+    expect(link.startsWith("https://crm.example.com/q/")).toBe(true);
+    const token = link.split("/q/")[1]!;
+    const payload = verifyQuoteToken(token, Date.now(), env);
+    expect(payload).toMatchObject({ q: quote.quoteNumber, s: "acme" });
+    // 7-day validity, not the 30-day default
+    expect(payload!.exp).toBeLessThanOrEqual(Date.now() + 7 * 86_400_000 + 1000);
+  });
+
+  it("defaults to localhost:3847 without DXCRM_SERVER_URL", async () => {
+    const { quoteBaseUrl } = await import("../../src/core/quote-link.js");
+    expect(quoteBaseUrl({} as NodeJS.ProcessEnv)).toBe("http://localhost:3847");
+  });
+});
+
+describe("markQuotePaid idempotency + notify channel (#69)", () => {
+  const ENV_KEYS = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SLACK_WEBHOOK_URL"];
+  const backup: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    for (const k of ENV_KEYS) {
+      backup[k] = process.env[k];
+      delete process.env[k];
+    }
+  });
+  afterEach(() => {
+    for (const k of ENV_KEYS) {
+      if (backup[k] === undefined) delete process.env[k];
+      else process.env[k] = backup[k];
+    }
+  });
+
+  async function readQueue(): Promise<Array<{ channel: string; payload: { message: string } }>> {
+    return JSON.parse(vol.readFileSync(`${DATA_DIR}/.agentic/agent-queue.json`, "utf-8") as string);
+  }
+
+  it("marking paid twice keeps the first paidAt and emits only one event", async () => {
+    const { markQuotePaid } = await import("../../src/core/quote-link.js");
+    const quote = await seedQuote("sent");
+    const first = await markQuotePaid(DATA_DIR, quote.quoteNumber);
+    expect(first?.status).toBe("paid");
+    mockEmitEvent.mockClear();
+    const second = await markQuotePaid(DATA_DIR, quote.quoteNumber);
+    expect(second?.paidAt).toBe(first?.paidAt);
+    expect(mockEmitEvent).not.toHaveBeenCalled();
+  });
+
+  it("notifies via telegram when the bot env is configured", async () => {
+    process.env["TELEGRAM_BOT_TOKEN"] = "bot";
+    process.env["TELEGRAM_CHAT_ID"] = "chat";
+    const { declineQuote } = await import("../../src/core/quote-link.js");
+    const quote = await seedQuote("sent");
+    await declineQuote(DATA_DIR, quote.quoteNumber);
+    const tasks = await readQueue();
+    expect(tasks.at(-1)!.channel).toBe("telegram");
+    expect(tasks.at(-1)!.payload.message).toContain(quote.quoteNumber);
+  });
+
+  it("falls back to slack, then to the mcp tool response channel", async () => {
+    process.env["SLACK_WEBHOOK_URL"] = "https://hooks.slack.example/x";
+    const { declineQuote, markQuotePaid } = await import("../../src/core/quote-link.js");
+    const quote = await seedQuote("sent");
+    await declineQuote(DATA_DIR, quote.quoteNumber);
+    expect((await readQueue()).at(-1)!.channel).toBe("slack");
+
+    delete process.env["SLACK_WEBHOOK_URL"];
+    await markQuotePaid(DATA_DIR, quote.quoteNumber);
+    expect((await readQueue()).at(-1)!.channel).toBe("mcp_tool_response");
   });
 });
