@@ -41,3 +41,17 @@ describe("runCli", () => {
     }
   });
 });
+
+describe("runCli honors process.exitCode (#63)", () => {
+  it("returns the exit code a command action set via process.exitCode", async () => {
+    const { runCli } = await import("../src/cli-main.js");
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const before = process.exitCode;
+    process.exitCode = 0;
+    // transcripts subscribe without --url sets process.exitCode = 1
+    const code = await runCli(["node", "dxcrm", "transcripts", "subscribe", "teams"]);
+    process.exitCode = before ?? 0;
+    err.mockRestore();
+    expect(code).toBe(1);
+  });
+});

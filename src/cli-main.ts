@@ -29,7 +29,9 @@ export async function runCli(argv: string[]): Promise<number> {
   const program = buildProgram();
   try {
     await program.parseAsync(argv);
-    return 0;
+    // Actions signal failure via process.exitCode (they don't throw) — honor
+    // it; cli.ts calls process.exit(returnValue), which would reset it to 0.
+    return typeof process.exitCode === "number" ? process.exitCode : 0;
   } catch (err) {
     const e = err as { code?: string; exitCode?: number; message?: string };
     if (typeof e.code === "string" && e.code.startsWith("commander.")) {

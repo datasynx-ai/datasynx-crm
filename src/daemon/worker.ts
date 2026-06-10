@@ -317,40 +317,66 @@ new CronJob(
   "0 6 * * *",
   async () => {
     try {
-      const { renewExpiringSubscriptions } = await import("../sync/push-manager.js");
-      const { buildGmailRenewFn } = await import("../sync/gmail-webhook-handler.js");
-      const tokenPath = path.join(DATA_DIR, ".agentic", "gmail-token.json");
-      const credPath = path.join(DATA_DIR, ".agentic", "gmail-credentials.json");
-      const { readSubscriptions } = await import("../sync/push-manager.js");
+      const { renewExpiringSubscriptions, readSubscriptions } =
+        await import("../sync/push-manager.js");
       const subs = await readSubscriptions(DATA_DIR);
-      const gmailSubs = subs.filter((s) => s.provider === "gmail" && s.status === "active");
-      if (gmailSubs.length === 0) return;
-      if (!fs.existsSync(tokenPath) || !fs.existsSync(credPath)) return;
-      const { getGmailAuth } = await import("../sync/gmail-auth.js");
-      const auth = await getGmailAuth(credPath, tokenPath);
-      const token = (auth.credentials?.access_token as string | undefined) ?? "";
-      const result = await renewExpiringSubscriptions(DATA_DIR, buildGmailRenewFn(token, ""), 24);
-      if (result.renewed.length > 0) {
-        logger.info("push", "renewed subscriptions", { count: result.renewed.length });
-      }
-      if (result.errors.length > 0) {
-        logger.warn("push", "renewal errors", { errors: result.errors });
+      const active = (provider: string): boolean =>
+        subs.some((s) => s.provider === provider && s.status === "active");
+      const report = (provider: string, r: { renewed: string[]; errors: string[] }): void => {
+        if (r.renewed.length > 0) {
+          logger.info("push", `renewed ${provider} subscriptions`, { count: r.renewed.length });
+        }
+        if (r.errors.length > 0) {
+          logger.warn("push", `${provider} renewal errors`, { errors: r.errors });
+        }
+      };
+
+      // Each provider renews independently (#63): no early return may skip the
+      // others, and the provider filter keeps renew fns off foreign subs.
+      if (active("gmail")) {
+        const tokenPath = path.join(DATA_DIR, ".agentic", "gmail-token.json");
+        const credPath = path.join(DATA_DIR, ".agentic", "gmail-credentials.json");
+        if (fs.existsSync(tokenPath) && fs.existsSync(credPath)) {
+          const { buildGmailRenewFn } = await import("../sync/gmail-webhook-handler.js");
+          const { getGmailAuth } = await import("../sync/gmail-auth.js");
+          const auth = await getGmailAuth(credPath, tokenPath);
+          const token = (auth.credentials?.access_token as string | undefined) ?? "";
+          report(
+            "gmail",
+            await renewExpiringSubscriptions(DATA_DIR, buildGmailRenewFn(token, ""), 24, {
+              provider: "gmail",
+            })
+          );
+        }
       }
 
       // Microsoft Graph subscriptions (incl. transcript auto-discovery #56).
-      const msSubs = subs.filter((s) => s.provider === "microsoft-graph" && s.status === "active");
-      if (msSubs.length > 0) {
+      if (active("microsoft-graph")) {
         const { getMicrosoftToken } = await import("../sync/microsoft-auth.js");
         const msToken = await getMicrosoftToken(DATA_DIR);
         if (msToken) {
           const { buildMicrosoftRenewFn } = await import("../sync/transcript-discovery.js");
-          const ms = await renewExpiringSubscriptions(DATA_DIR, buildMicrosoftRenewFn(msToken), 24);
-          if (ms.renewed.length > 0) {
-            logger.info("push", "renewed microsoft subscriptions", { count: ms.renewed.length });
-          }
-          if (ms.errors.length > 0) {
-            logger.warn("push", "microsoft renewal errors", { errors: ms.errors });
-          }
+          report(
+            "microsoft-graph",
+            await renewExpiringSubscriptions(DATA_DIR, buildMicrosoftRenewFn(msToken), 24, {
+              provider: "microsoft-graph",
+            })
+          );
+        }
+      }
+
+      // Google Workspace Events subscriptions (Meet transcripts #63).
+      if (active("google-workspace")) {
+        const { getGoogleToken } = await import("../sync/google-auth.js");
+        const gToken = await getGoogleToken(DATA_DIR);
+        if (gToken) {
+          const { buildGoogleWorkspaceRenewFn } = await import("../sync/subscription-create.js");
+          report(
+            "google-workspace",
+            await renewExpiringSubscriptions(DATA_DIR, buildGoogleWorkspaceRenewFn(gToken), 24, {
+              provider: "google-workspace",
+            })
+          );
         }
       }
     } catch (err) {

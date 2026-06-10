@@ -216,10 +216,36 @@ After every online call, the meeting summary can land on the right customer
 
   Add the meeting domain/email to a customer's `main_facts` (`domain` / `email`
   / `primary_contact`) so the next event routes correctly.
-- **Subscription renewal:** Microsoft Graph subscriptions (3-day expiry) are
-  renewed automatically by the daemon's daily 06:00 job (alongside Gmail).
 - **Event:** every routed transcript emits `meeting.transcribed`
   `{ slug, source: "teams" | "meet", sourceRef }` for workflow automation (#48).
+
+### Creating the subscriptions (#63)
+
+The live loop starts with one command per provider:
+
+```bash
+# Teams — Graph change notifications on new transcripts.
+# Requires a Graph token (vault/OAuth) with OnlineMeetingTranscript.Read.All
+# and a publicly reachable server URL.
+dxcrm transcripts subscribe teams --url https://your-crm-host:3847
+dxcrm transcripts subscribe teams --url … --user <aad-user-id>   # per-user scope
+
+# Meet — Workspace Events via a Pub/Sub topic that pushes to /webhooks/google.
+dxcrm transcripts subscribe meet --topic projects/<p>/topics/<t>
+dxcrm transcripts subscribe meet --topic … --target //meet.googleapis.com/spaces/<id>
+
+dxcrm transcripts subscriptions   # list status, expiry, processed events
+```
+
+`--url` falls back to `DXCRM_PUBLIC_URL`. The Graph subscription uses
+`MS_GRAPH_CLIENT_STATE` (also verified by `/webhooks/microsoft`), so set it
+before subscribing.
+
+- **Subscription renewal:** the daemon's daily 06:00 job renews per provider —
+  Microsoft Graph (≈3-day expiry) via PATCH, Google Workspace Events (7-day
+  ttl) via update, alongside Gmail. Failed renewals are retried and flagged
+  `permanently_failed` after 3 attempts (`dxcrm transcripts subscriptions`
+  shows the status).
 
 Live subscription creation and attendee/transcript fetches are credential-gated
 (require connected Graph/Workspace tokens). Without them the pipeline is a clean

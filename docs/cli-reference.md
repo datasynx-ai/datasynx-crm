@@ -69,7 +69,7 @@
 | `dxcrm template` | Manage email templates |
 | `dxcrm ticket` | Manage support tickets |
 | `dxcrm tone` | Customer tonality profiles (per customer + global) |
-| `dxcrm transcripts` | Auto-discovered meeting transcripts (Teams/Meet) & unmatched queue |
+| `dxcrm transcripts` | Auto-discovered meeting transcripts (Teams/Meet): subscriptions & unmatched queue |
 | `dxcrm usage` | LLM token usage & cost (per customer) |
 | `dxcrm validate` | Validate all customer data against schemas |
 | `dxcrm vault` | Local encrypted credential vault (AES-256-GCM) |

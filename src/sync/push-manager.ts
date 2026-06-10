@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { writeJsonFile } from "../fs/json-store.js";
 
-export type PushProvider = "gmail" | "microsoft-graph" | "slack";
+export type PushProvider = "gmail" | "microsoft-graph" | "slack" | "google-workspace";
 export type PushStatus = "active" | "expired" | "revoked" | "error" | "permanently_failed";
 
 export interface PushSubscription {
@@ -24,6 +24,9 @@ export interface PushSubscription {
     slackTeamId?: string;
     slackChannelId?: string;
     slackBotToken?: string;
+    googleSubscriptionName?: string;
+    googleTargetResource?: string;
+    googlePubsubTopic?: string;
   };
   status: PushStatus;
   lastEventAt: string | null;
@@ -64,7 +67,7 @@ export async function writeSubscriptions(dataDir: string, subs: PushSubscription
 }
 
 function expiresAtForProvider(provider: PushProvider): string | null {
-  if (provider === "gmail") {
+  if (provider === "gmail" || provider === "google-workspace") {
     return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   }
   if (provider === "microsoft-graph") {
@@ -77,7 +80,12 @@ export async function register(
   dataDir: string,
   provider: PushProvider,
   slug: string,
-  opts: { webhookUrl: string; providerData?: Partial<PushSubscription["providerData"]> }
+  opts: {
+    webhookUrl: string;
+    providerData?: Partial<PushSubscription["providerData"]>;
+    /** Provider-returned expiry; defaults to the per-provider estimate. */
+    expiresAt?: string;
+  }
 ): Promise<PushSubscription> {
   const subs = await readSubscriptions(dataDir);
   const sub: PushSubscription = {
@@ -85,7 +93,7 @@ export async function register(
     provider,
     slug,
     webhookUrl: opts.webhookUrl,
-    expiresAt: expiresAtForProvider(provider),
+    expiresAt: opts.expiresAt ?? expiresAtForProvider(provider),
     renewedAt: null,
     createdAt: new Date().toISOString(),
     providerData: opts.providerData ?? {},
@@ -112,7 +120,8 @@ export type RenewFn = (
 export async function renewExpiringSubscriptions(
   dataDir: string,
   renewFn: RenewFn,
-  thresholdHours = 24
+  thresholdHours = 24,
+  filter: { provider?: PushProvider } = {}
 ): Promise<{ renewed: string[]; errors: string[] }> {
   const subs = await readSubscriptions(dataDir);
   const thresholdMs = thresholdHours * 60 * 60 * 1000;
@@ -125,6 +134,9 @@ export async function renewExpiringSubscriptions(
 
   for (let i = 0; i < subs.length; i++) {
     const sub = subs[i]!;
+    // Renew fns are provider-specific — without the filter a Gmail renewer
+    // would "fail" every expiring Microsoft sub into permanently_failed.
+    if (filter.provider && sub.provider !== filter.provider) continue;
     if (sub.status !== "active" && sub.status !== "error") continue;
     if (sub.expiresAt === null) continue; // slack: no expiry
     if (new Date(sub.expiresAt).getTime() > cutoff) continue;

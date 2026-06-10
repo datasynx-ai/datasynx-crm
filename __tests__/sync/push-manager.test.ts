@@ -354,3 +354,50 @@ describe("renewExpiringSubscriptions", () => {
     expect(result.errors).toHaveLength(0);
   });
 });
+
+describe("register with explicit expiry (#63)", () => {
+  it("stores the provider-returned expiresAt instead of the default", async () => {
+    vol.fromJSON({ "/data/.agentic/.keep": "" });
+    const { register } = await import("../../src/sync/push-manager.js");
+    const sub = await register("/data", "google-workspace", "*", {
+      webhookUrl: "https://crm.example.com/webhooks/google",
+      expiresAt: "2026-06-17T00:00:00Z",
+    });
+    expect(sub.expiresAt).toBe("2026-06-17T00:00:00Z");
+  });
+});
+
+describe("renewExpiringSubscriptions provider filter (#63)", () => {
+  it("only touches subscriptions of the requested provider", async () => {
+    vol.fromJSON({ "/data/.agentic/.keep": "" });
+    const { register, renewExpiringSubscriptions, readSubscriptions } =
+      await import("../../src/sync/push-manager.js");
+    const soon = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    await register("/data", "gmail", "acme", {
+      webhookUrl: "https://x/webhooks/gmail",
+      expiresAt: soon,
+    });
+    await register("/data", "microsoft-graph", "*", {
+      webhookUrl: "https://x/webhooks/microsoft",
+      expiresAt: soon,
+    });
+
+    const renewFn = vi
+      .fn()
+      .mockResolvedValue({ expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString() });
+    const result = await renewExpiringSubscriptions("/data", renewFn, 24, {
+      provider: "gmail",
+    });
+
+    expect(result.renewed).toHaveLength(1);
+    expect(renewFn).toHaveBeenCalledTimes(1);
+    expect((renewFn.mock.calls[0]![0] as { provider: string }).provider).toBe("gmail");
+
+    // the microsoft sub must be untouched — no failure bookkeeping from the gmail fn
+    const subs = await readSubscriptions("/data");
+    const ms = subs.find((s) => s.provider === "microsoft-graph")!;
+    expect(ms.status).toBe("active");
+    expect(ms.renewFailures ?? 0).toBe(0);
+    expect(ms.expiresAt).toBe(soon);
+  });
+});
