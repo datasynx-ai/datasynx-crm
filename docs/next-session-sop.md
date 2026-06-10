@@ -1,8 +1,8 @@
 # SOP — Nächste Session (DatasynxOpenCRM)
 
 > Handoff-Dokument für den Start einer neuen Claude-Code-Session. Lies dies
-> **zuerst**, dann `CLAUDE.md`. Stand: nach Abschluss von **M1 (Live-ready)** —
-> #61, #62, #63, #64 geliefert und gemerged.
+> **zuerst**, dann `CLAUDE.md`. Stand: **M1 abgeschlossen** (#61–#64) **+ M3 weitgehend
+> abgeschlossen** (#65 Routen-Tests, #66 Unmatched-Workflow, #67 Outbound-Robustheit).
 > Mittelfristige Meilenstein-Sicht: [`roadmap.md`](./roadmap.md).
 
 ---
@@ -11,7 +11,7 @@
 
 - **Phase:** Härtung & erster externer User · **M1 ✅ abgeschlossen** (2026-06-10).
 - **Nordstern / Kill-Condition:** Erster externer User nutzt `dxcrm` **7 Tage täglich ohne HubSpot**.
-- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3600 Tests grün · npm 1.35.0+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
+- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3630 Tests grün · npm 1.37.0+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
 - **Offene Issues:** nur **#20** (Embedding-Eval) — blockiert durch fehlenden HF-Modell-Zugriff in der Sandbox.
 - **Zuletzt geliefert (M1):**
   - #61 Rate-Limit + Honeypot für `/chat` & `/webhooks/whatsapp` (`src/core/http-guard.ts`, Routen extrahiert nach `src/mcp/routes/conversation-routes.ts` → erste echte Routen-Integrationstests).
@@ -62,18 +62,16 @@ M1 hat alle Live-Pfade aktivierbar gemacht. Jetzt entscheidet sich die Kill-Cond
 - Aus der Sandbox heraus ist M2 **nicht** durchführbar — wenn kein User-Feedback vorliegt,
   direkt zu P1/P2 unten greifen.
 
-### 🥈 P1 — M3-Robustheit (sandbox-tauglich, einzeln pickbar)
+### 🥈 P1 — M3-Restarbeiten (sandbox-tauglich)
 
-- **Routen-Integrationstests ausweiten:** Das Muster existiert jetzt
-  (`__tests__/mcp/conversation-routes.test.ts` — Express auf Port 0 + fetch).
-  Kandidaten: `/forms/:id` (+confirm), `/book/:id`, `/webhooks/google`, `/webhooks/microsoft`,
-  `/webhooks/stripe`, `/portal`, `/dashboard`, `/survey`. Ggf. weitere Routen aus
-  `startHttp()` in registrierbare Module extrahieren (wie conversation-routes).
-- **Fehler-/Retry-Verhalten** der credential-gated `fetch`-Pfade (Graph/Meet/WhatsApp-Versand):
-  heute meist catch→no-op; strukturiertes Logging/Zähler für `conversation.*`,
-  `meeting.transcribed`, `meeting.booked` ergänzen.
-- **Unmatched-Queue-Workflow:** `dxcrm transcripts unmatched` listet nur; Reminder/Workflow
-  (z. B. Daily-Digest-Event) fehlt. Gleiches Muster perspektivisch für unmatched Conversations.
+M3 ist weitgehend erledigt (#65 Routen-Tests forms/booking/webhooks, #66 Unmatched-Workflow,
+#67 Outbound-Robustheit). Verbleibend:
+
+- **Zweite Routen-Test-Tranche:** `/q/:token` (Quote accept/decline), `/portal(+ticket/reply)`,
+  `/survey/respond`, `/dashboard`, `/webhooks/stripe`, Tracking-Pixel `/t/o`/`/t/c` —
+  jeweils erst in `register<X>Routes`-Module extrahieren (Muster: `src/mcp/routes/`).
+- **Unmatched Conversations:** das #66-Muster (Event + Digest + resolve) auf unzugeordnete
+  Conversations übertragen, sobald der Härtetest zeigt, dass es gebraucht wird.
 
 ### 🥉 P2 — #20 Embedding-Eval abschließen
 

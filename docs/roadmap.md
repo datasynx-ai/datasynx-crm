@@ -58,12 +58,12 @@ P0/P1-Friction-Issues geschlossen. **→ Kill-Condition erfüllt.**
 
 ### M3 — Qualität, Robustheit & #20 *(P2/P3, teils parallel zu M1/M2)*
 
-| Item | Hinweis |
+| Item | Status |
 |---|---|
-| **#20 Embedding-Eval abschließen** | Braucht Umgebung mit HF-Modell-Zugriff; Fixtures + Leitfaden liegen bereit (`eval/embedding-fixtures.json`, `docs/embeddings.md`). Default-Wechsel nur bei klarem Gewinn (recall@k/MRR, vollständig lokal) — **kein blind swap** |
-| HTTP-Routen-Integrationstests (supertest-Stil) für `/chat`, `/webhooks/whatsapp`, `/book/:id`, `/webhooks/google`, `/portal` | Regressionsschutz der neuen Flächen |
-| Fehler-/Retry-Verhalten der credential-gated `fetch`-Pfade (Graph/Meet/WhatsApp) | Plus strukturiertes Logging/Metriken für `conversation.*`, `meeting.transcribed`, `meeting.booked` |
-| Unmatched-Queue-Workflow/Reminder (Transcripts, perspektivisch Conversations) | Sonst stauen sich unzugeordnete Daten lautlos |
+| **#20 Embedding-Eval abschließen** | ⏳ blockiert — braucht Umgebung mit HF-Modell-Zugriff; Fixtures + Leitfaden liegen bereit. **Kein blind swap** |
+| HTTP-Routen-Integrationstests | ✅ #61/#65 — `/chat(+poll)`, `/webhooks/whatsapp|gmail|microsoft|google|slack`, `/forms`, `/book` (Express auf Port 0 + fetch); fanden 2 echte Bugs (Slack-Signatur, Offline-Double-Booking). Offen: `/q/:token`, `/portal`, `/survey`, `/dashboard`, `/webhooks/stripe` |
+| Fehler-/Retry-Verhalten der credential-gated `fetch`-Pfade | ✅ #67 — WhatsApp-Versand failt auf non-ok + Retry nur bei transienten Fehlern; CLI `inbox reply` liefert jetzt auch aus; Attendee-Lookups loggen Ursachen |
+| Unmatched-Queue-Workflow/Reminder | ✅ #66 — `transcript.unmatched`-Event, täglicher `queue.unmatched_digest`, `dxcrm transcripts resolve <ref>` |
 
 ### M4 — Nach der Kill-Condition *(bewusst nicht begonnen)*
 
