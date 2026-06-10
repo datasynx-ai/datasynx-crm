@@ -110,17 +110,6 @@ import {
   wwwAuthenticateHeader,
 } from "./auth.js";
 
-export function surveyThankYouPage(score: number, comment?: string): string {
-  const emoji = score >= 9 ? "🎉" : score >= 7 ? "🙂" : "🙏";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Thank you</title>
-<style>body{font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center;padding:0 20px}
-h1{font-size:2.5em;margin-bottom:.3em}p{color:#555;font-size:1.1em}</style></head>
-<body><h1>${emoji}</h1><h2>Thank you for your feedback!</h2>
-<p>You rated us <strong>${score}/10</strong>.${comment ? `<br>Your comment: <em>"${String(comment).slice(0, 200).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}"</em>` : ""}</p>
-<p style="margin-top:40px;color:#aaa;font-size:.85em">Powered by DatasynxOpenCRM</p>
-</body></html>`;
-}
-
 export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "datasynx-opencrm",
@@ -379,180 +368,6 @@ export async function startHttp(port = 3847): Promise<void> {
   const { registerWebhookRoutes } = await import("./routes/webhook-routes.js");
   registerWebhookRoutes(app, dataDir);
 
-  // NPS/CSAT survey response endpoint — linked from survey emails
-  // GET  /survey/respond?token=<t>&score=<0-10>   → record score + thank-you page
-  // GET  /survey/respond?token=<t>&comment=true   → show comment form
-  // POST /survey/respond                           → record comment + thank-you page
-  app.get("/survey/respond", async (req, res) => {
-    const { token, score, comment } = req.query as Record<string, string | undefined>;
-    if (!token) {
-      res.status(400).send("<h2>Invalid survey link.</h2>");
-      return;
-    }
-
-    if (comment === "true") {
-      res.setHeader("content-type", "text/html");
-      res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Survey Comment</title>
-<style>body{font-family:sans-serif;max-width:520px;margin:60px auto;padding:0 20px}
-textarea{width:100%;padding:10px;font-size:1em;border:1px solid #ccc;border-radius:4px}
-input[type=number]{width:80px;padding:8px;font-size:1em}
-button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:none;border-radius:4px;font-size:1em;cursor:pointer}</style></head>
-<body><h2>Leave a comment</h2>
-<form method="POST" action="/survey/respond">
-<input type="hidden" name="token" value="${String(token).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}">
-<label>Your score (0–10):<br><input type="number" name="score" min="0" max="10" required></label><br><br>
-<label>Comment (optional):<br><textarea name="comment" rows="5" placeholder="What can we improve?"></textarea></label><br>
-<button type="submit">Submit</button>
-</form></body></html>`);
-      return;
-    }
-
-    const numScore = score !== undefined ? parseInt(score, 10) : NaN;
-    if (isNaN(numScore) || numScore < 0 || numScore > 10) {
-      res.status(400).send("<h2>Invalid score. Please use the link from your email.</h2>");
-      return;
-    }
-
-    const { recordSurveyResponse } = await import("../core/survey-engine.js");
-    await recordSurveyResponse(dataDir, token, numScore).catch(() => null);
-    res.setHeader("content-type", "text/html");
-    res.send(surveyThankYouPage(numScore));
-  });
-
-  app.post("/survey/respond", express.urlencoded({ extended: false }), async (req, res) => {
-    const { token, score, comment: commentText } = req.body as Record<string, string | undefined>;
-    if (!token) {
-      res.status(400).send("<h2>Invalid survey link.</h2>");
-      return;
-    }
-    const numScore = score !== undefined ? parseInt(score, 10) : NaN;
-    if (isNaN(numScore) || numScore < 0 || numScore > 10) {
-      res
-        .status(400)
-        .send("<h2>Invalid score. Please go back and enter a number between 0 and 10.</h2>");
-      return;
-    }
-    const { recordSurveyResponse } = await import("../core/survey-engine.js");
-    await recordSurveyResponse(dataDir, token, numScore, commentText || undefined).catch(
-      () => null
-    );
-    res.setHeader("content-type", "text/html");
-    res.send(surveyThankYouPage(numScore, commentText));
-  });
-
-  // Email open-tracking pixel (#45). Always returns a 1x1 GIF; logs an `open`
-  // event only when the HMAC token is valid (no tampering, no enumeration).
-  app.get("/t/o/:token.gif", async (req, res) => {
-    const { verifyToken } = await import("../core/email-tracking.js");
-    const { appendEmailEvent } = await import("../fs/sent-store.js");
-    const raw = (req.params as Record<string, string>)["token"] ?? "";
-    const payload = verifyToken(raw);
-    if (payload && payload.k === "open") {
-      appendEmailEvent(dataDir, {
-        type: "open",
-        slug: payload.s,
-        contactEmail: payload.c,
-        messageId: payload.m,
-        at: new Date().toISOString(),
-      });
-    }
-    const { transparentGif } = await import("../core/email-tracking.js");
-    res.setHeader("content-type", "image/gif");
-    res.setHeader("cache-control", "no-store, no-cache, must-revalidate, private");
-    res.status(200).end(transparentGif());
-  });
-
-  // Email click-tracking (#45). The destination is signed INTO the token, so
-  // an attacker cannot turn this into an open redirect: an invalid/tampered
-  // token gets a 400, never a redirect.
-  app.get("/t/c/:token", async (req, res) => {
-    const { verifyToken } = await import("../core/email-tracking.js");
-    const { appendEmailEvent } = await import("../fs/sent-store.js");
-    const raw = (req.params as Record<string, string>)["token"] ?? "";
-    const payload = verifyToken(raw);
-    if (!payload || payload.k !== "click" || !payload.u) {
-      res.status(400).send("Invalid or expired link.");
-      return;
-    }
-    appendEmailEvent(dataDir, {
-      type: "click",
-      slug: payload.s,
-      contactEmail: payload.c,
-      messageId: payload.m,
-      at: new Date().toISOString(),
-      url: payload.u,
-    });
-    res.redirect(302, payload.u);
-  });
-
-  // Customer self-service portal (#58): magic-link, strictly scoped.
-  app.get("/portal", async (req, res) => {
-    const { verifyPortalToken, renderPortalHtml } = await import("../core/portal.js");
-    const q = req.query as Record<string, string | undefined>;
-    const payload = verifyPortalToken(q["token"] ?? "");
-    if (!payload) {
-      res.status(401).send("<h2>Invalid or expired portal link.</h2>");
-      return;
-    }
-    res.setHeader("content-type", "text/html");
-    res.setHeader("cache-control", "no-store");
-    res.send(
-      await renderPortalHtml(
-        dataDir,
-        { slug: payload.s, contactEmail: payload.c },
-        q["token"]!,
-        q["q"] ? { kbQuery: q["q"] } : {}
-      )
-    );
-  });
-
-  app.post("/portal/ticket", express.urlencoded({ extended: false }), async (req, res) => {
-    const { verifyPortalToken, portalCreateTicket, renderPortalHtml } =
-      await import("../core/portal.js");
-    const b = req.body as Record<string, string | undefined>;
-    const payload = verifyPortalToken(b["token"] ?? "");
-    if (!payload || !b["title"]) {
-      res.status(401).send("<h2>Invalid request.</h2>");
-      return;
-    }
-    const ticket = await portalCreateTicket(
-      dataDir,
-      { slug: payload.s, contactEmail: payload.c },
-      { title: b["title"], ...(b["message"] ? { message: b["message"] } : {}) }
-    );
-    res.setHeader("content-type", "text/html");
-    res.send(
-      await renderPortalHtml(dataDir, { slug: payload.s, contactEmail: payload.c }, b["token"]!, {
-        flash: `Ticket ${ticket.id} created.`,
-      })
-    );
-  });
-
-  app.post("/portal/reply", express.urlencoded({ extended: false }), async (req, res) => {
-    const { verifyPortalToken, portalReply, renderPortalHtml } = await import("../core/portal.js");
-    const b = req.body as Record<string, string | undefined>;
-    const payload = verifyPortalToken(b["token"] ?? "");
-    if (!payload || !b["ticketId"] || !b["message"]) {
-      res.status(401).send("<h2>Invalid request.</h2>");
-      return;
-    }
-    const ok = await portalReply(
-      dataDir,
-      { slug: payload.s, contactEmail: payload.c },
-      { ticketId: b["ticketId"], message: b["message"] }
-    );
-    if (!ok) {
-      res.status(404).send("<h2>Ticket not found.</h2>");
-      return;
-    }
-    res.setHeader("content-type", "text/html");
-    res.send(
-      await renderPortalHtml(dataDir, { slug: payload.s, contactEmail: payload.c }, b["token"]!, {
-        flash: `Reply added to ${b["ticketId"]}.`,
-      })
-    );
-  });
-
   // Lead capture (#60 forms) + native scheduler (#53 booking) — extracted for
   // route-level testing (#65).
   const { registerLeadRoutes } = await import("./routes/lead-routes.js");
@@ -563,129 +378,20 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
   const { registerConversationRoutes } = await import("./routes/conversation-routes.js");
   registerConversationRoutes(app, dataDir);
 
-  // Read-only dashboard (#52): token-secured, RBAC-aware, server-rendered.
-  app.get("/dashboard", async (req, res) => {
-    const { verifyDashboardToken, buildDashboardData, renderDashboardHtml } =
-      await import("../core/dashboard.js");
-    const token = (req.query as Record<string, string | undefined>)["token"] ?? "";
-    const payload = verifyDashboardToken(token);
-    if (!payload) {
-      res.status(401).send("<h2>Invalid or expired dashboard link.</h2>");
-      return;
-    }
-    const data = await buildDashboardData(dataDir, payload.a);
-    res.setHeader("content-type", "text/html");
-    res.setHeader("cache-control", "no-store");
-    res.send(renderDashboardHtml(data));
-  });
+  // Engagement surfaces: NPS/CSAT survey responses, email open/click tracking
+  // (#45), read-only dashboard (#52) — extracted for route-level testing (#68).
+  const { registerEngagementRoutes } = await import("./routes/engagement-routes.js");
+  registerEngagementRoutes(app, dataDir);
 
-  // ─── Quote-to-cash (#49): public, token-secured quote page ──────────────────
+  // Customer self-service portal (#58): magic-link, strictly scoped —
+  // extracted for route-level testing (#68).
+  const { registerPortalRoutes } = await import("./routes/portal-routes.js");
+  registerPortalRoutes(app, dataDir);
 
-  // Render the quote with Accept / Decline actions. Token is HMAC-signed and
-  // expires; an invalid/expired token never reveals quote data.
-  app.get("/q/:token", async (req, res) => {
-    const { verifyQuoteToken, renderQuotePage } = await import("../core/quote-link.js");
-    const raw = (req.params as Record<string, string>)["token"] ?? "";
-    const payload = verifyQuoteToken(raw);
-    if (!payload) {
-      res.status(400).send("<h2>Invalid or expired quote link.</h2>");
-      return;
-    }
-    const { readQuote, updateQuoteStatus } = await import("../core/quote-generator.js");
-    const quote = readQuote(dataDir, payload.q);
-    if (!quote || quote.slug !== payload.s) {
-      res.status(404).send("<h2>Quote not found.</h2>");
-      return;
-    }
-    if (quote.status === "sent") updateQuoteStatus(dataDir, quote.quoteNumber, "viewed");
-    res.setHeader("content-type", "text/html");
-    res.send(renderQuotePage(quote, raw));
-  });
-
-  // Online acceptance — captures name + timestamp + IP as a signed receipt.
-  app.post("/q/:token/accept", express.urlencoded({ extended: false }), async (req, res) => {
-    const { verifyQuoteToken, acceptQuote, renderQuotePage } =
-      await import("../core/quote-link.js");
-    const raw = (req.params as Record<string, string>)["token"] ?? "";
-    const payload = verifyQuoteToken(raw);
-    const name = ((req.body as Record<string, string | undefined>)["name"] ?? "").trim();
-    if (!payload || !name) {
-      res.status(400).send("<h2>Invalid request.</h2>");
-      return;
-    }
-    const ip =
-      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
-      req.socket.remoteAddress ??
-      undefined;
-    const quote = await acceptQuote(dataDir, payload.q, { name, ...(ip ? { ip } : {}) });
-    if (!quote) {
-      res.status(404).send("<h2>Quote not found.</h2>");
-      return;
-    }
-    res.setHeader("content-type", "text/html");
-    res.send(renderQuotePage(quote, raw));
-  });
-
-  app.post("/q/:token/decline", async (req, res) => {
-    const { verifyQuoteToken, declineQuote, renderQuotePage } =
-      await import("../core/quote-link.js");
-    const raw = (req.params as Record<string, string>)["token"] ?? "";
-    const payload = verifyQuoteToken(raw);
-    if (!payload) {
-      res.status(400).send("<h2>Invalid request.</h2>");
-      return;
-    }
-    const quote = await declineQuote(dataDir, payload.q);
-    if (!quote) {
-      res.status(404).send("<h2>Quote not found.</h2>");
-      return;
-    }
-    res.setHeader("content-type", "text/html");
-    res.send(renderQuotePage(quote, raw));
-  });
-
-  // Stripe payment webhook → quote.paid (#49). Signature-checked; the quote
-  // number rides in the payment link metadata.
-  app.post("/webhooks/stripe", async (req, res) => {
-    const whSecret = process.env["STRIPE_WEBHOOK_SECRET"];
-    if (!whSecret) {
-      res.status(503).json({ error: "stripe webhook not configured" });
-      return;
-    }
-    const rawBody =
-      (req as unknown as { rawBody?: string }).rawBody ??
-      (Buffer.isBuffer(req.body) ? req.body.toString("utf-8") : JSON.stringify(req.body));
-    const { verifyStripeSignature } = await import("../plugins/stripe.js");
-    if (
-      !verifyStripeSignature(
-        rawBody,
-        req.headers["stripe-signature"] as string | undefined,
-        whSecret
-      )
-    ) {
-      res.status(401).json({ error: "invalid signature" });
-      return;
-    }
-    try {
-      const event = JSON.parse(rawBody) as {
-        type: string;
-        data?: { object?: { metadata?: Record<string, string> } };
-      };
-      const quoteNumber = event.data?.object?.metadata?.["quoteNumber"];
-      if (
-        quoteNumber &&
-        (event.type === "checkout.session.completed" ||
-          event.type === "payment_link.payment_succeeded" ||
-          event.type === "payment_intent.succeeded")
-      ) {
-        const { markQuotePaid } = await import("../core/quote-link.js");
-        await markQuotePaid(dataDir, quoteNumber);
-      }
-      res.json({ received: true });
-    } catch {
-      res.status(400).json({ error: "invalid payload" });
-    }
-  });
+  // Quote-to-cash (#49): public quote page + Stripe payment webhook (relies
+  // on the rawBody captured above) — extracted for route-level testing (#68).
+  const { registerQuoteRoutes } = await import("./routes/quote-routes.js");
+  registerQuoteRoutes(app, dataDir);
 
   // Resolve only once the HTTP server closes — same rationale as startStdio:
   // the CLI path (`dxcrm mcp start --http`) awaits this before src/cli.ts calls

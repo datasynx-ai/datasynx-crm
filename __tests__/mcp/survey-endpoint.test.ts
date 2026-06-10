@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { surveyThankYouPage } from "../../src/mcp/server.js";
+import { surveyThankYouPage } from "../../src/mcp/routes/engagement-routes.js";
 
 describe("surveyThankYouPage", () => {
   it("shows 🎉 for promoter score (9–10)", () => {
