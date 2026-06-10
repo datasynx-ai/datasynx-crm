@@ -85,6 +85,7 @@ import {
 } from "./tools/workflow-tools.js";
 import { registerGetDashboardLink } from "./tools/get-dashboard-link.js";
 import { registerCreateForm, registerListForms } from "./tools/form-tools.js";
+import { registerGetPortalLink } from "./tools/get-portal-link.js";
 import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
 import { registerGetSurveyResults } from "./tools/get-survey-results.js";
 import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
@@ -198,6 +199,7 @@ export function createMcpServer(): McpServer {
   registerGetDashboardLink(server);
   registerCreateForm(server);
   registerListForms(server);
+  registerGetPortalLink(server);
   registerSendNpsSurvey(server);
   registerGetSurveyResults(server);
   registerSearchKnowledgeBase(server);
@@ -560,6 +562,74 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
       url: payload.u,
     });
     res.redirect(302, payload.u);
+  });
+
+  // Customer self-service portal (#58): magic-link, strictly scoped.
+  app.get("/portal", async (req, res) => {
+    const { verifyPortalToken, renderPortalHtml } = await import("../core/portal.js");
+    const q = req.query as Record<string, string | undefined>;
+    const payload = verifyPortalToken(q["token"] ?? "");
+    if (!payload) {
+      res.status(401).send("<h2>Invalid or expired portal link.</h2>");
+      return;
+    }
+    res.setHeader("content-type", "text/html");
+    res.setHeader("cache-control", "no-store");
+    res.send(
+      await renderPortalHtml(
+        dataDir,
+        { slug: payload.s, contactEmail: payload.c },
+        q["token"]!,
+        q["q"] ? { kbQuery: q["q"] } : {}
+      )
+    );
+  });
+
+  app.post("/portal/ticket", express.urlencoded({ extended: false }), async (req, res) => {
+    const { verifyPortalToken, portalCreateTicket, renderPortalHtml } =
+      await import("../core/portal.js");
+    const b = req.body as Record<string, string | undefined>;
+    const payload = verifyPortalToken(b["token"] ?? "");
+    if (!payload || !b["title"]) {
+      res.status(401).send("<h2>Invalid request.</h2>");
+      return;
+    }
+    const ticket = await portalCreateTicket(
+      dataDir,
+      { slug: payload.s, contactEmail: payload.c },
+      { title: b["title"], ...(b["message"] ? { message: b["message"] } : {}) }
+    );
+    res.setHeader("content-type", "text/html");
+    res.send(
+      await renderPortalHtml(dataDir, { slug: payload.s, contactEmail: payload.c }, b["token"]!, {
+        flash: `Ticket ${ticket.id} created.`,
+      })
+    );
+  });
+
+  app.post("/portal/reply", express.urlencoded({ extended: false }), async (req, res) => {
+    const { verifyPortalToken, portalReply, renderPortalHtml } = await import("../core/portal.js");
+    const b = req.body as Record<string, string | undefined>;
+    const payload = verifyPortalToken(b["token"] ?? "");
+    if (!payload || !b["ticketId"] || !b["message"]) {
+      res.status(401).send("<h2>Invalid request.</h2>");
+      return;
+    }
+    const ok = await portalReply(
+      dataDir,
+      { slug: payload.s, contactEmail: payload.c },
+      { ticketId: b["ticketId"], message: b["message"] }
+    );
+    if (!ok) {
+      res.status(404).send("<h2>Ticket not found.</h2>");
+      return;
+    }
+    res.setHeader("content-type", "text/html");
+    res.send(
+      await renderPortalHtml(dataDir, { slug: payload.s, contactEmail: payload.c }, b["token"]!, {
+        flash: `Reply added to ${b["ticketId"]}.`,
+      })
+    );
   });
 
   // Inbound lead capture (#60): embeddable forms POST straight into the CRM.

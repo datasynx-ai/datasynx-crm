@@ -104,6 +104,7 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | get_dashboard_link | Token-secured read-only web dashboard (forecast, funnel, velocity, goals) | any |
 | create_form | Embeddable lead-capture web form (honeypot, rate-limit, optional double-opt-in) | manager+ |
 | list_forms | List inbound lead-capture forms | any |
+| get_portal_link | Magic link to the customer self-service portal (own tickets + public KB) | rep+ |
 | send_nps_survey | Generate NPS/CSAT survey token + HTML email draft (does not send automatically) | rep+ |
 | get_survey_results | NPS score, promoter/passive/detractor breakdown, all responses for a survey | any |
 | search_knowledge_base | Full-text search across KB articles (title, body, tags) with category and public filters | any |
@@ -524,6 +525,12 @@ optional GDPR double-opt-in via signed confirmation links. Returns the embeddabl
 
 ### list_forms()
 All lead-capture forms.
+
+### get_portal_link({ slug, contactEmail, validDays? })
+Customer self-service portal (#58): magic link where the contact sees their own tickets,
+opens new ones, replies, and searches the PUBLIC knowledge base. Strictly scoped via
+HMAC-signed, expiring tokens; actions create the usual events/interactions.
+- Returns: { link, slug, contactEmail, expiresInDays }
 
 ### get_dashboard_link({ validDays? })
 Mint a token-secured link to the read-only web dashboard (#52): forecast P50/P90 (rolling 90d),
