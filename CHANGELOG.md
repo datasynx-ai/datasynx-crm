@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/datasynx/datasynx-crm/compare/v1.35.0...v1.36.0) (2026-06-10)
+
+
+### Features
+
+* **cli:** dxcrm doctor --integrations with per-provider live probes ([#64](https://github.com/datasynx/datasynx-crm/issues/64)) ([371ba99](https://github.com/datasynx/datasynx-crm/commit/371ba99b69f95c411a52045c26a270c615d54d4f))
+
 # [1.35.0](https://github.com/datasynx/datasynx-crm/compare/v1.34.0...v1.35.0) (2026-06-10)
 
 
