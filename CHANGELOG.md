@@ -1,3 +1,10 @@
+## [1.37.1](https://github.com/datasynx/datasynx-crm/compare/v1.37.0...v1.37.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* **sync:** whatsapp outbound fails on non-ok, retries transient errors ([#67](https://github.com/datasynx/datasynx-crm/issues/67)) ([05a0f24](https://github.com/datasynx/datasynx-crm/commit/05a0f24d2898adb84b32ade6a8ed89bd0cc462a3))
+
 # [1.37.0](https://github.com/datasynx/datasynx-crm/compare/v1.36.1...v1.37.0) (2026-06-10)
 
 
