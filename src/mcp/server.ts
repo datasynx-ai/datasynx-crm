@@ -87,6 +87,11 @@ import { registerGetDashboardLink } from "./tools/get-dashboard-link.js";
 import { registerCreateForm, registerListForms } from "./tools/form-tools.js";
 import { registerGetPortalLink } from "./tools/get-portal-link.js";
 import { registerCreateBookingPage } from "./tools/create-booking-page.js";
+import {
+  registerListConversations,
+  registerReplyConversation,
+  registerAssignConversation,
+} from "./tools/conversation-tools.js";
 import { registerSendNpsSurvey } from "./tools/send-nps-survey.js";
 import { registerGetSurveyResults } from "./tools/get-survey-results.js";
 import { registerSearchKnowledgeBase } from "./tools/search-knowledge-base.js";
@@ -202,6 +207,9 @@ export function createMcpServer(): McpServer {
   registerListForms(server);
   registerGetPortalLink(server);
   registerCreateBookingPage(server);
+  registerListConversations(server);
+  registerReplyConversation(server);
+  registerAssignConversation(server);
   registerSendNpsSurvey(server);
   registerGetSurveyResults(server);
   registerSearchKnowledgeBase(server);
@@ -731,6 +739,72 @@ button{margin-top:12px;padding:12px 28px;background:#1a1a2e;color:#fff;border:no
       return;
     }
     res.send(renderConfirmedHtml(page, result));
+  });
+
+  // Omnichannel inbox (#57): embeddable web-chat widget script.
+  app.get("/chat/widget.js", async (req, res) => {
+    const { renderChatWidget } = await import("../core/conversations.js");
+    const base = `${req.protocol}://${req.get("host") ?? "localhost"}`;
+    res.setHeader("content-type", "application/javascript");
+    res.setHeader("cache-control", "no-store");
+    res.send(renderChatWidget(base));
+  });
+
+  // Web-chat inbound: the widget POSTs messages here.
+  app.post("/chat", async (req, res) => {
+    const { ingestInbound } = await import("../core/conversations.js");
+    const b = (req.body ?? {}) as Record<string, string | undefined>;
+    const message = (b["message"] ?? "").trim();
+    const sessionId = (b["sessionId"] ?? "").trim();
+    if (!message || !sessionId) {
+      res.status(400).json({ error: "sessionId and message are required" });
+      return;
+    }
+    const contact: { name?: string; email?: string } = {};
+    if (b["name"]) contact.name = b["name"]!.slice(0, 120);
+    if (b["email"]) contact.email = b["email"]!.slice(0, 200);
+    const conv = await ingestInbound(dataDir, {
+      channel: "web",
+      threadKey: sessionId,
+      contact,
+      text: message.slice(0, 2000),
+    });
+    res.json({ ok: true, conversationId: conv.id, status: conv.status });
+  });
+
+  // WhatsApp Cloud API webhook — GET verify handshake + POST inbound messages.
+  app.get("/webhooks/whatsapp", (req, res) => {
+    const q = req.query as Record<string, string | undefined>;
+    const verifyToken = process.env["WHATSAPP_VERIFY_TOKEN"] ?? "";
+    if (q["hub.mode"] === "subscribe" && q["hub.verify_token"] === verifyToken) {
+      res.status(200).send(q["hub.challenge"] ?? "");
+      return;
+    }
+    res.status(403).send("forbidden");
+  });
+
+  app.post("/webhooks/whatsapp", async (req, res) => {
+    const appSecret = process.env["WHATSAPP_APP_SECRET"];
+    if (appSecret) {
+      const raw = (req as unknown as { rawBody?: string }).rawBody ?? JSON.stringify(req.body);
+      const { verifyHmacSha256 } = await import("../core/webhook-receiver.js");
+      const sig = req.headers["x-hub-signature-256"] as string | undefined;
+      if (!sig || !verifyHmacSha256(appSecret, Buffer.from(raw, "utf-8"), sig)) {
+        res.status(401).json({ error: "invalid signature" });
+        return;
+      }
+    }
+    const { parseWhatsAppInbound, ingestInbound } = await import("../core/conversations.js");
+    const messages = parseWhatsAppInbound(req.body);
+    for (const m of messages) {
+      await ingestInbound(dataDir, {
+        channel: "whatsapp",
+        threadKey: m.from,
+        contact: { phone: m.from, ...(m.name ? { name: m.name } : {}) },
+        text: m.text,
+      }).catch(() => undefined);
+    }
+    res.json({ ok: true, received: messages.length });
   });
 
   // Inbound lead capture (#60): embeddable forms POST straight into the CRM.

@@ -227,6 +227,54 @@ no-op, consistent with the local-first model.
 
 ---
 
+## Omnichannel Conversations Inbox (#57)
+
+Unify inbound customer messages from the web-chat widget and WhatsApp into a
+single, channel-spanning inbox. Threads are routed to a customer (by email via
+the email router; phone/anonymous threads stay assignable), logged to the CRM
+timeline, and can be replied to, assigned, closed, or escalated to a ticket.
+
+### Web-chat widget
+
+Embed the widget on any page — it POSTs messages to the CRM HTTP server:
+
+```html
+<script src="https://your-crm-host:3847/chat/widget.js" defer></script>
+```
+
+Messages land via `POST /chat` (`{ sessionId, email?, name?, message }`) and open
+or continue a conversation keyed by the browser session.
+
+### WhatsApp (Meta Cloud API)
+
+Point your WhatsApp Business webhook at the CRM:
+
+- **Verify (GET):** `GET /webhooks/whatsapp` echoes `hub.challenge` when
+  `hub.verify_token` matches `WHATSAPP_VERIFY_TOKEN`.
+- **Inbound (POST):** `POST /webhooks/whatsapp` — signature-checked with
+  `WHATSAPP_APP_SECRET` (`X-Hub-Signature-256`); inbound texts open/continue a
+  thread keyed by the sender's `wa_id`.
+- **Outbound replies:** set `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` to deliver
+  agent replies back via the Cloud API. Without them, replies are still recorded
+  on the thread (local-first no-op).
+
+### Handling the inbox
+
+```bash
+dxcrm inbox list --status open       # triage open threads
+dxcrm inbox show <id>                # read a transcript
+dxcrm inbox reply <id> "On it!" --close
+dxcrm inbox assign <id> --to alice --slug acme --escalate --title "Refund"
+```
+
+Or via MCP: `list_conversations`, `reply_conversation`, `assign_conversation`.
+
+**Events** (workflow automation #48): `conversation.created`,
+`conversation.message`, `conversation.replied`, `conversation.assigned`,
+`conversation.escalated`.
+
+---
+
 ## Manual Registration
 
 If automatic detection doesn't work:

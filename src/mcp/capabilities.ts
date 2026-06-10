@@ -106,6 +106,9 @@ Config: \`.agentic/rbac.json\` | Actor: \`DXCRM_ACTOR\` env var
 | create_form | Embeddable lead-capture web form (honeypot, rate-limit, optional double-opt-in) | manager+ |
 | list_forms | List inbound lead-capture forms | any |
 | get_portal_link | Magic link to the customer self-service portal (own tickets + public KB) | rep+ |
+| list_conversations | List omnichannel inbox threads (web-chat, WhatsApp) by status/slug/channel | any |
+| reply_conversation | Reply on an inbox conversation; delivers back on the channel, can close | rep+ |
+| assign_conversation | Assign/link/close or escalate an inbox conversation to a ticket | rep+ |
 | send_nps_survey | Generate NPS/CSAT survey token + HTML email draft (does not send automatically) | rep+ |
 | get_survey_results | NPS score, promoter/passive/detractor breakdown, all responses for a survey | any |
 | search_knowledge_base | Full-text search across KB articles (title, body, tags) with category and public filters | any |
@@ -542,6 +545,26 @@ Customer self-service portal (#58): magic link where the contact sees their own 
 opens new ones, replies, and searches the PUBLIC knowledge base. Strictly scoped via
 HMAC-signed, expiring tokens; actions create the usual events/interactions.
 - Returns: { link, slug, contactEmail, expiresInDays }
+
+### list_conversations({ status?, slug?, channel? })
+Omnichannel inbox (#57): list conversations across web-chat, WhatsApp, Slack and Telegram.
+Filter by status (open/assigned/closed), customer slug, or channel.
+RBAC: any
+- Returns: { count, conversations[] } (each: id, channel, slug, status, assignee, contact, messages, lastMessage, ticketId)
+
+### reply_conversation({ id, message, by?, close? })
+Send an agent reply on an inbox conversation. The reply is delivered back on the originating
+channel (best-effort; WhatsApp/web outbound is credential-gated), recorded on the thread and
+the customer timeline, and fires conversation.replied. Set close to resolve the thread.
+RBAC: rep+
+- Returns: { success, id, status, messages }
+
+### assign_conversation({ id, assignee?, slug?, status?, escalateToTicket?, ticketTitle?, priority? })
+Assign, (re)link, close, or escalate an inbox conversation. escalateToTicket opens a support
+ticket seeded with the transcript (requires a linked customer). Fires conversation.assigned /
+conversation.escalated.
+RBAC: rep+
+- Returns: { success, id, status, assignee, slug, ticketId }
 
 ### get_dashboard_link({ validDays? })
 Mint a token-secured link to the read-only web dashboard (#52): forecast P50/P90 (rolling 90d),

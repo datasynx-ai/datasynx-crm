@@ -45,6 +45,7 @@ import { formCommand } from "./form.js";
 import { portalCommand } from "./portal.js";
 import { bookingCommand } from "./booking.js";
 import { transcriptsCommand } from "./transcripts.js";
+import { inboxCommand } from "./inbox.js";
 import { segmentCommand } from "./segment.js";
 import { identityCommand } from "./identity.js";
 import { metricsCommand } from "./metrics.js";
@@ -119,6 +120,7 @@ export const ALL_COMMANDS: readonly Command[] = [
   portalCommand,
   bookingCommand,
   transcriptsCommand,
+  inboxCommand,
   segmentCommand,
   identityCommand,
   metricsCommand,

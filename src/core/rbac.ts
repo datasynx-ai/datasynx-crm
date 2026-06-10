@@ -22,6 +22,8 @@ const WORKFLOW_TOOLS = ["create_workflow", "toggle_workflow"];
 const FORM_TOOLS = ["create_form"];
 // Booking pages are shared scheduling config — manager/admin only (issue #53).
 const BOOKING_TOOLS = ["create_booking_page"];
+// Inbox conversations — every role handles their own threads (issue #57).
+const CONVERSATION_TOOLS = ["reply_conversation", "assign_conversation"];
 
 const ALLOWED_TOOLS: Record<Role, string[]> = {
   admin: [
@@ -38,6 +40,7 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     ...WORKFLOW_TOOLS,
     ...FORM_TOOLS,
     ...BOOKING_TOOLS,
+    ...CONVERSATION_TOOLS,
   ],
   manager: [
     "log_interaction",
@@ -49,8 +52,9 @@ const ALLOWED_TOOLS: Record<Role, string[]> = {
     ...WORKFLOW_TOOLS,
     ...FORM_TOOLS,
     ...BOOKING_TOOLS,
+    ...CONVERSATION_TOOLS,
   ],
-  rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS],
+  rep: ["log_interaction", "update_deal", "create_record", ...TASK_TOOLS, ...CONVERSATION_TOOLS],
 };
 
 function rbacPath(dataDir: string): string {

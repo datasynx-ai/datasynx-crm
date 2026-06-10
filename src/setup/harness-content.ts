@@ -85,6 +85,10 @@ const ALL_TOOLS = [
   "list_forms",
   // Self-Service Portal (#58)
   "get_portal_link",
+  // Omnichannel Inbox (#57)
+  "list_conversations",
+  "reply_conversation",
+  "assign_conversation",
   // NPS/CSAT Survey (H7)
   "send_nps_survey",
   "get_survey_results",
@@ -112,7 +116,7 @@ const ALL_TOOLS = [
 ] as const;
 
 export { ALL_TOOLS };
-export const TOOL_COUNT = ALL_TOOLS.length; // 79
+export const TOOL_COUNT = ALL_TOOLS.length; // 82
 
 /** Claude Code: CLAUDE.md in CRM dataDir */
 export function buildClaudeMd(dataDir: string): string {
