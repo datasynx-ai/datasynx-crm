@@ -1,6 +1,7 @@
 import { register, type PushSubscription } from "./push-manager.js";
 import type { RenewFn } from "./push-manager.js";
 import { logger } from "../core/logger.js";
+import { resolveSecret } from "../core/secrets.js";
 
 /**
  * Real subscription *creation* for transcript auto-discovery (#56 → #63).
@@ -43,7 +44,8 @@ export async function createTeamsTranscriptSubscription(
   const resource = opts.userId
     ? `users/${opts.userId}/onlineMeetings/getAllTranscripts`
     : "communications/onlineMeetings/getAllTranscripts";
-  const clientState = opts.clientState ?? process.env["MS_GRAPH_CLIENT_STATE"] ?? "";
+  const clientState =
+    opts.clientState ?? resolveSecret(opts.dataDir, "MS_GRAPH_CLIENT_STATE") ?? "";
   const expiration = new Date(Date.now() + GRAPH_TRANSCRIPT_EXPIRY_MINUTES * 60_000).toISOString();
 
   const res = await fetchFn("https://graph.microsoft.com/v1.0/subscriptions", {

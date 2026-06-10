@@ -54,11 +54,32 @@ async function probe(
   }
 }
 
+/** Integration secrets the live paths resolve via env → vault (#72). */
+const VAULT_BACKED_SECRETS = [
+  "MS_GRAPH_CLIENT_STATE",
+  "WHATSAPP_TOKEN",
+  "WHATSAPP_PHONE_ID",
+  "WHATSAPP_APP_SECRET",
+  "WHATSAPP_VERIFY_TOKEN",
+  "STRIPE_API_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+] as const;
+
 export async function runIntegrationChecks(
   dataDir: string,
   opts: IntegrationCheckOptions = {}
 ): Promise<IntegrationCheck[]> {
-  const env = opts.env ?? process.env;
+  const rawEnv = opts.env ?? process.env;
+  // Mirror the live paths' env → vault resolution (#72): a secret entered via
+  // the vault GUI must turn the corresponding readiness check green.
+  const { resolveSecret } = await import("./secrets.js");
+  const env: NodeJS.ProcessEnv = { ...rawEnv };
+  for (const name of VAULT_BACKED_SECRETS) {
+    if (!env[name]) {
+      const fromVault = resolveSecret(dataDir, name, rawEnv);
+      if (fromVault) env[name] = fromVault;
+    }
+  }
   const fetchFn = opts.fetchFn ?? fetch;
   const live = opts.live ?? false;
   const checks: IntegrationCheck[] = [];

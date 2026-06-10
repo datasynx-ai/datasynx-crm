@@ -30,8 +30,10 @@ export async function handleSendQuote(
       };
     }
 
-    // Optional Stripe payment link — only when the API key is configured.
-    const stripeKey = process.env["STRIPE_API_KEY"];
+    // Optional Stripe payment link — only when the API key is configured
+    // (env or vault, #72).
+    const { resolveSecret } = await import("../../core/secrets.js");
+    const stripeKey = resolveSecret(dataDir, "STRIPE_API_KEY");
     let paymentLinkUrl = quote.paymentLinkUrl;
     if (stripeKey && !paymentLinkUrl) {
       const { createStripePaymentLink } = await import("../../plugins/stripe.js");

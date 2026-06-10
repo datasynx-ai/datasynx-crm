@@ -333,3 +333,29 @@ describe("accept signature IP fallback (#69)", () => {
     expect(readQuoteFile().signature?.ip).toBe("127.0.0.1");
   });
 });
+
+describe("stripe webhook secret via vault fallback (#72)", () => {
+  it("verifies signatures with a vault-stored STRIPE_WEBHOOK_SECRET", async () => {
+    const { setSecret } = await import("../../src/core/vault.js");
+    setSecret(DATA_DIR, "master-key", "STRIPE_WEBHOOK_SECRET", "whsec_vault");
+    process.env["DXCRM_VAULT_KEY"] = "master-key";
+    try {
+      seedQuote({ status: "accepted" });
+      const body = JSON.stringify({
+        type: "checkout.session.completed",
+        data: { object: { metadata: { quoteNumber: "Q-2026-001" } } },
+      });
+      const ts = Math.floor(Date.now() / 1000);
+      const v1 = createHmac("sha256", "whsec_vault").update(`${ts}.${body}`).digest("hex");
+      const res = await fetch(`${base}/webhooks/stripe`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "stripe-signature": `t=${ts},v1=${v1}` },
+        body,
+      });
+      expect(res.status).toBe(200);
+      expect(readQuoteFile().status).toBe("paid");
+    } finally {
+      delete process.env["DXCRM_VAULT_KEY"];
+    }
+  });
+});

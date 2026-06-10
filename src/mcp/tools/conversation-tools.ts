@@ -157,7 +157,7 @@ RBAC: rep+. Returns: { success, id, status, assignee, slug, ticketId }`,
 
 /** Default outbound sender — shared by the MCP tool and `dxcrm inbox reply` (#67). */
 export async function buildSender(
-  _dataDir: string
+  dataDir: string
 ): Promise<
   | ((msg: {
       channel: ConversationChannel;
@@ -167,8 +167,9 @@ export async function buildSender(
     }) => Promise<void>)
   | null
 > {
-  const token = process.env["WHATSAPP_TOKEN"];
-  const phoneId = process.env["WHATSAPP_PHONE_ID"];
+  const { resolveSecret } = await import("../../core/secrets.js");
+  const token = resolveSecret(dataDir, "WHATSAPP_TOKEN");
+  const phoneId = resolveSecret(dataDir, "WHATSAPP_PHONE_ID");
   if (!token || !phoneId) return null; // offline → reply is recorded only
   return async (msg) => {
     if (msg.channel !== "whatsapp" || !msg.contact.phone) return;

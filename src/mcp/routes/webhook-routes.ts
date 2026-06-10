@@ -51,7 +51,8 @@ export function registerWebhookRoutes(app: Express, dataDir: string): void {
       res.status(200).send(validation.token);
       return;
     }
-    const clientState = process.env["MS_GRAPH_CLIENT_STATE"] ?? "";
+    const { resolveSecret } = await import("../../core/secrets.js");
+    const clientState = resolveSecret(dataDir, "MS_GRAPH_CLIENT_STATE") ?? "";
     const body = req.body as { value?: MicrosoftGraphNotification[] };
     if (!verifyMicrosoftGraphSignature(body, clientState)) {
       res.status(401).json({ error: "unauthorized" });

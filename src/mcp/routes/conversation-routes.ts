@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { clientIp, createRateLimiter } from "../../core/http-guard.js";
+import { resolveSecret } from "../../core/secrets.js";
 
 /**
  * Public omnichannel-inbox routes (#57, hardened in #61, delivery in #62):
@@ -92,7 +93,7 @@ export function registerConversationRoutes(app: Express, dataDir: string): void 
   // WhatsApp Cloud API webhook — GET verify handshake + POST inbound messages.
   app.get("/webhooks/whatsapp", (req, res) => {
     const q = req.query as Record<string, string | undefined>;
-    const verifyToken = process.env["WHATSAPP_VERIFY_TOKEN"] ?? "";
+    const verifyToken = resolveSecret(dataDir, "WHATSAPP_VERIFY_TOKEN") ?? "";
     if (q["hub.mode"] === "subscribe" && q["hub.verify_token"] === verifyToken) {
       res.status(200).send(q["hub.challenge"] ?? "");
       return;
@@ -105,7 +106,7 @@ export function registerConversationRoutes(app: Express, dataDir: string): void 
       res.status(429).json({ error: "too many requests" });
       return;
     }
-    const appSecret = process.env["WHATSAPP_APP_SECRET"];
+    const appSecret = resolveSecret(dataDir, "WHATSAPP_APP_SECRET");
     if (appSecret) {
       const raw = (req as unknown as { rawBody?: string }).rawBody ?? JSON.stringify(req.body);
       const { verifyHmacSha256 } = await import("../../core/webhook-receiver.js");

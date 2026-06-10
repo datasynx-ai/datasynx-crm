@@ -203,3 +203,23 @@ describe("runDoctorIntegrations CLI (#64)", () => {
     logSpy.mockRestore();
   });
 });
+
+describe("vault-backed secrets (#72)", () => {
+  it("turns checks green from vault entries when env vars are absent", async () => {
+    const { setSecret } = await import("../../src/core/vault.js");
+    for (const [k, v] of [
+      ["WHATSAPP_TOKEN", "t"],
+      ["WHATSAPP_PHONE_ID", "p"],
+      ["WHATSAPP_APP_SECRET", "s"],
+      ["WHATSAPP_VERIFY_TOKEN", "v"],
+    ] as const) {
+      setSecret("/data", "master-key", k, v);
+    }
+    const { runIntegrationChecks } = await import("../../src/core/doctor-integrations.js");
+    const checks = await runIntegrationChecks("/data", {
+      env: { DXCRM_VAULT_KEY: "master-key" } as NodeJS.ProcessEnv,
+    });
+    const wa = checks.find((c) => c.provider === "whatsapp");
+    expect(wa?.status).toBe("ok");
+  });
+});

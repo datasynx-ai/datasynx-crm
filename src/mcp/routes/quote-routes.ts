@@ -92,7 +92,8 @@ export function registerQuoteRoutes(app: Express, dataDir: string): void {
   // Stripe payment webhook → quote.paid (#49). Signature-checked; the quote
   // number rides in the payment link metadata.
   app.post("/webhooks/stripe", async (req, res) => {
-    const whSecret = process.env["STRIPE_WEBHOOK_SECRET"];
+    const { resolveSecret } = await import("../../core/secrets.js");
+    const whSecret = resolveSecret(dataDir, "STRIPE_WEBHOOK_SECRET");
     if (!whSecret) {
       res.status(503).json({ error: "stripe webhook not configured" });
       return;

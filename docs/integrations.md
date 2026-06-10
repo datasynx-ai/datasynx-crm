@@ -31,6 +31,14 @@ Per provider it checks (with a concrete cause + fix hint on every ⚠):
 Unconfigured providers show as ○ — local-first, nothing is required. Exit code
 is 1 when anything needs attention (CI-friendly).
 
+**Secrets: env or vault.** `WHATSAPP_*`, `STRIPE_*` and `MS_GRAPH_CLIENT_STATE`
+can live in the encrypted credential vault instead of the environment: open the
+vault GUI (`get_vault_link` MCP tool, requires `DXCRM_VAULT_KEY` on the server)
+and store the secret under its exact env-var name (e.g. `STRIPE_WEBHOOK_SECRET`).
+The live paths and `doctor --integrations` resolve **env first, then vault** —
+an env var always overrides the vault entry, and without `DXCRM_VAULT_KEY`
+behavior is unchanged.
+
 ---
 
 ## Claude Code

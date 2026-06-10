@@ -229,3 +229,36 @@ describe("GET /chat/widget.js", () => {
     expect(js).toContain("/chat/poll");
   });
 });
+
+describe("whatsapp secrets via vault fallback (#72)", () => {
+  it("verifies the GET handshake with a vault-stored WHATSAPP_VERIFY_TOKEN", async () => {
+    const { setSecret } = await import("../../src/core/vault.js");
+    setSecret(DATA_DIR, "master-key", "WHATSAPP_VERIFY_TOKEN", "vault-verify");
+    process.env["DXCRM_VAULT_KEY"] = "master-key";
+    try {
+      const res = await fetch(
+        `${base}/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=vault-verify&hub.challenge=c123`
+      );
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe("c123");
+    } finally {
+      delete process.env["DXCRM_VAULT_KEY"];
+    }
+  });
+
+  it("enforces signature verification once the app secret exists in the vault", async () => {
+    const { setSecret } = await import("../../src/core/vault.js");
+    setSecret(DATA_DIR, "master-key", "WHATSAPP_APP_SECRET", "vault-app-secret");
+    process.env["DXCRM_VAULT_KEY"] = "master-key";
+    try {
+      const res = await fetch(`${base}/webhooks/whatsapp`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ entry: [] }),
+      });
+      expect(res.status).toBe(401);
+    } finally {
+      delete process.env["DXCRM_VAULT_KEY"];
+    }
+  });
+});
