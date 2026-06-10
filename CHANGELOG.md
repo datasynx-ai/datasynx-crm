@@ -1,3 +1,10 @@
+## [1.37.2](https://github.com/datasynx/datasynx-crm/compare/v1.37.1...v1.37.2) (2026-06-10)
+
+
+### Bug Fixes
+
+* **core:** quote accept/decline can no longer clobber a paid quote ([#68](https://github.com/datasynx/datasynx-crm/issues/68)) ([bf54db2](https://github.com/datasynx/datasynx-crm/commit/bf54db2ff87461e12f437df21cb92d2cdde2beea))
+
 ## [1.37.1](https://github.com/datasynx/datasynx-crm/compare/v1.37.0...v1.37.1) (2026-06-10)
 
 
