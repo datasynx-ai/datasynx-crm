@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/datasynx/datasynx-crm/compare/v1.30.0...v1.31.0) (2026-06-10)
+
+
+### Features
+
+* **sync:** auto-discover & route Teams/Meet transcripts ([#56](https://github.com/datasynx/datasynx-crm/issues/56)) ([a487f55](https://github.com/datasynx/datasynx-crm/commit/a487f559b83b4e81243b6e56bff9fd7c8136390c))
+
 # [1.30.0](https://github.com/datasynx/datasynx-crm/compare/v1.29.0...v1.30.0) (2026-06-10)
 
 
