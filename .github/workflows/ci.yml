@@ -103,6 +103,8 @@ jobs:
       - run: npm ci
       - name: Build
         run: npm run build
+      - name: Sourcemap guard (no .map files in the published package)
+        run: npm run check:no-sourcemaps
       - name: Validate Exports (publint)
         run: npx publint
       - name: Validate Type Declarations (attw)

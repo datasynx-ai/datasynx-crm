@@ -1,7 +1,10 @@
 import { defineConfig } from "tsdown";
 
 const shared = {
-  sourcemap: true,
+  // No sourcemaps in the published package: it ships only built dist/ (not the
+  // TypeScript source the maps reference), so maps would only bloat the tarball.
+  // Enforced by scripts/check-no-sourcemaps.ts.
+  sourcemap: false,
   external: [
     "@lancedb/lancedb",
     "apache-arrow",
