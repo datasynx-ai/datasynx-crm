@@ -31,6 +31,8 @@ jobs:
         run: npm run knip
       - name: Doc link check
         run: npm run docs:check
+      - name: Language policy check (English-only)
+        run: npm run check:language
 
   # ── Stage 2: Tests (Node Matrix) ─────────────────────────────────────────
   test:

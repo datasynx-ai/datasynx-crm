@@ -158,7 +158,7 @@ describe("handleDraftEmail", () => {
 
   it("falls back to the customer tone profile when no tone override is given", async () => {
     const { callLlm } = await import("../../../src/core/llm.js");
-    vi.mocked(callLlm).mockResolvedValue("Sehr geehrte Damen und Herren, ...");
+    vi.mocked(callLlm).mockResolvedValue("Dear Sir or Madam, ...");
     vol.fromJSON({
       [`${DATA_DIR}/customers/acme/main_facts.md`]: MAIN_FACTS,
       [`${DATA_DIR}/customers/acme/tone.json`]: JSON.stringify({

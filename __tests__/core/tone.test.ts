@@ -31,4 +31,14 @@ describe("tone profiles", () => {
     expect(toneInstruction({ formality: "formal", language: "de" })).toMatch(/formal/);
     expect(toneInstruction({})).toBe("");
   });
+
+  it("languageName maps codes to English language names, defaulting to English", async () => {
+    const { languageName } = await mod();
+    expect(languageName("de")).toBe("German");
+    expect(languageName("EN")).toBe("English");
+    expect(languageName("fr")).toBe("French");
+    expect(languageName(undefined)).toBe("English");
+    expect(languageName("")).toBe("English");
+    expect(languageName("xx")).toBe("English");
+  });
 });

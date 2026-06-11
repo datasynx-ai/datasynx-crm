@@ -87,8 +87,11 @@ export async function ingestEmail(
   }
 
   // LLM summary — non-blocking fallback to the raw body when no API key.
+  // Summary language follows the operator's configured tone (default English).
   const { summarizeEmail } = await import("../core/llm.js");
-  const summary = await summarizeEmail(msg.subject, msg.bodyMarkdown, msg.from);
+  const { resolveTone, languageName } = await import("../core/tone.js");
+  const summaryLang = languageName(resolveTone(dataDir).language);
+  const summary = await summarizeEmail(msg.subject, msg.bodyMarkdown, msg.from, summaryLang);
 
   await appendInteraction(dataDir, slug, {
     date: msg.date,

@@ -1,84 +1,84 @@
 # Roadmap — DatasynxOpenCRM
 
-> Stand: 2026-06-11 · npm `datasynx-opencrm` 1.38.0+ · Phase: **Härtung & erster externer User**
+> Status: 2026-06-11 · npm `datasynx-opencrm` 1.38.0+ · Phase: **Hardening & first external user**
 >
-> Dieses Dokument ist die **mittelfristige Steuerungssicht** (Meilensteine, Reihenfolge,
-> Exit-Kriterien). Operatives Session-Handoff (Checklisten, Fallstricke, Arbeitsweise)
-> steht im [SOP](./next-session-sop.md); die öffentliche Kurzfassung in der
-> [README](../README.md#roadmap). **Offene Arbeit im Detail = GitHub-Issues.**
+> This document is the **medium-term steering view** (milestones, sequencing,
+> exit criteria). Operational session handoff (checklists, pitfalls, working method)
+> lives in the [SOP](./next-session-sop.md); the public short version in the
+> [README](../README.md#roadmap). **Open work in detail = GitHub issues.**
 
 ---
 
-## Nordstern
+## North Star
 
-**Kill-Condition:** Der erste externe User nutzt `dxcrm` **7 Tage täglich ohne HubSpot**.
+**Kill condition:** The first external user uses `dxcrm` **daily for 7 days without HubSpot**.
 
-Jede Priorisierung wird an genau einer Frage gemessen: *Bringt das den ersten externen
-User näher an „7 Tage ohne HubSpot"?*
+Every prioritization is measured against exactly one question: *Does it bring the first
+external user closer to "7 days without HubSpot"?*
 
-## Wo wir stehen
+## Where We Stand
 
-- **Phasen 1–5 + M1 + M3-Sandbox-Anteil abgeschlossen.** 82 MCP-Tools · 69 CLI-Commands ·
-  lokale Markdown-/NDJSON-Stores · ~3736 Tests grün · Coverage-Gate (80 % Branches) grün.
-  Details der Auslieferung: Git-History und geschlossene Issues (#61–#69, #71, #72).
-- **Engpass:** Viele Live-Pfade sind credential-gated No-ops. Kern-Logik und Routing sind
-  getestet, aber Teams/Meet-Subscriptions, WhatsApp-Versand, Kalender-Free/Busy und Stripe
-  laufen offline nicht. Der Weg zur Kill-Condition führt über **Aktivieren & Härten**, nicht
-  über weitere Feature-Breite.
-
----
-
-## Meilensteine
-
-### M1 — Live-ready *(P0)* — ✅ abgeschlossen 2026-06-10
-Jede Kernintegration real aktivierbar, kein Live-Pfad mehr ein Offline-No-op, öffentliche
-Endpoints gehärtet (#61–#64). Einstiegspunkt für M2: `dxcrm doctor --integrations --live`.
-
-### M2 — Der 7-Tage-Härtetest *(P1, der Engpass)* — ⏳ **#73**
-Das Akzeptanzkriterium selbst fahren (echter/Test-Tenant). Täglicher Betrieb über den
-kritischen Pfad (Link 1–8); jede Reibung → neues eng geschnittenes Issue (Muster: #41).
-**Exit-Kriterium:** 7 aufeinanderfolgende Tage ohne HubSpot, alle dabei entstandenen
-P0/P1-Friction-Issues geschlossen. **→ Kill-Condition erfüllt.** *Operator-/Dogfooding-Task.*
-
-### M3 — Qualität & Robustheit *(P2/P3, teils parallel)*
-Sandbox-Anteil abgeschlossen (Routen-Integrationstests, Outbound-Robustheit, Unmatched-
-Transcript-Queue, Coverage-Gate; #65–#69). **Offen:**
-- **#74** — verbleibende Coverage-Randlücken (`sync/calendly.ts`, `core/llm.ts`-Provider,
-  `sync/calendar-availability.ts`). Sandbox-fähig.
-- **#75** — Unmatched **Conversations** (das #66-Muster auf Conversations übertragen).
-- **#20** — Embedding-Eval abschließen; braucht Umgebung mit HF-Modell-Zugriff. Kein blind swap.
-
-### M4 — Nach der Kill-Condition *(bewusst nicht begonnen, gegated durch M2)*
-- **#76** Slack als first-class Notification-Channel · **#77** Read-only Web-Dashboard ·
-  **#78** weitere LLM-Provider für On-Device-Summarization · **#79** Community-Plugin-Marketplace.
-
-### Querschnitt
-- **#80** English-only Policy über die Codebase erzwingen (sandbox-fähig).
-- **#70** Dependabot-Alert-Triage (wartet auf Operator-Input).
+- **Phases 1–5 + M1 + the M3 sandbox portion completed.** 82 MCP tools · 69 CLI commands ·
+  local Markdown/NDJSON stores · ~3736 tests green · coverage gate (80% branches) green.
+  Delivery details: git history and closed issues (#61–#69, #71, #72).
+- **Bottleneck:** Many live paths are credential-gated no-ops. Core logic and routing are
+  tested, but Teams/Meet subscriptions, WhatsApp sending, calendar free/busy, and Stripe
+  do not run offline. The path to the kill condition runs through **activating & hardening**,
+  not through more feature breadth.
 
 ---
 
-## Sequenzierung & Abhängigkeiten
+## Milestones
+
+### M1 — Live-ready *(P0)* — ✅ completed 2026-06-10
+Every core integration can be activated for real, no live path is an offline no-op anymore,
+public endpoints hardened (#61–#64). Entry point for M2: `dxcrm doctor --integrations --live`.
+
+### M2 — The 7-day hardening test *(P1, the bottleneck)* — ⏳ **#73**
+Run the acceptance criterion itself (real/test tenant). Daily operation across the
+critical path (Link 1–8); every friction → a new, tightly scoped issue (pattern: #41).
+**Exit criterion:** 7 consecutive days without HubSpot, with all P0/P1 friction issues that
+arise along the way closed. **→ Kill condition met.** *Operator/dogfooding task.*
+
+### M3 — Quality & robustness *(P2/P3, partly parallel)*
+Sandbox portion completed (route integration tests, outbound robustness, unmatched-
+transcript queue, coverage gate; #65–#69). **Open:**
+- **#74** — remaining coverage edge gaps (`sync/calendly.ts`, `core/llm.ts` providers,
+  `sync/calendar-availability.ts`). Sandbox-capable.
+- **#75** — Unmatched **Conversations** (carry the #66 pattern over to Conversations).
+- **#20** — finish embedding evaluation; needs an environment with HF model access. No blind swap.
+
+### M4 — After the kill condition *(deliberately not started, gated by M2)*
+- **#76** Slack as a first-class notification channel · **#77** read-only web dashboard ·
+  **#78** additional LLM providers for on-device summarization · **#79** community plugin marketplace.
+
+### Cross-cutting
+- **#80** Enforce the English-only policy across the codebase (sandbox-capable).
+- **#70** Dependabot alert triage (waiting on operator input).
+
+---
+
+## Sequencing & Dependencies
 
 ```
-M1 (Live-ready) ──→ M2 (7-Tage-Härtetest) ──→ M4 (Wachstum)
+M1 (Live-ready) ──→ M2 (7-day hardening test) ──→ M4 (Growth)
         │
-M3 läuft teilweise parallel; #20 ist umgebungsabhängig (HF-Zugriff)
+M3 runs partly in parallel; #20 is environment-dependent (HF access)
 ```
 
-- M2 setzt M1 voraus: ohne Rückkanal, Subscription-Anlage und Setup-Doku ist ein ehrlicher Härtetest nicht möglich.
-- M3-Items sind einzeln pickbar und blockieren nichts; #20 wird gezogen, sobald eine Umgebung mit Modell-Zugriff verfügbar ist.
-- M4 ist hart durch M2 gegated — keine neue Feature-Breite vor bestandener Kill-Condition.
+- M2 requires M1: without a return channel, subscription creation, and setup docs, an honest hardening test is not possible.
+- M3 items are individually pickable and block nothing; #20 is pulled as soon as an environment with model access is available.
+- M4 is hard-gated by M2 — no new feature breadth before the kill condition passes.
 
-## Nicht-Ziele (bewusst)
+## Non-Goals (deliberate)
 
-- Keine neuen Feature-Flächen vor M2 (der Engpass ist Aktivierung, nicht Breite).
-- Kein Embedding-Default-Wechsel ohne Messung (#20-Regel).
-- Kein eigenes Web-UI über Portal + Chat-Widget hinaus vor M4.
-- Keine Änderung an strategischer Richtung, Kill-Conditions oder externen Verträgen ohne Rückfrage (siehe `CLAUDE.md`).
+- No new feature surfaces before M2 (the bottleneck is activation, not breadth).
+- No embedding default change without measurement (the #20 rule).
+- No custom web UI beyond portal + chat widget before M4.
+- No change to strategic direction, kill conditions, or external contracts without asking (see `CLAUDE.md`).
 
-## Pflege
+## Maintenance
 
-Diese Roadmap wird bei jedem Meilenstein-Abschluss (und bei neuen Erkenntnissen aus dem
-Härtetest) aktualisiert. Operative Details und Lessons Learned gehören ins
-[SOP](./next-session-sop.md), nicht hierher.
+This roadmap is updated at every milestone completion (and on new insights from the
+hardening test). Operational details and lessons learned belong in the
+[SOP](./next-session-sop.md), not here.

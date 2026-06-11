@@ -42,7 +42,8 @@ function emailFallback(snippet: string): EmailSummary {
 export async function summarizeEmail(
   subject: string,
   snippet: string,
-  from: string
+  from: string,
+  language = "English"
 ): Promise<EmailSummary> {
   const client = getClient();
   if (!client) return emailFallback(snippet);
@@ -54,7 +55,7 @@ export async function summarizeEmail(
       system: [
         {
           type: "text",
-          text: 'You are a CRM assistant. Extract structured information from email metadata.\nReturn ONLY valid JSON matching: { "summary": string (2 sentences, German), "sentiment": "positive"|"neutral"|"negative"|"urgent", "nextSteps": string[] }',
+          text: `You are a CRM assistant. Extract structured information from email metadata.\nReturn ONLY valid JSON matching: { "summary": string (2 sentences, in ${language}), "sentiment": "positive"|"neutral"|"negative"|"urgent", "nextSteps": string[] }`,
           cache_control: { type: "ephemeral" },
         },
       ],

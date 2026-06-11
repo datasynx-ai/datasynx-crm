@@ -2,10 +2,10 @@ import type { StakeholderRole } from "./graph.js";
 
 /**
  * Lightweight stakeholder-role detection from interaction text (#41 A5). When a
- * rep logs "CFO Thomas Berger äußert Budget-Bedenken", the economic-buyer signal
+ * rep logs "CFO Thomas Berger raises budget concerns", the economic-buyer signal
  * should flow into the relationship graph instead of leaving the contact as
- * `role: unknown`. Keyword/phrase based (EN + DE), deliberately conservative —
- * it only fires on strong signals so it never mislabels a casual mention.
+ * `role: unknown`. Keyword/phrase based (English + German keywords), deliberately
+ * conservative — it only fires on strong signals so it never mislabels a casual mention.
  */
 
 type DetectableRole = Exclude<StakeholderRole, "user">;

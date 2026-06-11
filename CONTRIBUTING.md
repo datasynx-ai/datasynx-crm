@@ -24,6 +24,9 @@ This project follows **Test-Driven Development**. The non-negotiables:
 2. **Keep the suite green.** `npm test` must exit 0 before every commit.
 3. **Document as you go.** A feature isn't done until the docs are updated —
    see "Documentation" below.
+4. **English only.** All code, comments, docs, tests, commit messages, and
+   user-facing strings must be in English (see the Language Policy in
+   `CLAUDE.md`). `npm run check:language` enforces this in CI.
 
 ### Useful scripts
 
@@ -38,6 +41,8 @@ This project follows **Test-Driven Development**. The non-negotiables:
 | `npm run format`        | Prettier write                                                        |
 | `npm run build`         | Build the distributable with tsdown                                   |
 | `npm run docs:generate` | Regenerate the CLI/MCP reference docs from code                       |
+| `npm run docs:check`    | Verify all relative doc links/anchors resolve (offline)               |
+| `npm run check:language`| Flag non-English (German) stopwords in tracked files (English-only)   |
 
 ### Post-build integration tests
 
@@ -60,7 +65,7 @@ Run them locally after a build, e.g. `npm run build && node __tests__/e2e/instal
 ### Before you open a PR
 
 ```bash
-npm run typecheck && npm run lint && npm run knip && npm run format:check && npm test && npm run build
+npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run docs:check && npm run check:language && npm test && npm run build
 ```
 
 A Husky pre-commit hook runs `lint-staged`, and a commit-msg hook enforces

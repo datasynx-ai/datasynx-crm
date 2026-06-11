@@ -125,9 +125,12 @@ export async function syncGmail(opts: SyncOptions): Promise<{ synced: number; sk
     const { extractEmailBodyMarkdown } = await import("./email-body.js");
     const body = (await extractEmailBodyMarkdown(msgData.payload ?? undefined)) || snippet;
 
-    // LLM summary — non-blocking fallback to raw body/snippet if no API key or error
+    // LLM summary — non-blocking fallback to raw body/snippet if no API key or error.
+    // Summary language follows the operator's configured tone (default English).
     const { summarizeEmail } = await import("../core/llm.js");
-    const emailSummary = await summarizeEmail(subject, body, from);
+    const { resolveTone, languageName } = await import("../core/tone.js");
+    const summaryLang = languageName(resolveTone(opts.dataDir).language);
+    const emailSummary = await summarizeEmail(subject, body, from, summaryLang);
 
     // Download, convert and index attachments before logging the interaction so
     // the entry can link to the generated Markdown. Failures here are swallowed.

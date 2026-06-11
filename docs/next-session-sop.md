@@ -1,125 +1,129 @@
-# SOP — Nächste Session (DatasynxOpenCRM)
+# SOP — Next Session (DatasynxOpenCRM)
 
-> Handoff-Dokument für den Start einer neuen Claude-Code-Session. Lies dies
-> **zuerst**, dann `CLAUDE.md`. Stand: **2026-06-11** · M1 ✅ + M3 (Sandbox-Anteil) ✅.
-> Mittelfristige Meilenstein-Sicht: [`roadmap.md`](./roadmap.md).
+> Handoff document for starting a new Claude Code session. Read this
+> **first**, then `CLAUDE.md`. Status: **2026-06-11** · M1 ✅ + M3 (sandbox portion) ✅.
+> Medium-term milestone view: [`roadmap.md`](./roadmap.md).
 >
-> **Single Source of Truth für offene Arbeit = GitHub-Issues** (siehe Abschnitt 0).
-> Erledigtes steht in der Git-History, nicht hier.
+> **Single source of truth for open work = GitHub issues** (see section 0).
+> Completed work lives in the git history, not here.
 
 ---
 
-## 0. Aktueller Stand (Snapshot)
+## 0. Current Status (Snapshot)
 
-- **Phase:** Härtung & erster externer User. **M1 ✅**, **M3-Sandbox-Anteil ✅** (beide 2026-06-10).
-- **Nordstern / Kill-Condition:** Erster externer User nutzt `dxcrm` **7 Tage täglich ohne HubSpot**.
-- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3736 Tests grün · Coverage-Gate (80 % Branches) grün · npm 1.38.0+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
+- **Phase:** Hardening & first external user. **M1 ✅**, **M3 sandbox portion ✅** (both 2026-06-10).
+- **North Star / kill condition:** The first external user uses `dxcrm` **daily for 7 days without HubSpot**.
+- **Tooling:** 82 MCP tools · 69 CLI commands (top-level) · ~3736 tests green · coverage gate (80% branches) green · npm 1.38.0+ (semantic-release publishes on every feat/fix merge to `main`).
 
-### Offene Issues (priorisiert)
+### Open Issues (prioritized)
 
-| Issue | Thema | sandbox-fähig |
+| Issue | Topic | sandbox-capable |
 |---|---|---|
-| **#73** | M2 — 7-Tage-HubSpot-frei-Härtetest (Kill-Condition, Engpass) | nein (Operator/Dogfooding) |
-| **#74** | Coverage-Randlücken: `sync/calendly.ts`, `core/llm.ts`, `sync/calendar-availability.ts` | ✅ ja |
-| **#75** | Unmatched Conversations: Event + Digest + `resolve` (spiegelt #66) | ✅ ja |
-| **#80** | English-only Policy über die Codebase erzwingen | ✅ ja |
-| **#20** | Embedding-Eval abschließen (kein Blind-Swap) | nein (HF-Zugriff nötig) |
-| **#70** | Dependabot-Alert-Triage | nein (Operator-Input) |
-| **#76–#79** | M4 (Slack-Channel, Web-Dashboard, weitere LLM-Provider, Plugin-Marketplace) | gegated durch M2 |
+| **#73** | M2 — 7-day HubSpot-free hardening test (kill condition, bottleneck) | no (operator/dogfooding) |
+| **#74** | Coverage edge gaps: `sync/calendly.ts`, `core/llm.ts`, `sync/calendar-availability.ts` | ✅ yes |
+| **#75** | Unmatched Conversations: event + digest + `resolve` (mirrors #66) | ✅ yes |
+| **#80** | Enforce the English-only policy across the codebase | ✅ yes |
+| **#20** | Finish embedding evaluation (no blind swap) | no (HF access needed) |
+| **#70** | Dependabot alert triage | no (operator input) |
+| **#76–#79** | M4 (Slack channel, web dashboard, additional LLM providers, plugin marketplace) | gated by M2 |
 
-> Issue-Anlage aus dieser Sandbox ist nicht möglich (kein `gh`/Token; GitHub-API nur
-> lesend). Neue Befunde als fertigen Issue-Body formulieren und dem Operator übergeben.
+> `gh` is installed and authenticated in this environment (full issue read/write), so
+> issues can be created and updated directly. File follow-ups as you find them.
 
 ---
 
-## 1. Session-Start-Checkliste
+## 1. Session Start Checklist
 
 ```
-□ CLAUDE.md + dieses SOP + docs/roadmap.md lesen
-□ git fetch origin main && git status   (main läuft durch semantic-release vor!)
-□ npm ci  (Container ist ephemer — vitest/tsx fehlen sonst)
-□ npm test → Baseline grün?   npm run typecheck && npm run lint && npm run build
-□ Offene Issues prüfen (GitHub-API lesend / Operator)
-□ Entwicklungsbranch anlegen/auschecken; Merge nach main ist autorisiert
+□ Read CLAUDE.md + this SOP + docs/roadmap.md
+□ git fetch origin main && git status   (main is ahead via semantic-release!)
+□ npm ci  (container is ephemeral — otherwise vitest/tsx are missing)
+□ npm test → baseline green?   npm run typecheck && npm run lint && npm run build
+□ Check open issues (GitHub API / operator)
+□ Create/check out a development branch; merging to main is authorized
 ```
 
 ---
 
-## 2. Arbeitsweise (unverändert, nicht verhandelbar)
+## 2. Working Method (unchanged, non-negotiable)
 
-Pro Issue **immer** diese 5 Schritte (jeweils im Issue als Kommentar dokumentieren):
+For every issue **always** these 5 steps (each documented as a comment in the issue):
 
-1. **Research** als Kommentar im Issue.
-2. **Implementierungsplan** als Kommentar im Issue.
-3. **Test-driven** implementieren (Test zuerst, dann Code).
-4. **Ende-zu-Ende-Test** gegen den echten Server/Binary + optimieren.
-5. **Doku + Merge nach `main`** (README/`docs/`/`capabilities.ts`/Harness synchron), Issue mit Mapping schließen.
+1. **Research** as a comment in the issue.
+2. **Implementation plan** as a comment in the issue.
+3. Implement **test-driven** (test first, then code).
+4. **End-to-end test** against the real server/binary + optimize.
+5. **Docs + merge to `main`** (README/`docs/`/`capabilities.ts`/harness in sync), close the issue with a mapping.
 
-**Commit-Gate:** `npm test` grün · `typecheck` · `lint` · `build` · Doku synchron · `TOOL_COUNT` gepflegt.
-
----
-
-## 3. Strategie — Was als nächstes wichtig ist
-
-- **🥇 P0 — M2 (#73):** der Engpass. Operator setzt echten/Test-Tenant auf, `dxcrm doctor
-  --integrations --live` muss für die genutzten Provider grün sein (Einstiegspunkt).
-  Aus der Sandbox **nicht** durchführbar — ohne User-Feedback direkt zu P1 greifen.
-  Jede Reibung → **neues, eng geschnittenes Issue** mit Repro (Muster: #41).
-- **🥈 P1 — sandbox-tauglich:** #74 (Coverage), #75 (Unmatched Conversations, sobald der
-  Härtetest zeigt, dass es gebraucht wird), #80 (English-only).
-- **🥉 P2 — #20:** nur mit HF-Zugriff (`dxcrm eval-embeddings …`). Kein blind swap.
-- **Gegated (M4, #76–#79):** keine neue Feature-Breite vor bestandener Kill-Condition.
+**Commit gate:** `npm test` green · `typecheck` · `lint` · `build` · docs in sync · `TOOL_COUNT` maintained.
 
 ---
 
-## 4. Technische Fallstricke (Lessons Learned — Zeit sparen!)
+## 3. Strategy — What Matters Next
 
-- **semantic-release-Drift:** Nach jedem feat/fix-Merge nach `main` bumpt semantic-release
-  `package.json`. Vor jedem Merge: `git pull origin main` → bei Divergenz `git rebase main`,
-  Remote-`version` behalten, dann `--force-with-lease` auf den Feature-Branch.
-- **`dxcrm init` niemals im Repo-Cwd ausführen** — überschreibt die echte `CLAUDE.md`.
-  Immer `DXCRM_DATA_DIR=/tmp/...`.
-- **HF-Modell-Download in der Sandbox blockiert** → Embedding-/LLM-E2E nicht hier.
-- **Credential-gated = offline No-op:** mit injizierten Deps bzw. gestubbtem `fetch` testen
-  (Muster: `subscription-create.ts`, `doctor-integrations.ts`, `transcript-discovery.ts`).
-- **Datum/Zeitzonen:** `today`/`close_date` werden als **UTC-Mitternacht** geparst. Datums-
-  Grenzen daher mit `Date.UTC`/`getUTC*` rechnen, **nie** mit dem lokalen `new Date(y,m,d)`
-  (sonst Off-by-one in TZ ahead-of-UTC). Die Suite läuft gepinnt unter `TZ=Asia/Tokyo`
-  (`vitest.config.ts`), damit solche Bugs nicht erst in non-UTC-Umgebungen auffliegen.
-- **Routen testen:** Express-App auf Port 0 + echtes `fetch` (`conversation-routes.test.ts`).
-  Neue HTTP-Routen als `register<X>Routes(app, dataDir)`-Modul anlegen, nicht inline in
-  `startHttp()` — sonst nicht testbar.
-- **Rate-Limiter sind modul-global:** in Routen-Tests `reset<X>Guards()` im `beforeEach`.
-- **CLI-Fehlerpfade:** `process.exitCode = 1` setzen (nicht `process.exit()`); `runCli`
-  honoriert das seit #63 — Regressionstest in `__tests__/cli.test.ts`.
-- **Renewal ist provider-gefiltert:** `renewExpiringSubscriptions(dataDir, fn, h, { provider })`
-  — Filter nie weglassen, sonst frisst ein Renewer fremde Subs (#63-Bug).
-- **Tool-Bookkeeping bei neuem MCP-Tool:** `ALL_TOOLS` + `TOOL_COUNT` in
-  `src/setup/harness-content.ts`, `registerX` in `createMcpServer()`, RBAC-Gruppe,
-  `capabilities.ts` (Tabelle + Detail), `npm run docs:generate`, Pin-Test aktualisieren.
-  CLI-**Subcommands** zählen dagegen nicht in die 69 (nur Top-Level via registry).
-- **Zähl-Strings in README/Doc-Headern** sind teils außerhalb der AUTOGEN-Blöcke → manuell.
-- **Doku-Links:** `npm run docs:check` prüft alle relativen Links/Anker in README+docs
-  (läuft in der CI-Quality-Stage); externe URLs sind bewusst außen vor.
-- **Quote-State-Machine:** `paid` ist terminal — `acceptQuote`/`declineQuote` geben die
-  Quote dann unverändert zurück (kein Event). Nicht "vereinfachen" (#68-Bug).
-- **commitlint:** Subject ≤ 72 Zeichen; Scopes enum-beschränkt (`cli, mcp, core, sync, …`).
-- **ESM:** kein `require()`; Type-only Imports für zirkuläre Typen.
-- **Wiederverwendbare Muster:** HMAC-Token, Config-Store `.agentic/<feature>/<id>.json`,
-  Event-Bus `emitEvent`, Routing `buildRoutingTable`+`routeMessage`, Timeline
-  `appendInteraction`, Rate-Limit `createRateLimiter` + `clientIp` (`core/http-guard.ts`).
+- **🥇 P0 — M2 (#73):** the bottleneck. The operator sets up a real/test tenant, `dxcrm doctor
+  --integrations --live` must be green for the providers in use (entry point).
+  **Not** runnable from the sandbox — without user feedback, jump straight to P1.
+  Every friction → a **new, tightly scoped issue** with repro (pattern: #41).
+- **🥈 P1 — sandbox-suitable:** #74 (coverage), #75 (unmatched Conversations, once the
+  hardening test shows it is needed), #80 (English-only).
+- **🥉 P2 — #20:** only with HF access (`dxcrm eval-embeddings …`). No blind swap.
+- **Gated (M4, #76–#79):** no new feature breadth before the kill condition passes.
 
 ---
 
-## 5. Definition of Done (pro Issue)
+## 4. Technical Pitfalls (lessons learned — save time!)
+
+- **semantic-release drift:** After every feat/fix merge to `main`, semantic-release bumps
+  `package.json`. Before every merge: `git pull origin main` → on divergence `git rebase main`,
+  keep the remote `version`, then `--force-with-lease` on the feature branch.
+- **Never run `dxcrm init` in the repo cwd** — it overwrites the real `CLAUDE.md`.
+  Always use `DXCRM_DATA_DIR=/tmp/...`.
+- **HF model download is blocked in the sandbox** → no embedding/LLM E2E here.
+- **Credential-gated = offline no-op:** test with injected deps or a stubbed `fetch`
+  (pattern: `subscription-create.ts`, `doctor-integrations.ts`, `transcript-discovery.ts`).
+- **Dates/time zones:** `today`/`close_date` are parsed as **UTC midnight**. Compute date
+  boundaries with `Date.UTC`/`getUTC*`, **never** with the local `new Date(y,m,d)`
+  (otherwise off-by-one in TZ ahead of UTC). The suite runs pinned under `TZ=Asia/Tokyo`
+  (`vitest.config.ts`) so such bugs do not first surface in non-UTC environments.
+- **Testing routes:** Express app on port 0 + real `fetch` (`conversation-routes.test.ts`).
+  Add new HTTP routes as a `register<X>Routes(app, dataDir)` module, not inline in
+  `startHttp()` — otherwise not testable.
+- **Rate limiters are module-global:** in route tests call `reset<X>Guards()` in `beforeEach`.
+- **CLI error paths:** set `process.exitCode = 1` (not `process.exit()`); `runCli`
+  honors that since #63 — regression test in `__tests__/cli.test.ts`.
+- **Renewal is provider-filtered:** `renewExpiringSubscriptions(dataDir, fn, h, { provider })`
+  — never drop the filter, otherwise one renewer eats foreign subs (the #63 bug).
+- **Tool bookkeeping for a new MCP tool:** `ALL_TOOLS` + `TOOL_COUNT` in
+  `src/setup/harness-content.ts`, `registerX` in `createMcpServer()`, RBAC group,
+  `capabilities.ts` (table + detail), `npm run docs:generate`, update the pin test.
+  CLI **subcommands**, by contrast, do not count toward the 69 (only top-level via the registry).
+- **Count strings in README/doc headers** are partly outside the AUTOGEN blocks → manual.
+- **Doc links:** `npm run docs:check` checks all relative links/anchors in README+docs
+  (runs in the CI quality stage); external URLs are deliberately out of scope.
+- **English-only:** `npm run check:language` flags German stopwords in tracked text files
+  (CI quality stage, #80). Intentional German (bilingual detection keywords, the localized
+  EU-AI-Act disclosure) is allowlisted in `scripts/check-language.ts`; add `i18n-allow` to a
+  line or extend the allowlist for new legitimate matches.
+- **Quote state machine:** `paid` is terminal — `acceptQuote`/`declineQuote` then return the
+  quote unchanged (no event). Do not "simplify" this (the #68 bug).
+- **commitlint:** subject ≤ 72 characters; scopes are enum-restricted (`cli, mcp, core, sync, …`).
+- **ESM:** no `require()`; type-only imports for circular types.
+- **Reusable patterns:** HMAC token, config store `.agentic/<feature>/<id>.json`,
+  event bus `emitEvent`, routing `buildRoutingTable`+`routeMessage`, timeline
+  `appendInteraction`, rate limit `createRateLimiter` + `clientIp` (`core/http-guard.ts`).
+
+---
+
+## 5. Definition of Done (per issue)
 
 ```
-□ 5-Schritte-Workflow im Issue dokumentiert
-□ Tests zuerst, alle grün; kritischer Pfad abgedeckt
-□ typecheck · lint · build sauber
-□ Reale E2E ausgeführt (echter Server/Binary / injizierte Deps)
-□ README + docs/ + capabilities + Harness synchron (TOOL_COUNT gepflegt)
-□ Nach main gemerged (Rebase über Release-Commits!), gepusht
-□ Issue mit Mapping-Kommentar als completed geschlossen
-□ roadmap.md + dieses SOP aktualisiert, wenn sich der Meilenstein-Stand ändert
+□ 5-step workflow documented in the issue
+□ Tests first, all green; critical path covered
+□ typecheck · lint · build clean
+□ Real E2E executed (real server/binary / injected deps)
+□ README + docs/ + capabilities + harness in sync (TOOL_COUNT maintained)
+□ Merged to main (rebase over release commits!), pushed
+□ Issue closed as completed with a mapping comment
+□ roadmap.md + this SOP updated when the milestone status changes
 ```

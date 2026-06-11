@@ -117,7 +117,7 @@ export async function updateGraphFromInteraction(
   if (!input.withStr.trim()) return;
 
   // Auto-detect stakeholder roles from the interaction text (#41 A5) so a
-  // contact described as e.g. "CFO … Budget-Bedenken" is tagged economic_buyer
+  // contact described as e.g. "CFO … budget concerns" is tagged economic_buyer
   // instead of staying role: unknown.
   const detectedRoles = input.text ? detectStakeholderRoles(input.text) : [];
 

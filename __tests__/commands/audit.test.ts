@@ -58,7 +58,7 @@ describe("runAudit — basic output", () => {
     await runAudit({}, "/data");
 
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(output).toMatch(/no audit entries|keine eintr|empty/i);
+    expect(output).toMatch(/no audit entries|empty/i);
     logSpy.mockRestore();
   });
 

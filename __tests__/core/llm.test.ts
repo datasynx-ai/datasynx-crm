@@ -73,9 +73,9 @@ describe("summarizeEmail", () => {
         {
           type: "text",
           text: JSON.stringify({
-            summary: "Alice bedankt sich für das Gespräch.",
+            summary: "Alice thanks you for the conversation.",
             sentiment: "positive",
-            nextSteps: ["Folgemail senden"],
+            nextSteps: ["Send a follow-up email"],
           }),
         },
       ],
@@ -89,8 +89,8 @@ describe("summarizeEmail", () => {
 
     expect(mockCreate).toHaveBeenCalledOnce();
     expect(result.sentiment).toBe("positive");
-    expect(result.summary).toBe("Alice bedankt sich für das Gespräch.");
-    expect(result.nextSteps).toEqual(["Folgemail senden"]);
+    expect(result.summary).toBe("Alice thanks you for the conversation.");
+    expect(result.nextSteps).toEqual(["Send a follow-up email"]);
   });
 
   it("passes cache_control on system prompt for prompt caching", async () => {
@@ -122,6 +122,47 @@ describe("summarizeEmail", () => {
         (block["cache_control"] as Record<string, string>)["type"] === "ephemeral"
     );
     expect(hasCache).toBe(true);
+  });
+
+  it("instructs the model to summarize in English by default", async () => {
+    process.env["ANTHROPIC_API_KEY"] = "test-key-123";
+
+    const mockCreate = await getMockCreate();
+    mockCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ summary: "x", sentiment: "neutral", nextSteps: [] }),
+        },
+      ],
+    });
+
+    await summarizeEmail("Subject", "Content", "from@example.com");
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    const system = callArgs?.["system"] as Array<Record<string, string>>;
+    expect(system[0]?.["text"]).toContain("in English");
+    expect(system[0]?.["text"]).not.toContain("German");
+  });
+
+  it("honors an explicit summary language", async () => {
+    process.env["ANTHROPIC_API_KEY"] = "test-key-123";
+
+    const mockCreate = await getMockCreate();
+    mockCreate.mockResolvedValueOnce({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ summary: "x", sentiment: "neutral", nextSteps: [] }),
+        },
+      ],
+    });
+
+    await summarizeEmail("Subject", "Content", "from@example.com", "German");
+
+    const callArgs = mockCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+    const system = callArgs?.["system"] as Array<Record<string, string>>;
+    expect(system[0]?.["text"]).toContain("in German");
   });
 
   it("returns fallback on JSON parse error", async () => {

@@ -81,7 +81,9 @@ export async function syncMicrosoft(opts: MicrosoftSyncOptions): Promise<Microso
 
     try {
       const { summarizeEmail } = await import("../core/llm.js");
-      const llmResult = await summarizeEmail(subject, preview, from);
+      const { resolveTone, languageName } = await import("../core/tone.js");
+      const summaryLang = languageName(resolveTone(opts.dataDir).language);
+      const llmResult = await summarizeEmail(subject, preview, from, summaryLang);
       summary = llmResult.summary;
       nextSteps = llmResult.nextSteps;
     } catch {

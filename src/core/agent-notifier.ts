@@ -10,6 +10,7 @@ import path from "path";
 import { writeJsonFile } from "../fs/json-store.js";
 import { AgentConfigSchema, type AgentConfig } from "../schemas/agent-config.js";
 import { summarizeEmail } from "./llm.js";
+import { resolveTone, languageName } from "./tone.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,8 +120,15 @@ export async function notifyAgentWake(
     const chatId = config.telegramChatId ?? process.env["TELEGRAM_CHAT_ID"];
     if (!chatId) return;
 
-    // 4. Summarise the email (LLM, with fallback built into summarizeEmail itself)
-    const emailSummary = await summarizeEmail(context.subject, context.snippet, context.from);
+    // 4. Summarise the email (LLM, with fallback built into summarizeEmail itself).
+    // Summary language follows the operator's configured tone (default English).
+    const summaryLang = languageName(resolveTone(dataDir).language);
+    const emailSummary = await summarizeEmail(
+      context.subject,
+      context.snippet,
+      context.from,
+      summaryLang
+    );
 
     // 5. Build and send the Telegram message
     const text = buildWakeMessage(

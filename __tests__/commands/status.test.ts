@@ -90,7 +90,7 @@ describe("runStatus — sync state", () => {
     logSpy.mockRestore();
   });
 
-  it("shows 'noch kein Sync' when customer has no sync entry", async () => {
+  it("shows 'no sync yet' when customer has no sync entry", async () => {
     vol.fromJSON({
       "/data/customers/acme-corp/main_facts.md": "---\nname: Acme\n---\n",
       "/data/.agentic/sync-state.json": JSON.stringify({}),
@@ -187,7 +187,7 @@ describe("runStatus — team overview", () => {
     logSpy.mockRestore();
   });
 
-  it("shows 'keine aktiven Sessions' when server returns empty list", async () => {
+  it("shows 'no active sessions' when server returns empty list", async () => {
     vol.fromJSON({});
     vi.stubGlobal(
       "fetch",
@@ -200,7 +200,7 @@ describe("runStatus — team overview", () => {
     const { runStatus } = await import("../../src/commands/status.js");
     await runStatus({ team: "http://localhost:3847" }, "/data");
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(output).toMatch(/keine.*session|no.*session/i);
+    expect(output).toMatch(/no active sessions/i);
     logSpy.mockRestore();
   });
 
@@ -211,7 +211,7 @@ describe("runStatus — team overview", () => {
     const { runStatus } = await import("../../src/commands/status.js");
     await runStatus({ team: "http://localhost:9999" }, "/data");
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(output).toMatch(/nicht erreichbar|unreachable/i);
+    expect(output).toMatch(/unreachable/i);
     logSpy.mockRestore();
   });
 
@@ -229,7 +229,7 @@ describe("runStatus — team overview", () => {
     const { runStatus } = await import("../../src/commands/status.js");
     await runStatus({}, "/data");
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(output).toMatch(/keine.*session|no.*session/i);
+    expect(output).toMatch(/no active sessions/i);
     logSpy.mockRestore();
     delete process.env["DXCRM_SERVER_URL"];
   });

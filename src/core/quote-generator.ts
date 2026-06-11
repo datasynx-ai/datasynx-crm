@@ -86,26 +86,26 @@ function buildHtml(quote: Quote, config: QuoteConfig, customerName: string): str
     .join("\n");
 
   return `<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><title>Angebot ${quote.quoteNumber}</title>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Quote ${quote.quoteNumber}</title>
 <style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;color:#222}table{width:100%;border-collapse:collapse}th,td{padding:8px 12px;border:1px solid #ddd}th{background:#f5f5f5}h1{color:#1a1a2e}.total{font-weight:bold;font-size:1.1em}</style>
 </head>
 <body>
-<h1>Angebot ${quote.quoteNumber}</h1>
-<p><strong>${config.companyName ?? ""}</strong><br>${config.companyAddress ?? ""}<br>${config.vatId ? `USt-IdNr.: ${config.vatId}` : ""}</p>
+<h1>Quote ${quote.quoteNumber}</h1>
+<p><strong>${config.companyName ?? ""}</strong><br>${config.companyAddress ?? ""}<br>${config.vatId ? `VAT ID: ${config.vatId}` : ""}</p>
 <hr>
-<p><strong>An:</strong> ${customerName}</p>
+<p><strong>To:</strong> ${customerName}</p>
 <p><strong>Date:</strong> ${quote.createdAt.slice(0, 10)} &nbsp;&nbsp; <strong>Valid until:</strong> ${quote.validUntil}</p>
-<h2>Leistungen</h2>
+<h2>Services</h2>
 <table>
-<thead><tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th style="text-align:right">Einzelpreis</th><th style="text-align:right">Gesamt</th></tr></thead>
+<thead><tr><th>Description</th><th style="text-align:right">Quantity</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr></thead>
 <tbody>${lineRows}</tbody>
 </table>
 <br>
 <table style="width:300px;margin-left:auto">
-<tr><td>Nettobetrag</td><td style="text-align:right">${quote.subtotal.toFixed(2)} ${quote.currency}</td></tr>
-<tr><td>MwSt. (${quote.vatPercent}%)</td><td style="text-align:right">${quote.vat.toFixed(2)} ${quote.currency}</td></tr>
-<tr class="total"><td><strong>Gesamtbetrag</strong></td><td style="text-align:right"><strong>${quote.total.toFixed(2)} ${quote.currency}</strong></td></tr>
+<tr><td>Subtotal</td><td style="text-align:right">${quote.subtotal.toFixed(2)} ${quote.currency}</td></tr>
+<tr><td>VAT (${quote.vatPercent}%)</td><td style="text-align:right">${quote.vat.toFixed(2)} ${quote.currency}</td></tr>
+<tr class="total"><td><strong>Total</strong></td><td style="text-align:right"><strong>${quote.total.toFixed(2)} ${quote.currency}</strong></td></tr>
 </table>
 <br><p>${config.paymentTerms ?? ""}</p>
 <hr><small>${config.footerText ?? ""}</small>

@@ -38,6 +38,24 @@ export function resolveTone(dataDir: string, slug?: string): ToneProfile {
   return { ...global, ...readProfile(customerPath(dataDir, slug)) };
 }
 
+/**
+ * Map a tone `language` code to an English language name for use in LLM prompts.
+ * Unknown/empty codes fall back to English (the project default per the
+ * English-only policy). Drives e.g. the language of internal email summaries.
+ */
+export function languageName(code?: string): string {
+  const map: Record<string, string> = {
+    en: "English",
+    de: "German",
+    fr: "French",
+    es: "Spanish",
+    it: "Italian",
+    nl: "Dutch",
+    pt: "Portuguese",
+  };
+  return (code && map[code.toLowerCase()]) || "English";
+}
+
 /** Render a tone profile into an instruction string ("" when blank). */
 export function toneInstruction(profile: ToneProfile): string {
   const parts: string[] = [];

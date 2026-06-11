@@ -10,9 +10,9 @@ vi.mock("https", () => ({ default: { request: mockHttpsRequest } }));
 // Mock summarizeEmail from llm.ts
 const mockSummarizeEmail = vi.hoisted(() =>
   vi.fn().mockResolvedValue({
-    summary: "Kunde fragt nach Demo.",
+    summary: "Customer asks about a demo.",
     sentiment: "neutral",
-    nextSteps: ["Demo vereinbaren", "Angebot senden"],
+    nextSteps: ["Schedule a demo", "Send a quote"],
   })
 );
 vi.mock("../../src/core/llm.js", () => ({
@@ -204,7 +204,8 @@ describe("notifyAgentWake", () => {
     expect(mockSummarizeEmail).toHaveBeenCalledWith(
       EMAIL_CONTEXT.subject,
       EMAIL_CONTEXT.snippet,
-      EMAIL_CONTEXT.from
+      EMAIL_CONTEXT.from,
+      "English"
     );
   });
 
@@ -220,7 +221,7 @@ describe("notifyAgentWake", () => {
 
     const writtenBody = req.write.mock.calls[0]![0] as string;
     const parsed = JSON.parse(writtenBody) as { text: string };
-    expect(parsed.text).toContain("Kunde fragt nach Demo.");
+    expect(parsed.text).toContain("Customer asks about a demo.");
   });
 
   it("includes suggested action (first nextStep) in the Telegram message", async () => {
@@ -235,13 +236,13 @@ describe("notifyAgentWake", () => {
 
     const writtenBody = req.write.mock.calls[0]![0] as string;
     const parsed = JSON.parse(writtenBody) as { text: string };
-    // First nextStep from the mock: "Demo vereinbaren"
-    expect(parsed.text).toContain("Demo vereinbaren");
+    // First nextStep from the mock: "Schedule a demo"
+    expect(parsed.text).toContain("Schedule a demo");
   });
 
   it("falls back to 'Follow up within 24h' when nextSteps is empty", async () => {
     mockSummarizeEmail.mockResolvedValueOnce({
-      summary: "Kurze Nachfrage.",
+      summary: "Quick follow-up question.",
       sentiment: "neutral",
       nextSteps: [],
     });

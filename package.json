@@ -74,6 +74,7 @@
     "build": "tsdown && node scripts/postbuild.js",
     "docs:generate": "tsx scripts/generate-docs.ts",
     "docs:check": "tsx scripts/check-doc-links.ts",
+    "check:language": "tsx scripts/check-language.ts",
     "dev": "tsx watch src/cli.ts",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.types.json",
     "lint": "eslint src --max-warnings 0",

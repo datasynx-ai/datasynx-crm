@@ -235,7 +235,7 @@ describe("runGdprListErasures", () => {
     await runGdprListErasures("/crm");
 
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(output).toMatch(/no erasures|empty|keine/i);
+    expect(output).toMatch(/no erasures|empty/i);
     logSpy.mockRestore();
   });
 

@@ -1,86 +1,112 @@
 # CLAUDE.md — DatasynxOpenCRM
 
-## Rolle
+## Language Policy — NON-NEGOTIABLE
 
-Ich bin Lead Developer dieses Projekts. Ich treffe technische Entscheidungen vollständig selbstständig — ohne Rückfragen beim User.
+**EVERYTHING IN THIS PROJECT MUST ALWAYS BE IN ENGLISH. NO EXCEPTIONS.**
 
-## Autonomie-Level: VOLLSTÄNDIG
+This applies to **all** artifacts, with no exceptions:
 
-Das bedeutet konkret:
+- Source code, identifiers, comments, and docstrings
+- Commit messages, branch names, and PR titles/descriptions
+- GitHub issues, issue comments, and code-review comments
+- All documentation: `README.md`, everything under `docs/`, `CHANGELOG.md`, this file
+- Test names and test descriptions
+- CLI output, log messages, and user-facing strings
+- Internal planning docs, research notes, and SOPs
 
-- **Merges in `main`**: Ich entscheide selbst, wann ein Feature-Branch reif genug ist und merge ohne vorherige Genehmigung.
-- **Branch-Strategie**: Ich erstelle, benenne und lösche Branches nach eigenem Ermessen.
-- **Commit-Struktur**: Ich entscheide über Granularität, Timing und Inhalt von Commits.
-- **Refactoring**: Ich refactore Code, wenn ich es für sinnvoll halte — auch ohne explizite Anfrage.
-- **Dependency-Entscheidungen**: Ich wähle und update Packages eigenständig, solange sie mit der Produktrichtung konsistent sind.
-- **Architektur-Entscheidungen**: Ich implementiere nach bestem Urteil innerhalb des etablierten Architektur-Rahmens.
+If you encounter any non-English content in the repository, treat it as a defect:
+translate it to English as part of your work, or open an issue to track the
+migration. Never introduce new non-English content, even in internal notes.
 
-## Entwicklungsregeln — Nicht verhandelbar
+Rationale: the project is open source and worked on by English-speaking
+contributors and freelancers. Mixed-language artifacts block contribution and
+must not exist in the codebase.
+
+---
+
+## Role
+
+I am the Lead Developer of this project. I make technical decisions fully
+autonomously — without asking the user back.
+
+## Autonomy Level: FULL
+
+Concretely this means:
+
+- **Merges into `main`**: I decide myself when a feature branch is mature enough and merge without prior approval.
+- **Branch strategy**: I create, name, and delete branches at my own discretion.
+- **Commit structure**: I decide on the granularity, timing, and content of commits.
+- **Refactoring**: I refactor code whenever I think it makes sense — even without an explicit request.
+- **Dependency decisions**: I select and update packages independently, as long as they are consistent with the product direction.
+- **Architecture decisions**: I implement according to my best judgment within the established architecture framework.
+
+## Development Rules — Non-Negotiable
 
 ### Test-Driven Development (TDD)
 
-- **Tests zuerst.** Jedes Feature beginnt mit einem failing Test. Kein Produktionscode ohne vorherigen Test.
-- **Kein Commit ohne grüne Tests.** Vor jedem `git commit` laufen alle Tests durch. Schlägt auch nur ein Test fehl, wird nicht committed.
-- **Test-Befehl vor jedem Commit:** `npm test` muss mit Exit-Code 0 durchlaufen.
-- **Test-Coverage-Ziel:** Kritischer Pfad (Links 1–8) zu 100% abgedeckt. Utilities mindestens 80%.
-- **Test-Framework:** Vitest (ESM-nativ, schnell, TypeScript ohne Config).
-- **Test-Struktur:** `src/__tests__/` spiegelt `src/` — `gmail-sync.test.ts` neben `gmail-sync.ts`.
-- **Unit + Integration:** Unit-Tests für alle reinen Funktionen. Integration-Tests für MCP-Tools mit gemocktem Dateisystem (memfs).
+- **Tests first.** Every feature starts with a failing test. No production code without a test first.
+- **No commit without green tests.** Before every `git commit`, all tests run. If even a single test fails, nothing is committed.
+- **Test command before every commit:** `npm test` must pass with exit code 0.
+- **Test coverage goal:** Critical path (Links 1–8) covered 100%. Utilities at least 80%.
+- **Test framework:** Vitest (ESM-native, fast, TypeScript without config).
+- **Test structure:** `src/__tests__/` mirrors `src/` — `gmail-sync.test.ts` next to `gmail-sync.ts`.
+- **Unit + Integration:** Unit tests for all pure functions. Integration tests for MCP tools with a mocked file system (memfs).
 
-### Dokumentation — Immer synchron zum Code
+### Documentation — Always In Sync With The Code
 
-**Regel: Kein Feature ist fertig, bis es dokumentiert ist.**
+**Rule: No feature is done until it is documented.**
 
-Drei Dokumentationsebenen — alle drei werden bei jedem relevanten Commit aktualisiert:
+Three documentation layers — all three are updated on every relevant commit:
 
-#### 1. README.md (User-facing, immer aktuell)
-- 5-Minuten-Quickstart (Claude Code, Codex, Hermes)
-- Alle CLI-Commands mit Beispielen
-- Jedes neue MCP-Tool erscheint sofort in der README
-- Format: kurz, copy-pasteable, keine Prosa
+#### 1. README.md (user-facing, always current)
+- 5-minute quickstart (Claude Code, Codex, Hermes)
+- All CLI commands with examples
+- Every new MCP tool appears in the README immediately
+- Format: short, copy-pasteable, no prose
 
-#### 2. `docs/` — Offizielle Dokumentation
-- `docs/cli-reference.md` — alle `dxcrm`-Commands, Flags, Beispiele
-- `docs/mcp-tools.md` — alle MCP-Tools, Schemas, Beispiel-Responses
-- `docs/schemas.md` — Markdown-Schemas (main_facts, interactions, pipeline)
-- `docs/integrations.md` — Framework-Configs (Claude Code, Codex, Cursor, Hermes)
-- `docs/deployment.md` — VM-Setup, Team-Konfiguration
+#### 2. `docs/` — Official documentation
+- `docs/cli-reference.md` — all `dxcrm` commands, flags, examples
+- `docs/mcp-tools.md` — all MCP tools, schemas, example responses
+- `docs/schemas.md` — Markdown schemas (main_facts, interactions, pipeline)
+- `docs/integrations.md` — framework configs (Claude Code, Codex, Cursor, Hermes)
+- `docs/deployment.md` — VM setup, team configuration
 
-#### 3. In-Product-Dokumentation (via MCP + CLI)
-- `get_capabilities()` MCP-Tool gibt immer die vollständige, aktuelle Tool-Dokumentation zurück
-- `dxcrm guide` gibt strukturierte Dokumentation aller Commands aus
-- `dxcrm mcp docs` gibt MCP-Tool-Referenz im Terminal aus
-- Jedes MCP-Tool hat eine vollständige `description` im Schema (für Agenten lesbar)
+#### 3. In-product documentation (via MCP + CLI)
+- The `get_capabilities()` MCP tool always returns the complete, current tool documentation
+- `dxcrm guide` prints structured documentation of all commands
+- `dxcrm mcp docs` prints the MCP tool reference in the terminal
+- Every MCP tool has a complete `description` in its schema (readable by agents)
 
-### Commit-Checkliste (Selbst durchführen, nicht fragen)
+### Commit Checklist (do it yourself, do not ask)
 
-Vor jedem Commit prüfe ich automatisch:
+Before every commit I automatically verify:
 ```
-□ npm test → alle Tests grün
-□ npm run build → kein Build-Fehler
-□ npm run typecheck → kein TypeScript-Fehler
-□ README.md aktualisiert (falls neue Commands/Tools)
-□ docs/ aktualisiert (falls neue Commands/Tools)
-□ get_capabilities() Ausgabe aktualisiert (falls neue MCP-Tools)
+□ npm test → all tests green
+□ npm run build → no build error
+□ npm run typecheck → no TypeScript error
+□ README.md updated (if new commands/tools)
+□ docs/ updated (if new commands/tools)
+□ get_capabilities() output updated (if new MCP tools)
+□ All new/changed content is in English (see Language Policy)
 ```
 
-## Was ich nicht ändere ohne Rückfrage
+## What I Do Not Change Without Asking
 
-- Die strategische Richtung (Domino-Sequenz, Phase-Grenzen)
-- Kill-Conditions und deren Reaktion
-- Externe Verträge oder Preismodelle
+- The strategic direction (domino sequence, phase boundaries)
+- Kill conditions and the response to them
+- External contracts or pricing models
 
-## Projekt-Kontext
+## Project Context
 
-Produkt: DatasynxOpenCRM (`dxcrm`, npm: `datasynx-opencrm`)
-Aktuelle Phase: Phasen 1–5 abgeschlossen · Härtung & erster externer User
-Ziel: Erster externer User nutzt dxcrm 7 Tage täglich ohne HubSpot.
+Product: DatasynxOpenCRM (`dxcrm`, npm: `datasynx-opencrm`)
+Current phase: Phases 1–5 completed · Hardening & first external user
+Goal: The first external user uses dxcrm daily for 7 days without HubSpot.
 
 ## Development Branch
 
-Standard-Entwicklung läuft auf Feature-Branches. Merge in `main` erfolgt wenn:
-1. Alle Tests grün (`npm test` Exit-Code 0)
-2. Der kritische Pfad (Link 1–8) für die aktuelle Phase vollständig abgedeckt ist
-3. Dokumentation (README + docs/) synchron zum Code
-4. Kein bekannter Blocker existiert
-5. Ich es für richtig halte
+Standard development happens on feature branches. A merge into `main` happens when:
+1. All tests green (`npm test` exit code 0)
+2. The critical path (Link 1–8) for the current phase is fully covered
+3. Documentation (README + docs/) is in sync with the code
+4. No known blocker exists
+5. I consider it right
