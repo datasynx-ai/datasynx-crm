@@ -43,6 +43,7 @@ This project follows **Test-Driven Development**. The non-negotiables:
 | `npm run docs:generate` | Regenerate the CLI/MCP reference docs from code                       |
 | `npm run docs:check`    | Verify all relative doc links/anchors resolve (offline)               |
 | `npm run check:language`| Flag non-English (German) stopwords in tracked files (English-only)   |
+| `npm run check:deps`    | Block deprecated transitive dependencies from re-entering the tree    |
 
 ### Post-build integration tests
 
@@ -65,7 +66,7 @@ Run them locally after a build, e.g. `npm run build && node __tests__/e2e/instal
 ### Before you open a PR
 
 ```bash
-npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run docs:check && npm run check:language && npm test && npm run build
+npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run docs:check && npm run check:language && npm run check:deps && npm test && npm run build
 ```
 
 A Husky pre-commit hook runs `lint-staged`, and a commit-msg hook enforces

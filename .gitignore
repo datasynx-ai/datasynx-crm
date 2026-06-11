@@ -9,3 +9,4 @@ coverage/
 *.js.map
 .claude/
 .agentic/
+thoughts/

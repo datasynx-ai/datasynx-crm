@@ -69,6 +69,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Deprecated-dependency guard (#85 — block legacy transitives creeping back)
+        run: npm run check:deps
       - name: Dependency Audit (production tree — what consumers install)
         # The published package ships only dist/ — no dev dependencies — so the
         # release gate audits the production tree. This blocks any vulnerability
@@ -82,7 +84,7 @@ jobs:
         # --failOn is more robust than --onlyAllow because it handles compound SPDX expressions
         # like "(MIT OR CC0-1.0)" without requiring every format variant to be enumerated.
         run: >
-          npx license-checker
+          npx license-checker-rseidelsohn
           --failOn "GPL-2.0-only;GPL-2.0-or-later;GPL-3.0-only;GPL-3.0-or-later;AGPL-3.0-only;AGPL-3.0-or-later;SSPL-1.0;BUSL-1.1;Commons-Clause"
 
   # ── Stage 4: Build & Validate ─────────────────────────────────────────────
