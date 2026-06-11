@@ -10,11 +10,18 @@
  * and license-checker-rseidelsohn), removing the cluster. This guard prevents it
  * from creeping back via a future dependency bump.
  *
- * Two deprecated transitives remain and CANNOT be removed locally: their parents
- * pin incompatible ranges and no non-deprecated version exists. They are
- * documented here as accepted upstream-only residuals and are NOT flagged:
- *  - boolean@3            (via @huggingface/transformers → onnxruntime-node → global-agent)
- *  - node-domexception@1  (via google-auth-library → gaxios → node-fetch → fetch-blob)
+ * Residual tracking (#87, re-checked 2026-06-12):
+ *  - boolean@3 — RESOLVED. It came in via
+ *    @huggingface/transformers → onnxruntime-node → global-agent@3. global-agent@4
+ *    dropped its `boolean` dependency, so an `overrides: { "global-agent": "^4.1.3" }`
+ *    in package.json removes it from the tree (verified: build, full suite, and a
+ *    real embedding run all green; onnxruntime-node@1.24.3 runs fine under
+ *    global-agent@4). boolean is now on the DENYLIST so it cannot creep back.
+ *  - node-domexception@1 — STILL BLOCKED, accepted upstream-only residual. Chain:
+ *    google-auth-library → gaxios → node-fetch@3 → fetch-blob@3 → node-domexception@1.
+ *    No semver-safe override exists: fetch-blob@4 still declares
+ *    node-domexception@^1, and gaxios@latest still depends on node-fetch@3. Resolves
+ *    when gaxios/google-auth-library move off node-fetch@3 (e.g. to native fetch).
  *
  * Exit code 1 with a findings list when a denylisted package is present.
  */
@@ -42,10 +49,11 @@ export const DENYLIST: DenyRule[] = [
   { name: "fstream", reason: "unsupported" },
   { name: "rimraf", maxMajorExclusive: 4, reason: "versions < 4 are unsupported" },
   { name: "glob", maxMajorExclusive: 9, reason: "versions < 9 carry known advisories" },
+  { name: "boolean", reason: "deprecated; removed by forcing global-agent@^4 (#87)" },
 ];
 
 /** Deprecated transitives we knowingly accept (upstream-only, no safe override). */
-export const ACCEPTED_RESIDUALS: string[] = ["boolean", "node-domexception"];
+export const ACCEPTED_RESIDUALS: string[] = ["node-domexception"];
 
 export interface Violation {
   name: string;

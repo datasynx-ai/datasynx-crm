@@ -44,16 +44,18 @@ describe("findDeprecatedDeps", () => {
     expect(v).toEqual([]);
   });
 
-  it("does NOT flag the accepted upstream-only residuals", () => {
+  it("does NOT flag the accepted upstream-only residual (node-domexception)", () => {
     const v = findDeprecatedDeps(
-      lockfile([
-        { path: "node_modules/boolean", version: "3.2.0" },
-        { path: "node_modules/node-domexception", version: "1.0.0" },
-      ])
+      lockfile([{ path: "node_modules/node-domexception", version: "1.0.0" }])
     );
     expect(v).toEqual([]);
-    // and they are documented as accepted residuals
-    expect(ACCEPTED_RESIDUALS).toEqual(expect.arrayContaining(["boolean", "node-domexception"]));
+    // and it is documented as an accepted residual (boolean was resolved via #87)
+    expect(ACCEPTED_RESIDUALS).toEqual(["node-domexception"]);
+  });
+
+  it("flags boolean@3 now that it is resolved via the global-agent@4 override (#87)", () => {
+    const v = findDeprecatedDeps(lockfile([{ path: "node_modules/boolean", version: "3.2.0" }]));
+    expect(v.map((x) => x.name)).toContain("boolean");
   });
 
   it("detects a denylisted package nested under another node_modules", () => {
