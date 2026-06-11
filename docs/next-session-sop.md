@@ -1,23 +1,34 @@
 # SOP — Nächste Session (DatasynxOpenCRM)
 
 > Handoff-Dokument für den Start einer neuen Claude-Code-Session. Lies dies
-> **zuerst**, dann `CLAUDE.md`. Stand: **M1 ✅ + M3 (Sandbox-Anteil) ✅ abgeschlossen**
-> (#61–#69). Einziger Sandbox-Blocker: #20; #70 wartet auf Operator-Input.
+> **zuerst**, dann `CLAUDE.md`. Stand: **2026-06-11** · M1 ✅ + M3 (Sandbox-Anteil) ✅.
 > Mittelfristige Meilenstein-Sicht: [`roadmap.md`](./roadmap.md).
+>
+> **Single Source of Truth für offene Arbeit = GitHub-Issues** (siehe Abschnitt 0).
+> Erledigtes steht in der Git-History, nicht hier.
 
 ---
 
 ## 0. Aktueller Stand (Snapshot)
 
-- **Phase:** Härtung & erster externer User · **M1 ✅** (2026-06-10) · **M3 Sandbox-Anteil ✅** (2026-06-10).
+- **Phase:** Härtung & erster externer User. **M1 ✅**, **M3-Sandbox-Anteil ✅** (beide 2026-06-10).
 - **Nordstern / Kill-Condition:** Erster externer User nutzt `dxcrm` **7 Tage täglich ohne HubSpot**.
-- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3726 Tests grün · Coverage-Gate (80 % Branches) wieder grün · npm 1.37.2+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
-- **Offene Issues:** **#20** (Embedding-Eval, HF-Zugriff fehlt in der Sandbox) · **#70** (Dependabot-Alert-Triage — wartet auf Operator: Alert öffnen, Paket+Version+GHSA posten).
-- **Zuletzt geliefert (Session 2026-06-10, zweiter Teil):**
-  - #68 Zweite Routen-Test-Tranche: `/q/:token` (+accept/decline), `/webhooks/stripe`, `/portal` (+ticket/reply), `/survey/respond`, `/t/o`/`/t/c`, `/dashboard` → `src/mcp/routes/{quote,portal,engagement}-routes.ts` + 43 Routen-Tests. **Bugfix:** Accept/Decline konnten eine **bezahlte** Quote überschreiben (`paid` ist jetzt terminal); Accept/Decline prüfen Token-Slug ↔ Quote wie der GET-Pfad. Stripe-Signatur lief bereits korrekt über `rawBody` (per Test gepinnt).
-  - #69 Coverage-Lücken: Branches 77,7 % → **80,1 %** (50 Tests: transcript-discovery-Attendee-Lookups, subscription-renew-Fehlerpfade, quote-link/portal-Links, webhooks-Failure-Queue, Dashboard-Tiles, 0 %-MCP-Tools product/form/workflow/send_quote/get_logs, Stripe-Payment-Link-Fehlerpfade).
-  - #71 Doku-Hygiene: `npm run docs:check` (relativer Link-/Anker-Check über README+docs, offline) + CI-Hook in der Quality-Stage.
-  - #72 Vault-Fallback: `WHATSAPP_*`/`STRIPE_*`/`MS_GRAPH_CLIENT_STATE` lösen jetzt **env → Vault** auf (`core/secrets.ts#resolveSecret`, env gewinnt immer); `doctor --integrations` spiegelt dieselbe Auflösung.
+- **Tooling:** 82 MCP-Tools · 69 CLI-Commands (Top-Level) · ~3736 Tests grün · Coverage-Gate (80 % Branches) grün · npm 1.38.0+ (semantic-release publisht bei jedem feat/fix-Merge nach `main`).
+
+### Offene Issues (priorisiert)
+
+| Issue | Thema | sandbox-fähig |
+|---|---|---|
+| **#73** | M2 — 7-Tage-HubSpot-frei-Härtetest (Kill-Condition, Engpass) | nein (Operator/Dogfooding) |
+| **#74** | Coverage-Randlücken: `sync/calendly.ts`, `core/llm.ts`, `sync/calendar-availability.ts` | ✅ ja |
+| **#75** | Unmatched Conversations: Event + Digest + `resolve` (spiegelt #66) | ✅ ja |
+| **#80** | English-only Policy über die Codebase erzwingen | ✅ ja |
+| **#20** | Embedding-Eval abschließen (kein Blind-Swap) | nein (HF-Zugriff nötig) |
+| **#70** | Dependabot-Alert-Triage | nein (Operator-Input) |
+| **#76–#79** | M4 (Slack-Channel, Web-Dashboard, weitere LLM-Provider, Plugin-Marketplace) | gegated durch M2 |
+
+> Issue-Anlage aus dieser Sandbox ist nicht möglich (kein `gh`/Token; GitHub-API nur
+> lesend). Neue Befunde als fertigen Issue-Body formulieren und dem Operator übergeben.
 
 ---
 
@@ -26,9 +37,9 @@
 ```
 □ CLAUDE.md + dieses SOP + docs/roadmap.md lesen
 □ git fetch origin main && git status   (main läuft durch semantic-release vor!)
-□ npm ci  (Container ist ephemer)
+□ npm ci  (Container ist ephemer — vitest/tsx fehlen sonst)
 □ npm test → Baseline grün?   npm run typecheck && npm run lint && npm run build
-□ Offene Issues prüfen (mcp__github__list_issues, state OPEN)
+□ Offene Issues prüfen (GitHub-API lesend / Operator)
 □ Entwicklungsbranch anlegen/auschecken; Merge nach main ist autorisiert
 ```
 
@@ -48,43 +59,16 @@ Pro Issue **immer** diese 5 Schritte (jeweils im Issue als Kommentar dokumentier
 
 ---
 
-## 3. Strategie — Was als nächstes wichtig ist (priorisiert)
+## 3. Strategie — Was als nächstes wichtig ist
 
-### 🥇 P0 — M2: Der 7-Tage-HubSpot-frei-Härtetest (jetzt der Engpass)
-
-M1 hat alle Live-Pfade aktivierbar gemacht. Jetzt entscheidet sich die Kill-Condition:
-
-- **Operator-Aktion nötig:** echten/Test-Tenant aufsetzen, `dxcrm doctor --integrations --live`
-  muss für die genutzten Provider grün sein — das ist der Einstiegspunkt.
-- Täglicher Betrieb: Morgens-Briefing, Forecast, Öffnungs-/Antwort-Signale, Task-Queue,
-  Online-Angebotsannahme, Inbox (Web-Chat/WhatsApp).
-- Jede Reibung → **neues, eng geschnittenes Issue** mit Repro (Muster: #41).
-- Aus der Sandbox heraus ist M2 **nicht** durchführbar — wenn kein User-Feedback vorliegt,
-  direkt zu P1/P2 unten greifen.
-
-### 🥈 P1 — M3-Restarbeiten (sandbox-tauglich)
-
-M3 ist im Sandbox-Umfang **abgeschlossen** (#65/#68 Routen-Tests aller öffentlichen
-Flächen, #66 Unmatched-Workflow, #67 Outbound-Robustheit, #69 Coverage-Gate). Verbleibend:
-
-- **Unmatched Conversations:** das #66-Muster (Event + Digest + resolve) auf unzugeordnete
-  Conversations übertragen, sobald der Härtetest zeigt, dass es gebraucht wird.
-- **Coverage-Randlücken** (bewusst zurückgestellt, siehe #69-Abschluss): `sync/calendly.ts`
-  (0 %, raw `https.request`, Legacy-Pfad), `core/llm.ts`-Provider-Branches,
-  `sync/calendar-availability`-Provider-Branches (credential-gated).
-
-### 🥉 P2 — #20 Embedding-Eval abschließen
-
-- Nur in einer Umgebung **mit** HF-Zugriff: `dxcrm eval-embeddings eval/embedding-fixtures.json --k 5`
-  für Default + `bge-small`/`bge-base`. Kein blind swap.
-
-### Dauerläufer
-
-- **Dependabot:** 1 kritische Meldung auf `main`
-  (https://github.com/datasynx/datasynx-crm/security/dependabot/1) — Triage in **#70**:
-  `npm audit` sauber, Lockfile gegen die bekannten 2025/26-Criticals geprüft (kein Treffer),
-  vermutlich staler Alert. **Wartet auf Operator** (Alert öffnen → Paket+Version+GHSA in #70
-  posten), dann Update/Override oder Dismiss.
+- **🥇 P0 — M2 (#73):** der Engpass. Operator setzt echten/Test-Tenant auf, `dxcrm doctor
+  --integrations --live` muss für die genutzten Provider grün sein (Einstiegspunkt).
+  Aus der Sandbox **nicht** durchführbar — ohne User-Feedback direkt zu P1 greifen.
+  Jede Reibung → **neues, eng geschnittenes Issue** mit Repro (Muster: #41).
+- **🥈 P1 — sandbox-tauglich:** #74 (Coverage), #75 (Unmatched Conversations, sobald der
+  Härtetest zeigt, dass es gebraucht wird), #80 (English-only).
+- **🥉 P2 — #20:** nur mit HF-Zugriff (`dxcrm eval-embeddings …`). Kein blind swap.
+- **Gegated (M4, #76–#79):** keine neue Feature-Breite vor bestandener Kill-Condition.
 
 ---
 
@@ -98,6 +82,10 @@ Flächen, #66 Unmatched-Workflow, #67 Outbound-Robustheit, #69 Coverage-Gate). V
 - **HF-Modell-Download in der Sandbox blockiert** → Embedding-/LLM-E2E nicht hier.
 - **Credential-gated = offline No-op:** mit injizierten Deps bzw. gestubbtem `fetch` testen
   (Muster: `subscription-create.ts`, `doctor-integrations.ts`, `transcript-discovery.ts`).
+- **Datum/Zeitzonen:** `today`/`close_date` werden als **UTC-Mitternacht** geparst. Datums-
+  Grenzen daher mit `Date.UTC`/`getUTC*` rechnen, **nie** mit dem lokalen `new Date(y,m,d)`
+  (sonst Off-by-one in TZ ahead-of-UTC). Die Suite läuft gepinnt unter `TZ=Asia/Tokyo`
+  (`vitest.config.ts`), damit solche Bugs nicht erst in non-UTC-Umgebungen auffliegen.
 - **Routen testen:** Express-App auf Port 0 + echtes `fetch` (`conversation-routes.test.ts`).
   Neue HTTP-Routen als `register<X>Routes(app, dataDir)`-Modul anlegen, nicht inline in
   `startHttp()` — sonst nicht testbar.

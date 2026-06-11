@@ -1,11 +1,11 @@
 # Roadmap — DatasynxOpenCRM
 
-> Stand: 2026-06-10 (abends) · npm `datasynx-opencrm` 1.37.2+ · Phase: **Härtung & erster externer User**
+> Stand: 2026-06-11 · npm `datasynx-opencrm` 1.38.0+ · Phase: **Härtung & erster externer User**
 >
 > Dieses Dokument ist die **mittelfristige Steuerungssicht** (Meilensteine, Reihenfolge,
-> Exit-Kriterien). Das operative Session-Handoff (Checklisten, Fallstricke, Arbeitsweise)
-> steht in [`next-session-sop.md`](./next-session-sop.md). Die öffentliche Kurzfassung
-> steht in der [README](../README.md#roadmap).
+> Exit-Kriterien). Operatives Session-Handoff (Checklisten, Fallstricke, Arbeitsweise)
+> steht im [SOP](./next-session-sop.md); die öffentliche Kurzfassung in der
+> [README](../README.md#roadmap). **Offene Arbeit im Detail = GitHub-Issues.**
 
 ---
 
@@ -18,9 +18,9 @@ User näher an „7 Tage ohne HubSpot"?*
 
 ## Wo wir stehen
 
-- Phasen 1–5 abgeschlossen: 82 MCP-Tools · 69 CLI-Commands · lokale Markdown-/NDJSON-Stores · ~3726 Tests grün · Coverage-Gate (80 % Branches) grün.
-- Zuletzt geliefert: zweite Routen-Test-Tranche + Quote-State-Machine-Fix (#68), Coverage-Lücken kritischer Pfad (#69), Doku-Link-Check in CI (#71), Vault-Fallback für Integrations-Secrets (#72); davor M1 (#61–#64) und M3-Robustheit (#65–#67).
-- Offene Issues: **#20** (Embedding-Eval, blockiert durch fehlenden Modell-Zugriff in der Sandbox) · **#70** (Dependabot-Triage, wartet auf Operator).
+- **Phasen 1–5 + M1 + M3-Sandbox-Anteil abgeschlossen.** 82 MCP-Tools · 69 CLI-Commands ·
+  lokale Markdown-/NDJSON-Stores · ~3736 Tests grün · Coverage-Gate (80 % Branches) grün.
+  Details der Auslieferung: Git-History und geschlossene Issues (#61–#69, #71, #72).
 - **Engpass:** Viele Live-Pfade sind credential-gated No-ops. Kern-Logik und Routing sind
   getestet, aber Teams/Meet-Subscriptions, WhatsApp-Versand, Kalender-Free/Busy und Stripe
   laufen offline nicht. Der Weg zur Kill-Condition führt über **Aktivieren & Härten**, nicht
@@ -31,50 +31,30 @@ User näher an „7 Tage ohne HubSpot"?*
 ## Meilensteine
 
 ### M1 — Live-ready *(P0)* — ✅ abgeschlossen 2026-06-10
+Jede Kernintegration real aktivierbar, kein Live-Pfad mehr ein Offline-No-op, öffentliche
+Endpoints gehärtet (#61–#64). Einstiegspunkt für M2: `dxcrm doctor --integrations --live`.
 
-**Ziel:** Ein externer User kann jede Kernintegration real aktivieren — kein Live-Pfad ist
-mehr ein Offline-No-op, kein öffentlicher Endpoint ungehärtet.
+### M2 — Der 7-Tage-Härtetest *(P1, der Engpass)* — ⏳ **#73**
+Das Akzeptanzkriterium selbst fahren (echter/Test-Tenant). Täglicher Betrieb über den
+kritischen Pfad (Link 1–8); jede Reibung → neues eng geschnittenes Issue (Muster: #41).
+**Exit-Kriterium:** 7 aufeinanderfolgende Tage ohne HubSpot, alle dabei entstandenen
+P0/P1-Friction-Issues geschlossen. **→ Kill-Condition erfüllt.** *Operator-/Dogfooding-Task.*
 
-| # | Item | Status |
-|---|---|---|
-| 1 | **Integrations-Setup-Guide + `dxcrm doctor --integrations [--live]`** je Provider | ✅ #64 — Checkliste in `docs/integrations.md`, Live-Probes für Graph/Google/WhatsApp/Stripe/Telegram |
-| 2 | **Web-Chat-Rückkanal** (`GET /chat/poll`) + Widget-Polling | ✅ #62 — E2E verifiziert gegen echten Server |
-| 3 | **Rate-Limit + Honeypot** für `/chat` & `/webhooks/whatsapp` | ✅ #61 — plus erste echte Routen-Integrationstests |
-| 4 | **Echte Subscription-Anlage** + `dxcrm transcripts subscribe` | ✅ #63 — Graph + Workspace Events, inkl. 3 Bugfixes (Renewal-Cross-Talk, übersprungene Renewals, CLI-Exit-Codes) |
+### M3 — Qualität & Robustheit *(P2/P3, teils parallel)*
+Sandbox-Anteil abgeschlossen (Routen-Integrationstests, Outbound-Robustheit, Unmatched-
+Transcript-Queue, Coverage-Gate; #65–#69). **Offen:**
+- **#74** — verbleibende Coverage-Randlücken (`sync/calendly.ts`, `core/llm.ts`-Provider,
+  `sync/calendar-availability.ts`). Sandbox-fähig.
+- **#75** — Unmatched **Conversations** (das #66-Muster auf Conversations übertragen).
+- **#20** — Embedding-Eval abschließen; braucht Umgebung mit HF-Modell-Zugriff. Kein blind swap.
 
-**Verifikation durch den externen User:** `dxcrm doctor --integrations --live` muss
-für die von ihm genutzten Provider grün sein — das ist der Einstiegspunkt für M2.
+### M4 — Nach der Kill-Condition *(bewusst nicht begonnen, gegated durch M2)*
+- **#76** Slack als first-class Notification-Channel · **#77** Read-only Web-Dashboard ·
+  **#78** weitere LLM-Provider für On-Device-Summarization · **#79** Community-Plugin-Marketplace.
 
-### M2 — Der 7-Tage-Härtetest *(P1, direkt nach M1)*
-
-**Ziel:** Das Akzeptanzkriterium selbst fahren — mit echtem oder Test-Tenant.
-
-- Täglicher Betrieb: Morgens-Briefing, Forecast, Öffnungs-/Antwort-Signale, Task-Queue, Online-Angebotsannahme.
-- Jede Reibung → **neues, eng geschnittenes Issue** mit Repro (Muster: #41).
-- Kritischer Pfad (Link 1–8) bleibt zu 100 % abgedeckt.
-
-**Exit-Kriterium:** 7 aufeinanderfolgende Tage ohne HubSpot; alle dabei entstandenen
-P0/P1-Friction-Issues geschlossen. **→ Kill-Condition erfüllt.**
-
-### M3 — Qualität, Robustheit & #20 *(P2/P3, teils parallel zu M1/M2)*
-
-| Item | Status |
-|---|---|
-| **#20 Embedding-Eval abschließen** | ⏳ blockiert — braucht Umgebung mit HF-Modell-Zugriff; Fixtures + Leitfaden liegen bereit. **Kein blind swap** |
-| HTTP-Routen-Integrationstests | ✅ #61/#65/#68 — **alle** öffentlichen Flächen: `/chat(+poll)`, `/webhooks/*` (inkl. Stripe), `/forms`, `/book`, `/q/:token(+accept/decline)`, `/portal(+ticket/reply)`, `/survey`, `/t/o`/`/t/c`, `/dashboard`; fanden 3 echte Bugs (Slack-Signatur, Offline-Double-Booking, Paid-Quote-Überschreiben) |
-| Coverage kritischer Pfad | ✅ #69 — Branches 77,7 → 80,1 %, `test:coverage`-Gate grün; Restlücken (calendly, llm-Provider) dokumentiert |
-| Doku-Hygiene | ✅ #71 — `npm run docs:check` (Link-/Anker-Check) in der CI-Quality-Stage |
-| Fehler-/Retry-Verhalten der credential-gated `fetch`-Pfade | ✅ #67 — WhatsApp-Versand failt auf non-ok + Retry nur bei transienten Fehlern; CLI `inbox reply` liefert jetzt auch aus; Attendee-Lookups loggen Ursachen |
-| Unmatched-Queue-Workflow/Reminder | ✅ #66 — `transcript.unmatched`-Event, täglicher `queue.unmatched_digest`, `dxcrm transcripts resolve <ref>` |
-
-### M4 — Nach der Kill-Condition *(bewusst nicht begonnen)*
-
-Erst wenn M2 bestanden ist:
-
-- Weitere Notification-Channels (Slack)
-- Optionales Read-only-Web-Dashboard
-- Zusätzliche LLM-Provider für On-Device-Summarization
-- Community-Plugin-Marketplace
+### Querschnitt
+- **#80** English-only Policy über die Codebase erzwingen (sandbox-fähig).
+- **#70** Dependabot-Alert-Triage (wartet auf Operator-Input).
 
 ---
 
