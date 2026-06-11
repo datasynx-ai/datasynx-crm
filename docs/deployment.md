@@ -12,6 +12,40 @@ No persistent server process needed for single-user use.
 
 ---
 
+## Install Footprint & Native Build Requirements
+
+`npm install` runs lifecycle scripts for a few native dependencies. On a typical
+Linux/macOS box with prebuilt binaries available this is automatic and needs no
+system packages, but it is worth knowing what runs and why:
+
+| Package | Install-time work | Powers |
+|---|---|---|
+| `sharp` | builds/links **libvips** (uses a prebuilt binary when one matches your platform) | image preprocessing for local embeddings |
+| `onnxruntime-node` | downloads the native **ONNX runtime** binary (~tens of MB) | running the local embedding model |
+| `protobufjs` | protobuf codegen postinstall | ONNX model loading (via `onnxruntime-web`) |
+| `tesseract.js` | OpenCollective funding notice only (no native build) | OCR for image/scanned-PDF attachments |
+
+Additional runtime (not install-time) footprint:
+
+- **Embedding model** — the default `Xenova/all-MiniLM-L6-v2` (~25 MB) is
+  downloaded on first use and cached under `~/.cache/datasynx-opencrm/models`
+  (override with `HF_CACHE_DIR`). See `docs/embeddings.md`.
+- **PDF OCR** — disabled by default. Enabling it (`DXCRM_PDF_OCR=1`) additionally
+  requires the optional `@napi-rs/canvas` peer (`npm install @napi-rs/canvas`).
+
+Notes for self-hosters and CI:
+
+- Install scripts are **not** disabled (`--ignore-scripts` would break the native
+  embeddings/OCR binaries). The set of packages allowed to run install scripts is
+  pinned and enforced by `npm run check:install-scripts` (see `CONTRIBUTING.md`).
+- CI uses prebuilt binaries; an air-gapped host without network access at install
+  time cannot fetch the ONNX runtime binary or the embedding model.
+- Two deprecated upstream-only transitives (`boolean`, `node-domexception`) are
+  knowingly accepted and tracked in issue #87; `npm audit` reports 0
+  vulnerabilities on the full tree.
+
+---
+
 ## Team / VM Setup (Phase 3 — Shared HTTP Server)
 
 For teams sharing a central CRM instance on a VM.

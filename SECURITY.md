@@ -57,8 +57,10 @@ DatasynxOpenCRM is designed to keep data under the operator's control:
   and `.agentic/rbac.json` (`dxcrm rbac`).
 - **Audit trail** — every write operation is append-only logged (`dxcrm audit`).
 - **GDPR erasure** — `dxcrm gdpr erase <slug>` performs verifiable deletion.
-- **Supply-chain** — CI runs dependency audit, license checks, and publishes
-  with npm **provenance** attestation and an SBOM (CycloneDX).
+- **Supply-chain** — CI runs dependency audit, license checks, a deprecated-
+  transitive guard (`check:deps`) and a native install-script allowlist guard
+  (`check:install-scripts`), and publishes with npm **provenance** attestation
+  and an SBOM (CycloneDX).
 
 For an enterprise security questionnaire response, run:
 

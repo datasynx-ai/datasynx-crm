@@ -71,6 +71,8 @@ jobs:
       - run: npm ci
       - name: Deprecated-dependency guard (#85 — block legacy transitives creeping back)
         run: npm run check:deps
+      - name: Install-script guard (#88 — block unreviewed native install scripts)
+        run: npm run check:install-scripts
       - name: Dependency Audit (production tree — what consumers install)
         # The published package ships only dist/ — no dev dependencies — so the
         # release gate audits the production tree. This blocks any vulnerability

@@ -44,6 +44,29 @@ This project follows **Test-Driven Development**. The non-negotiables:
 | `npm run docs:check`    | Verify all relative doc links/anchors resolve (offline)               |
 | `npm run check:language`| Flag non-English (German) stopwords in tracked files (English-only)   |
 | `npm run check:deps`    | Block deprecated transitive dependencies from re-entering the tree    |
+| `npm run check:install-scripts` | Block dependencies that run unreviewed native install/postinstall scripts |
+
+### Native install scripts
+
+A few dependencies run lifecycle install/postinstall scripts to build or fetch
+native binaries. We keep this surface explicit and auditable:
+
+| Package | Why it runs a script |
+| --- | --- |
+| `sharp` | libvips native build — image preprocessing for local embeddings (transitive via `@huggingface/transformers`) |
+| `onnxruntime-node` | downloads the native ONNX runtime binary — local embeddings (transitive via `@huggingface/transformers`) |
+| `protobufjs` | protobuf codegen postinstall (transitive via `onnxruntime-web`) |
+| `tesseract.js` | OpenCollective funding notice only — **no** native build (direct dep, OCR) |
+
+Policy: pinned exact versions (`.npmrc` `save-exact=true`) + `npm ci` lockfile
+integrity + the `npm run check:install-scripts` allowlist. We do **not** use
+`--ignore-scripts`, because the embeddings and OCR features need those native
+binaries built at install time. `check:install-scripts` fails CI if a new
+install-script package enters the tree; review it and add it to
+`ALLOWED_INSTALL_SCRIPTS` in `scripts/check-install-scripts.ts` with a reason, or
+remove the dependency. Two deprecated upstream-only transitives (`boolean`,
+`node-domexception`) are knowingly accepted and tracked — see
+`scripts/check-deprecated-deps.ts` and issue #87.
 
 ### Post-build integration tests
 
@@ -66,7 +89,7 @@ Run them locally after a build, e.g. `npm run build && node __tests__/e2e/instal
 ### Before you open a PR
 
 ```bash
-npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run docs:check && npm run check:language && npm run check:deps && npm test && npm run build
+npm run typecheck && npm run lint && npm run knip && npm run format:check && npm run docs:check && npm run check:language && npm run check:deps && npm run check:install-scripts && npm test && npm run build
 ```
 
 A Husky pre-commit hook runs `lint-staged`, and a commit-msg hook enforces
