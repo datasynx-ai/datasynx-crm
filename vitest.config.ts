@@ -1,7 +1,13 @@
 import { defineConfig } from "vitest/config";
 
+// Run the suite under a fixed, non-UTC timezone so latent local-vs-UTC date bugs
+// surface in CI (which otherwise runs in UTC and hides them). Asia/Tokyo is UTC+9
+// with no DST → deterministic and exercises the "ahead of UTC" direction.
+process.env.TZ = "Asia/Tokyo";
+
 export default defineConfig({
   test: {
+    env: { TZ: "Asia/Tokyo" },
     globals: false,
     environment: "node",
     include: ["__tests__/**/*.test.ts"],

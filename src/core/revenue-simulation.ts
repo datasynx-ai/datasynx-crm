@@ -253,9 +253,13 @@ export function buildConfidenceMessage(result: SimulationResult, dealCount: numb
 // ─── Quarter helper ───────────────────────────────────────────────────────────
 
 function getQuarterEnd(date: Date): Date {
-  const month = date.getMonth();
+  // UTC throughout: `today` and deal `close_date` are parsed as UTC midnight
+  // (date-only ISO strings), so the horizon end must be UTC too — otherwise in a
+  // timezone ahead of UTC the local-time end shifts back a day and last-day deals
+  // are wrongly excluded from the forecast.
+  const month = date.getUTCMonth();
   const quarterEndMonth = Math.floor(month / 3) * 3 + 2;
-  return new Date(date.getFullYear(), quarterEndMonth + 1, 0);
+  return new Date(Date.UTC(date.getUTCFullYear(), quarterEndMonth + 1, 0));
 }
 
 /** Inclusive end date for a forecast horizon, relative to `today`. */
@@ -266,7 +270,7 @@ export function getHorizonEnd(today: Date, horizon: Horizon): Date {
     case "90d":
       return new Date(today.getTime() + 90 * 86_400_000);
     case "year":
-      return new Date(today.getFullYear(), 11, 31);
+      return new Date(Date.UTC(today.getUTCFullYear(), 11, 31));
     case "quarter":
     default:
       return getQuarterEnd(today);

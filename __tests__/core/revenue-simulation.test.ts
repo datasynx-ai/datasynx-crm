@@ -660,6 +660,23 @@ describe("buildSimulationInput", () => {
     expect(getHorizonEnd(today, "year").toISOString().slice(0, 10)).toBe("2026-12-31");
   });
 
+  it("getHorizonEnd computes quarter/year ends in UTC, independent of host timezone", async () => {
+    vi.resetModules();
+    const { getHorizonEnd } = await import("../../src/core/revenue-simulation.js");
+    // Regression: quarter/year were built with the local-time Date constructor, so
+    // in any timezone ahead of UTC the inclusive end shifted back a day and deals
+    // closing on the last quarter/year day were wrongly excluded from the forecast.
+    const q = (iso: string) => getHorizonEnd(new Date(iso), "quarter").toISOString().slice(0, 10);
+    expect(q("2026-01-15")).toBe("2026-03-31"); // Q1
+    expect(q("2024-02-10")).toBe("2024-03-31"); // Q1, leap year
+    expect(q("2026-06-30")).toBe("2026-06-30"); // already last day of Q2
+    expect(q("2026-08-25")).toBe("2026-09-30"); // Q3
+    expect(q("2026-12-31")).toBe("2026-12-31"); // Q4, boundary day
+    expect(getHorizonEnd(new Date("2026-01-15"), "year").toISOString().slice(0, 10)).toBe(
+      "2026-12-31"
+    );
+  });
+
   it("includes closeDate in snapshot when set in pipeline.md", async () => {
     vol.fromJSON({
       [`${DATA_DIR}/customers/acme-corp/pipeline.md`]: makePipelineMd(),
