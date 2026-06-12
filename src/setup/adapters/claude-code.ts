@@ -41,10 +41,21 @@ export class ClaudeCodeAdapter implements FrameworkAdapter {
     // 2. Global ~/.claude/settings.json
     this.writeGlobalSettings();
 
-    // 3. CLAUDE.md in CRM data directory
+    // 3. CLAUDE.md in CRM data directory — never clobber an existing user file.
+    //    Mirrors the AGENTS.md handling in the codex/grok/openclaw adapters:
+    //    write fresh only when absent; otherwise append behind a marker, and
+    //    stay idempotent once the CRM guidance is present.
     const claudeMdPath = path.join(config.dataDir, "CLAUDE.md");
-    fs.writeFileSync(claudeMdPath, buildClaudeMd(config.dataDir));
-    harnessFiles.push(claudeMdPath);
+    if (!fs.existsSync(claudeMdPath)) {
+      fs.writeFileSync(claudeMdPath, buildClaudeMd(config.dataDir));
+      harnessFiles.push(claudeMdPath);
+    } else {
+      const existing = fs.readFileSync(claudeMdPath, "utf-8");
+      if (!existing.includes("DatasynxOpenCRM")) {
+        fs.appendFileSync(claudeMdPath, "\n\n---\n\n" + buildClaudeMd(config.dataDir));
+        harnessFiles.push(claudeMdPath + " (appended)");
+      }
+    }
 
     // 4. Project-scope .claude/settings.json in dataDir
     const projectSettingsDir = path.join(config.dataDir, ".claude");
@@ -70,7 +81,7 @@ export class ClaudeCodeAdapter implements FrameworkAdapter {
       transport: "stdio",
       configPath: CLAUDE_JSON,
       harnessFiles,
-      notes: `${allow.length} of ${TOOL_COUNT} MCP tools pre-allowed (common read/write); CLAUDE.md written to CRM root.`,
+      notes: `${allow.length} of ${TOOL_COUNT} MCP tools pre-allowed (common read/write); CLAUDE.md added at CRM root (existing content preserved).`,
     };
   }
 

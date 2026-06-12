@@ -35,7 +35,25 @@ describe("initCommand", () => {
     const { initCommand } = await import("../../src/commands/init.js");
     await initCommand.parseAsync(["node", "init"]);
 
-    expect(vol.existsSync(`${process.cwd()}/.agentic/config.json`)).toBe(true);
+    expect(vol.existsSync(`/crm/.agentic/config.json`)).toBe(true);
+    consoleSpy.mockRestore();
+    consolErrSpy.mockRestore();
+  });
+
+  it("honors DXCRM_DATA_DIR over the current working directory", async () => {
+    process.env["DXCRM_DATA_DIR"] = "/custom-vault";
+    vol.fromJSON({});
+    const { installAllDetected } = await import("../../src/setup/framework-registry.js");
+    vi.mocked(installAllDetected).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consolErrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { initCommand } = await import("../../src/commands/init.js");
+    await initCommand.parseAsync(["node", "init"]);
+
+    // Initialized in the configured vault, NOT in cwd.
+    expect(vol.existsSync("/custom-vault/.agentic/config.json")).toBe(true);
+    expect(vol.existsSync(`${process.cwd()}/.agentic/config.json`)).toBe(false);
     consoleSpy.mockRestore();
     consolErrSpy.mockRestore();
   });
@@ -50,7 +68,7 @@ describe("initCommand", () => {
     const { initCommand } = await import("../../src/commands/init.js");
     await initCommand.parseAsync(["node", "init"]);
 
-    const sourcesPath = `${process.cwd()}/.agentic/sources.json`;
+    const sourcesPath = `/crm/.agentic/sources.json`;
     expect(vol.existsSync(sourcesPath)).toBe(true);
     const sources = JSON.parse(vol.readFileSync(sourcesPath, "utf-8") as string) as {
       gmail: { enabled: boolean };
@@ -70,7 +88,7 @@ describe("initCommand", () => {
     const { initCommand } = await import("../../src/commands/init.js");
     await initCommand.parseAsync(["node", "init"]);
 
-    expect(vol.existsSync(`${process.cwd()}/customers`)).toBe(true);
+    expect(vol.existsSync(`/crm/customers`)).toBe(true);
     consoleSpy.mockRestore();
     consolErrSpy.mockRestore();
   });
@@ -147,7 +165,7 @@ describe("initCommand", () => {
   it("does not overwrite existing config.json", async () => {
     const existingConfig = { version: 1, existing: true };
     vol.fromJSON({
-      [`${process.cwd()}/.agentic/config.json`]: JSON.stringify(existingConfig),
+      [`/crm/.agentic/config.json`]: JSON.stringify(existingConfig),
     });
     const { installAllDetected } = await import("../../src/setup/framework-registry.js");
     vi.mocked(installAllDetected).mockResolvedValue([]);
@@ -157,9 +175,9 @@ describe("initCommand", () => {
     const { initCommand } = await import("../../src/commands/init.js");
     await initCommand.parseAsync(["node", "init"]);
 
-    const config = JSON.parse(
-      vol.readFileSync(`${process.cwd()}/.agentic/config.json`, "utf-8") as string
-    ) as { existing?: boolean };
+    const config = JSON.parse(vol.readFileSync(`/crm/.agentic/config.json`, "utf-8") as string) as {
+      existing?: boolean;
+    };
     expect(config.existing).toBe(true); // preserved
     consoleSpy.mockRestore();
     consolErrSpy.mockRestore();

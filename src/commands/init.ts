@@ -13,7 +13,12 @@ export const initCommand = new Command("init")
     "Team mode: configure frameworks to connect to shared HTTP server at this URL (e.g. http://vm-ip:3847/mcp)"
   )
   .action(async (opts: { team?: string }) => {
-    const dataDir = process.cwd();
+    // Resolve the vault the same way every other command and the MCP server do
+    // (logger.ts, llm.ts, all tools). init bakes this path into the framework
+    // configs it writes (e.g. DXCRM_DATA_DIR in ~/.claude.json), so it must
+    // initialize the *same* directory the server will later read from — not
+    // silently diverge to cwd when DXCRM_DATA_DIR is set.
+    const dataDir = process.env["DXCRM_DATA_DIR"] ?? process.cwd();
 
     // 1. Create .agentic/ directory
     const agenticDir = path.join(dataDir, ".agentic");
