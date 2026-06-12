@@ -27,7 +27,7 @@ Report privately through either channel:
 
 1. **GitHub Private Vulnerability Reporting** (preferred) —
    <https://github.com/datasynx/datasynx-crm/security/advisories/new>
-2. **Email** — `eng@datasynx.io` with subject `SECURITY: <summary>`
+2. **Email** — `info@datasynx.de` with subject `SECURITY: <summary>`
 
 Please include:
 
