@@ -20,7 +20,11 @@ describe("dashboard token", () => {
   it("round-trips, rejects tamper and expiry", () => {
     const t = signDashboardToken({ a: "mona", exp: Date.now() + 60_000 });
     expect(verifyDashboardToken(t)?.a).toBe("mona");
-    expect(verifyDashboardToken(t.slice(0, -2) + "00")).toBeNull();
+    // Flip the final signature nibble to a guaranteed-different hex digit. A
+    // fixed replacement (e.g. always "00") is flaky: ~1/256 of signatures
+    // already end in those chars, leaving the token unchanged and valid.
+    const tampered = t.slice(0, -1) + (t.endsWith("0") ? "1" : "0");
+    expect(verifyDashboardToken(tampered)).toBeNull();
     const expired = signDashboardToken({ a: "mona", exp: Date.now() - 1 });
     expect(verifyDashboardToken(expired)).toBeNull();
   });
