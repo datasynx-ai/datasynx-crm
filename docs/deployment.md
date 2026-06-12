@@ -3,7 +3,9 @@
 ## Local (Single User)
 
 ```bash
-npm install -g @datasynx/agentic-crm
+# ONNXRUNTIME_NODE_INSTALL=skip keeps the install CPU-only and ~302 MB lighter
+# (see "Install Footprint" below). Drop the prefix if you want the GPU runtime.
+ONNXRUNTIME_NODE_INSTALL=skip npm install -g @datasynx/agentic-crm
 dxcrm init
 ```
 
@@ -44,38 +46,55 @@ Notes for self-hosters and CI:
   knowingly accepted and tracked in issue #87; `npm audit` reports 0
   vulnerabilities on the full tree.
 
-### Real install size
+### Real install size — and how to cut it ~40%
 
 A fresh production install resolves roughly **350 packages and ~1 GB on disk**.
 Almost all of that weight is native binaries and bundled runtimes, not
-JavaScript. Approximate per-platform sizes (a single OS/libc; figures vary by
-platform):
+JavaScript. Approximate sizes on a single CPU Linux/macOS host:
 
-| Package | Approx. size | Loaded on the Node path? |
+| Package | Approx. size | Needed for a CPU install? |
 |---|---|---|
-| `onnxruntime-node` | ~500 MB | **Yes** — the local embedding runtime |
+| `onnxruntime-node` — bundled CPU runtime | ~200 MB | **Yes** — the local embedding runtime |
+| `onnxruntime-node` — **CUDA GPU provider (downloaded on install)** | **~302 MB** | **No** — GPU-only; downloaded by default even without a GPU |
 | `@lancedb/lancedb` (platform binary) | ~150 MB | **Yes** — the vector store |
 | `onnxruntime-web` | ~131 MB | **No** — a browser/WASM runtime; never loaded by dxcrm |
 | `tesseract.js-core` | ~44 MB | Only when PDF/image OCR runs (`DXCRM_PDF_OCR=1`) |
 | `@img`/libvips (via `sharp`) | ~17–33 MB | Image preprocessing for embeddings |
 
+The two largest reducible items are GPU/browser runtimes that dxcrm never loads.
+
+#### Recommended: a CPU-only install (saves ~302 MB)
+
+`onnxruntime-node` downloads a **~302 MB CUDA execution provider** from its
+post-install script — by default, on Linux, *even on a machine with no GPU*. The
+CUDA binaries are not bundled in the npm package; they are fetched at install
+time. dxcrm runs embeddings on CPU and never loads the CUDA provider, so skipping
+that download is safe and leaves the bundled CPU runtime fully working. This is
+`onnxruntime-node`'s own supported flag:
+
+```bash
+# Prefix the install (one-off):
+ONNXRUNTIME_NODE_INSTALL=skip npm install -g @datasynx/agentic-crm
+
+# Or persist it for a host / CI by exporting the env var before installing:
+export ONNXRUNTIME_NODE_INSTALL=skip
+```
+
+Use the **environment variable**, not an `.npmrc` key — recent npm warns about
+and is dropping unknown project-config keys. Verify afterwards with
+`dxcrm doctor` and one real indexing/search call (which exercises the CPU
+embedding runtime).
+
+#### Advanced (at your own risk): also prune `onnxruntime-web` (saves ~131 MB)
+
 `onnxruntime-web` is a hard (non-optional) transitive dependency of
 `@huggingface/transformers`, so it installs for everyone even though the dxcrm
 Node runtime only ever loads `onnxruntime-node`. A CI guard
 (`npm run check:onnx-web`, issue #93) asserts the transformers Node bundle never
-imports it, so this stays true across upstream bumps.
-
-We cannot prune it for you: npm `overrides` apply only at the install root, not
-when a package is installed as a dependency (see issue #92), so an `overrides`
-entry in *our* `package.json` has no effect on *your* tree.
-
-#### Advanced (at your own risk): prune `onnxruntime-web`
-
-On a Node-only deployment you can reclaim ~131 MB by overriding
-`onnxruntime-web` with an empty stub **in your own project's root
-`package.json`** (overrides do apply at your install root). This is safe only
-because dxcrm never loads the web runtime on Node — it would break any
-browser/WASM use of `@huggingface/transformers`, which dxcrm does not do.
+imports it. We cannot prune it for you — npm `overrides` apply only at the
+install root, not when a package is installed as a dependency (see issue #92) —
+but on a Node-only deployment you can override it with an empty stub **in your
+own project's root `package.json`** (overrides do apply at your install root):
 
 ```bash
 # 1. Create a one-line empty stub next to your package.json:
@@ -88,9 +107,12 @@ echo '{"name":"onnxruntime-web","version":"0.0.0"}' > onnxruntime-web-stub/packa
 "overrides": { "onnxruntime-web": "file:./onnxruntime-web-stub" }
 ```
 
-This recipe is **not shipped or tested in our CI**. After applying it, verify
-your install with `dxcrm doctor` and one real indexing/search call (which
-exercises the embedding model) before relying on it.
+This recipe is **not shipped or tested in our CI**. It would break any
+browser/WASM use of `@huggingface/transformers` (which dxcrm does not do). After
+applying it, verify with `dxcrm doctor` and a real indexing/search call.
+
+Together these two steps take a CPU Linux install from ~1 GB to roughly
+**550–600 MB** with no loss of functionality.
 
 ---
 
@@ -106,7 +128,8 @@ Hetzner CX21 (2 vCPU, 4GB RAM, €6/mo) is sufficient for up to 10 users.
 # On the VM (Ubuntu 22.04 LTS):
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
-npm install -g @datasynx/agentic-crm
+# CPU-only install (skips the ~302 MB CUDA download; see "Install Footprint"):
+ONNXRUNTIME_NODE_INSTALL=skip npm install -g @datasynx/agentic-crm
 
 # Create data directory with shared volume:
 mkdir -p /mnt/crm-data

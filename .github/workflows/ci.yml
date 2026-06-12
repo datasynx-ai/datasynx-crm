@@ -12,6 +12,14 @@ concurrency:
   # branch mid-run — otherwise a fresh push could abort an in-flight publish.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/beta' && github.ref != 'refs/heads/alpha' }}
 
+# CPU-only ONNX runtime across all jobs: skip onnxruntime-node's post-install
+# download of the ~302 MB CUDA execution provider (downloaded by default on
+# Linux even without a GPU). dxcrm runs embeddings on CPU and never loads CUDA,
+# so this trims every `npm ci` by ~302 MB and speeds the runners up. The CPU
+# runtime is bundled in the package, so functionality is unaffected.
+env:
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   # ── Stage 1: Quality Gates ────────────────────────────────────────────────
   quality:
