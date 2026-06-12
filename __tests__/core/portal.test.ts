@@ -19,7 +19,12 @@ describe("portal token (#58)", () => {
     const { signPortalToken, verifyPortalToken } = await import("../../src/core/portal.js");
     const t = signPortalToken({ s: "acme", c: "jane@acme.com", exp: Date.now() + 60_000 });
     expect(verifyPortalToken(t)).toMatchObject({ s: "acme", c: "jane@acme.com" });
-    expect(verifyPortalToken(t.slice(0, -2) + "00")).toBeNull();
+    // Tamper deterministically: flip the last signature char to a guaranteed-different
+    // value. (Swapping the last two chars for "00" was a no-op when the hex signature
+    // already ended in "00" — a ~1/256 flake; see #89.)
+    const tampered = t.slice(0, -1) + (t.endsWith("0") ? "1" : "0");
+    expect(tampered).not.toBe(t);
+    expect(verifyPortalToken(tampered)).toBeNull();
     expect(
       verifyPortalToken(signPortalToken({ s: "acme", c: "x@y.z", exp: Date.now() - 1 }))
     ).toBeNull();
