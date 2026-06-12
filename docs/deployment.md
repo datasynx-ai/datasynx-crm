@@ -44,6 +44,54 @@ Notes for self-hosters and CI:
   knowingly accepted and tracked in issue #87; `npm audit` reports 0
   vulnerabilities on the full tree.
 
+### Real install size
+
+A fresh production install resolves roughly **350 packages and ~1 GB on disk**.
+Almost all of that weight is native binaries and bundled runtimes, not
+JavaScript. Approximate per-platform sizes (a single OS/libc; figures vary by
+platform):
+
+| Package | Approx. size | Loaded on the Node path? |
+|---|---|---|
+| `onnxruntime-node` | ~500 MB | **Yes** — the local embedding runtime |
+| `@lancedb/lancedb` (platform binary) | ~150 MB | **Yes** — the vector store |
+| `onnxruntime-web` | ~131 MB | **No** — a browser/WASM runtime; never loaded by dxcrm |
+| `tesseract.js-core` | ~44 MB | Only when PDF/image OCR runs (`DXCRM_PDF_OCR=1`) |
+| `@img`/libvips (via `sharp`) | ~17–33 MB | Image preprocessing for embeddings |
+
+`onnxruntime-web` is a hard (non-optional) transitive dependency of
+`@huggingface/transformers`, so it installs for everyone even though the dxcrm
+Node runtime only ever loads `onnxruntime-node`. A CI guard
+(`npm run check:onnx-web`, issue #93) asserts the transformers Node bundle never
+imports it, so this stays true across upstream bumps.
+
+We cannot prune it for you: npm `overrides` apply only at the install root, not
+when a package is installed as a dependency (see issue #92), so an `overrides`
+entry in *our* `package.json` has no effect on *your* tree.
+
+#### Advanced (at your own risk): prune `onnxruntime-web`
+
+On a Node-only deployment you can reclaim ~131 MB by overriding
+`onnxruntime-web` with an empty stub **in your own project's root
+`package.json`** (overrides do apply at your install root). This is safe only
+because dxcrm never loads the web runtime on Node — it would break any
+browser/WASM use of `@huggingface/transformers`, which dxcrm does not do.
+
+```bash
+# 1. Create a one-line empty stub next to your package.json:
+mkdir -p onnxruntime-web-stub
+echo '{"name":"onnxruntime-web","version":"0.0.0"}' > onnxruntime-web-stub/package.json
+```
+
+```jsonc
+// 2. In your root package.json, then reinstall:
+"overrides": { "onnxruntime-web": "file:./onnxruntime-web-stub" }
+```
+
+This recipe is **not shipped or tested in our CI**. After applying it, verify
+your install with `dxcrm doctor` and one real indexing/search call (which
+exercises the embedding model) before relying on it.
+
 ---
 
 ## Team / VM Setup (Phase 3 — Shared HTTP Server)
