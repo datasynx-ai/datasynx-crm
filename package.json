@@ -4,7 +4,7 @@
   "description": "The CRM your AI agents actually run — local-first, MCP-native, one autonomous agent per customer. 82 MCP tools for Claude Code, Codex & Cursor.",
   "type": "module",
   "license": "MIT",
-  "author": "Datasynx Engineering <eng@datasynx.io>",
+  "author": "Datasynx Engineering <info@datasynx.de>",
   "keywords": [
     "crm",
     "agentic-crm",
