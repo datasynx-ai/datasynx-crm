@@ -77,8 +77,10 @@ For every issue **always** these 5 steps (each documented as a comment in the is
 - **semantic-release drift:** After every feat/fix merge to `main`, semantic-release bumps
   `package.json`. Before every merge: `git pull origin main` → on divergence `git rebase main`,
   keep the remote `version`, then `--force-with-lease` on the feature branch.
-- **Never run `dxcrm init` in the repo cwd** — it overwrites the real `CLAUDE.md`.
-  Always use `DXCRM_DATA_DIR=/tmp/...`.
+- **`dxcrm init` is now non-destructive** — it honors `DXCRM_DATA_DIR` (falling back to
+  cwd) and never overwrites an existing `CLAUDE.md`/`AGENTS.md` (it appends behind a marker,
+  idempotently). Still prefer `DXCRM_DATA_DIR=/tmp/...` for throwaway runs to keep the repo
+  root clean of `.agentic/`, `customers/`, and the global `~/.claude.json` MCP entry.
 - **HF model download is blocked in the sandbox** → no embedding/LLM E2E here.
 - **Credential-gated = offline no-op:** test with injected deps or a stubbed `fetch`
   (pattern: `subscription-create.ts`, `doctor-integrations.ts`, `transcript-discovery.ts`).

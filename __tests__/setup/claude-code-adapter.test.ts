@@ -107,6 +107,38 @@ describe("ClaudeCodeAdapter", () => {
     expect(content).toContain("get_customer_context");
   });
 
+  it("install() preserves an existing user CLAUDE.md instead of overwriting it", async () => {
+    const claudeMdPath = path.join(TEST_CONFIG.dataDir, "CLAUDE.md");
+    const userContent = "# My Project Rules\nNever delete the production database.\n";
+    vol.fromJSON({ [claudeMdPath]: userContent });
+
+    const adapter = new ClaudeCodeAdapter();
+    await adapter.install(TEST_CONFIG);
+
+    const { fs } = await import("memfs");
+    const content = fs.readFileSync(claudeMdPath, "utf-8") as string;
+    // The user's existing content must survive ...
+    expect(content).toContain("My Project Rules");
+    expect(content).toContain("Never delete the production database.");
+    // ... and the CRM guidance is appended, not substituted.
+    expect(content).toContain("DatasynxOpenCRM");
+  });
+
+  it("install() is idempotent on a CLAUDE.md that already has CRM guidance", async () => {
+    const claudeMdPath = path.join(TEST_CONFIG.dataDir, "CLAUDE.md");
+    const existing = "# DatasynxOpenCRM — existing guidance\nget_customer_context\n";
+    vol.fromJSON({ [claudeMdPath]: existing });
+
+    const adapter = new ClaudeCodeAdapter();
+    await adapter.install(TEST_CONFIG);
+    await adapter.install(TEST_CONFIG);
+
+    const { fs } = await import("memfs");
+    const content = fs.readFileSync(claudeMdPath, "utf-8") as string;
+    // Already contains the CRM marker → left untouched, no duplication.
+    expect(content).toBe(existing);
+  });
+
   it("install() writes .claude/settings.json with permissions.allow for all 8 tools", async () => {
     vol.fromJSON({ [TEST_CONFIG.dataDir]: null });
     const adapter = new ClaudeCodeAdapter();

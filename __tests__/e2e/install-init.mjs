@@ -52,7 +52,10 @@ writeFileSync(claudeJsonPath, "{}\n");
 try {
   execFileSync(process.execPath, [distCli, "init"], {
     cwd: dataDir,
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    // Pin the vault explicitly so the test is hermetic: init resolves
+    // DXCRM_DATA_DIR ?? cwd, and a stray DXCRM_DATA_DIR in the runner's
+    // environment must not redirect init away from this throwaway dataDir.
+    env: { ...process.env, HOME: home, USERPROFILE: home, DXCRM_DATA_DIR: dataDir },
     stdio: "pipe",
   });
 } catch (err) {
