@@ -1,3 +1,10 @@
+## [1.40.1](https://github.com/datasynx/datasynx-crm/compare/v1.40.0...v1.40.1) (2026-06-13)
+
+
+### Bug Fixes
+
+* **cli:** make dxcrm init non-destructive — honor DXCRM_DATA_DIR, never clobber CLAUDE.md ([#101](https://github.com/datasynx/datasynx-crm/issues/101)) ([d5a164f](https://github.com/datasynx/datasynx-crm/commit/d5a164f1ad1f3a6c0e9fd145f3714d0a5ae56c12)), closes [hi#severity](https://github.com/hi/issues/severity)
+
 # [1.40.0](https://github.com/datasynx/datasynx-crm/compare/v1.39.0...v1.40.0) (2026-06-11)
 
 
