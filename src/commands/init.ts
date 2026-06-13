@@ -4,6 +4,7 @@ import path from "path";
 import os from "os";
 import { installAllDetected } from "../setup/framework-registry.js";
 import { resolveMcpServerPath } from "../setup/resolve-mcp-path.js";
+import { seedStarterContent } from "../core/starter-seed.js";
 import { success, error, info, bold } from "../ui/colors.js";
 
 export const initCommand = new Command("init")
@@ -113,6 +114,19 @@ export const initCommand = new Command("init")
           },
           null,
           2
+        )
+      );
+    }
+
+    // 5c. Seed starter email templates & sequences so draft_email / enroll_in_sequence
+    // and template-driven outreach work on a fresh vault. Idempotent and
+    // non-resurrecting: deleted starters are never recreated on a later init.
+    const seeded = seedStarterContent(dataDir);
+    if (seeded.templatesSeeded.length > 0 || seeded.sequencesSeeded.length > 0) {
+      console.log(
+        info(
+          `  Seeded ${seeded.templatesSeeded.length} starter templates and ` +
+            `${seeded.sequencesSeeded.length} sequence — edit or delete freely (dxcrm template list).`
         )
       );
     }

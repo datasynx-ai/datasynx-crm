@@ -182,4 +182,89 @@ describe("initCommand", () => {
     consoleSpy.mockRestore();
     consolErrSpy.mockRestore();
   });
+
+  async function runInit(args: string[] = ["node", "init"]): Promise<void> {
+    const { installAllDetected } = await import("../../src/setup/framework-registry.js");
+    vi.mocked(installAllDetected).mockResolvedValue([]);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consolErrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { initCommand } = await import("../../src/commands/init.js");
+    await initCommand.parseAsync(args);
+    consoleSpy.mockRestore();
+    consolErrSpy.mockRestore();
+  }
+
+  it("seeds starter templates and a sequence on a fresh vault", async () => {
+    vol.fromJSON({});
+    await runInit();
+
+    const { listTemplates } = await import("../../src/fs/template-store.js");
+    const { listSequences } = await import("../../src/fs/sequence-store.js");
+    const { STARTER_TEMPLATES, STARTER_SEQUENCES } =
+      await import("../../src/core/starter-content.js");
+
+    expect(listTemplates("/crm")).toHaveLength(STARTER_TEMPLATES.length);
+    expect(listSequences("/crm")).toHaveLength(STARTER_SEQUENCES.length);
+  });
+
+  it("makes draft_email work end-to-end on a freshly initialized vault", async () => {
+    vol.fromJSON({
+      "/crm/customers/acme/main_facts.md": [
+        "---",
+        "name: Acme Corp",
+        "domain: acme.com",
+        "email: ceo@acme.com",
+        "relationship_stage: prospect",
+        "tags: []",
+        "currency: EUR",
+        "created: '2026-06-13'",
+        "updated: '2026-06-13'",
+        "last_touchpoint: 2026-06-13",
+        "---",
+        "",
+      ].join("\n"),
+    });
+    await runInit();
+
+    const { handleDraftEmail } = await import("../../src/mcp/tools/draft-email.js");
+    const res = await handleDraftEmail({ slug: "acme", templateId: "starter-cold-intro" }, "/crm");
+    const parsed = JSON.parse(res.content[0]!.text) as { subject: string; to: string };
+    expect(parsed.subject).toBe("Quick question about Acme Corp");
+    expect(parsed.to).toBe("ceo@acme.com");
+  });
+
+  it("makes enroll_in_sequence work end-to-end on a freshly initialized vault", async () => {
+    vol.fromJSON({});
+    await runInit();
+
+    const { handleEnrollInSequence } = await import("../../src/mcp/tools/enroll-in-sequence.js");
+    const res = await handleEnrollInSequence(
+      { slug: "acme", contactEmail: "ceo@acme.com", sequenceId: "starter-cold-outreach" },
+      "/crm"
+    );
+    const parsed = JSON.parse(res.content[0]!.text) as { enrollmentId: string; totalSteps: number };
+    expect(parsed.enrollmentId).toMatch(/^enroll_/);
+    expect(parsed.totalSteps).toBe(3);
+  });
+
+  it("does not resurrect a starter the user deleted on a later init", async () => {
+    vol.fromJSON({});
+    await runInit();
+    expect(vol.existsSync("/crm/.agentic/templates/outreach/starter-breakup.md")).toBe(true);
+
+    vol.rmSync("/crm/.agentic/templates/outreach/starter-breakup.md");
+    await runInit();
+
+    expect(vol.existsSync("/crm/.agentic/templates/outreach/starter-breakup.md")).toBe(false);
+  });
+
+  it("is idempotent: re-running init does not duplicate starters", async () => {
+    vol.fromJSON({});
+    await runInit();
+    await runInit();
+
+    const { listTemplates } = await import("../../src/fs/template-store.js");
+    const { STARTER_TEMPLATES } = await import("../../src/core/starter-content.js");
+    expect(listTemplates("/crm")).toHaveLength(STARTER_TEMPLATES.length);
+  });
 });

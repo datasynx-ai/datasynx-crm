@@ -10,6 +10,7 @@ export const SequenceSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   steps: z.array(SequenceStepSchema).min(1),
+  starter: z.boolean().optional(),
   createdAt: z.string(),
 });
 

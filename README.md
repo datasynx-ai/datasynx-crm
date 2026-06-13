@@ -74,7 +74,7 @@ flowchart LR
 
 |        | Step              | What happens                                                                 |
 | ------ | ----------------- | ---------------------------------------------------------------------------- |
-| **01** | `dxcrm init`      | Detects & wires up Claude Code, Codex, Cursor, Claude Desktop — one command. |
+| **01** | `dxcrm init`      | Detects & wires up Claude Code, Codex, Cursor, Claude Desktop — one command. Seeds starter email templates & a sequence so outreach works on day one. |
 | **02** | Bring your data   | `dxcrm create`, import from HubSpot/Salesforce/Pipedrive/CSV, or sync Gmail. |
 | **03** | Just ask          | Your agent briefs you, drafts emails, forecasts, and logs — grounded in your files. |
 

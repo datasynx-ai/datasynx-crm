@@ -92,7 +92,12 @@ dxcrm init
 2. Registers the MCP server in each detected framework
 3. Writes v2 harness files (CLAUDE.md, AGENTS.md, SOUL.md, ...) with all 82 MCP tools and proactive usage patterns
 4. Creates `.agentic/` directory with `config.json` + `sources.json`
-5. Starts background daemon for automatic sync
+5. Seeds starter email templates and one example sequence so `draft_email` / `enroll_in_sequence` work immediately (idempotent; a deleted starter is not resurrected on a later `init`)
+6. Starts background daemon for automatic sync
+
+**Starter content seeded (English examples, flagged `starter: true`, editable/deletable):**
+- Templates: `starter-cold-intro`, `starter-followup-1`, `starter-breakup` (outreach), `starter-post-demo-recap` (followup), `starter-ticket-acknowledgement` (support)
+- Sequence: `starter-cold-outreach` (3-step, references the outreach starters above)
 
 **Harness files written (v2):**
 - `CLAUDE.md` — all 82 tools, proactive patterns (`get_proactive_briefing` at session start, `open_deal_room` before deals)

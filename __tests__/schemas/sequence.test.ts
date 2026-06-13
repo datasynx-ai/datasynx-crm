@@ -51,6 +51,29 @@ describe("SequenceSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("leaves starter undefined when omitted", () => {
+    const result = SequenceSchema.safeParse({
+      id: "outreach",
+      name: "Cold Outreach",
+      steps: [{ day: 0, templateId: "intro", skipIfReplied: true }],
+      createdAt: "2026-05-29T00:00:00.000Z",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.starter).toBeUndefined();
+  });
+
+  it("accepts an explicit starter flag", () => {
+    const result = SequenceSchema.safeParse({
+      id: "outreach",
+      name: "Cold Outreach",
+      steps: [{ day: 0, templateId: "intro", skipIfReplied: true }],
+      starter: true,
+      createdAt: "2026-05-29T00:00:00.000Z",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.starter).toBe(true);
+  });
 });
 
 describe("SequenceEnrollmentSchema", () => {

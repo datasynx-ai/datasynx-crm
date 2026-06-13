@@ -6,6 +6,7 @@ export const EmailTemplateSchema = z.object({
   category: z.string().default("general"),
   variables: z.array(z.string()).default([]),
   language: z.string().default("de"),
+  starter: z.boolean().optional(),
   createdAt: z.string(),
   updatedAt: z.string().optional(),
 });

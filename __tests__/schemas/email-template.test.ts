@@ -46,4 +46,16 @@ describe("EmailTemplateSchema", () => {
   it("rejects empty subject", () => {
     expect(EmailTemplateSchema.safeParse({ ...valid, subject: "" }).success).toBe(false);
   });
+
+  it("leaves starter undefined when omitted (no pollution of user templates)", () => {
+    const result = EmailTemplateSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.starter).toBeUndefined();
+  });
+
+  it("accepts an explicit starter flag", () => {
+    const result = EmailTemplateSchema.safeParse({ ...valid, starter: true });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.starter).toBe(true);
+  });
 });

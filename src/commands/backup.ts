@@ -5,7 +5,16 @@ import { execSync } from "child_process";
 import { createHash } from "crypto";
 import { success, error, info, bold } from "../ui/colors.js";
 import { writeJsonFile } from "../fs/json-store.js";
+import {
+  type AgenticConfig,
+  type BackupScheduleConfig,
+  readAgenticConfig,
+  writeAgenticConfig,
+} from "../fs/agentic-config.js";
 import { VERSION } from "../version.js";
+
+// Re-exported for backward compatibility with any external importer.
+export type { AgenticConfig, BackupScheduleConfig };
 
 export interface BackupManifest {
   version: "1";
@@ -20,19 +29,6 @@ export interface BackupManifest {
   retentionTier?: "daily" | "weekly" | "monthly";
 }
 
-export interface BackupScheduleConfig {
-  every: string;
-  keep: number;
-  weekly?: number;
-  monthly?: number;
-  lastBackup: string | null;
-  remote?: string;
-}
-
-export interface AgenticConfig {
-  backupSchedule?: BackupScheduleConfig;
-}
-
 export interface BackupEntry {
   filename: string;
   path: string;
@@ -42,26 +38,6 @@ export interface BackupEntry {
   encrypted: boolean;
   customerCount: number;
   fileCount: number;
-}
-
-// ─── Config helpers ────────────────────────────────────────────────────────────
-
-function getConfigPath(dataDir: string): string {
-  return path.join(dataDir, ".agentic", "config.json");
-}
-
-function readAgenticConfig(dataDir: string): AgenticConfig {
-  const filePath = getConfigPath(dataDir);
-  if (!fs.existsSync(filePath)) return {};
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8") as string) as AgenticConfig;
-  } catch {
-    return {};
-  }
-}
-
-function writeAgenticConfig(dataDir: string, config: AgenticConfig): void {
-  writeJsonFile(getConfigPath(dataDir), config);
 }
 
 // ─── Manifest ─────────────────────────────────────────────────────────────────

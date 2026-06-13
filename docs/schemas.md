@@ -250,8 +250,13 @@ Best,
 | `category` | string | No | Default: "general". Suggested: outreach \| followup \| support \| proposal \| renewal |
 | `variables` | string[] | No | Auto-detected from body; explicit list optional. Default: [] |
 | `language` | string | No | BCP 47 language tag. Default: "de" |
+| `starter` | boolean | No | `true` on examples seeded by `dxcrm init`; absent on user templates |
 | `createdAt` | string | Yes | ISO 8601 timestamp |
 | `updatedAt` | string | No | ISO 8601 timestamp |
+
+> **Starter content:** `dxcrm init` seeds a small set of `starter-*` example templates
+> (across `outreach`/`followup`/`support`) flagged `starter: true`. They are freely
+> editable/deletable; a deleted starter is never recreated on a later `init`.
 
 **Standard template variables:**
 
@@ -333,24 +338,27 @@ Managed with `dxcrm template list|get|create|delete|render`.
 ## sequence (Email Sequence)
 
 **Files:**
-- Sequence definitions: `.agentic/sequences/<id>.json`
+- Sequence definitions: `.agentic/sequences/<id>.yaml` (YAML, parsed with js-yaml)
 - Enrollments: `.agentic/sequence-enrollments.json` (array of `SequenceEnrollment`)
 
 **Schema source:** `src/schemas/sequence.ts`
 
 ### SequenceSchema
 
-```json
-{
-  "id": "onboarding-7day",
-  "name": "7-Day Onboarding",
-  "steps": [
-    { "day": 0, "templateId": "welcome-day0",    "skipIfReplied": true },
-    { "day": 3, "templateId": "check-in-day3",   "skipIfReplied": true },
-    { "day": 7, "templateId": "feedback-day7",   "skipIfReplied": true }
-  ],
-  "createdAt": "2026-03-01T00:00:00.000Z"
-}
+```yaml
+id: onboarding-7day
+name: 7-Day Onboarding
+steps:
+  - day: 0
+    templateId: welcome-day0
+    skipIfReplied: true
+  - day: 3
+    templateId: check-in-day3
+    skipIfReplied: true
+  - day: 7
+    templateId: feedback-day7
+    skipIfReplied: true
+createdAt: '2026-03-01T00:00:00.000Z'
 ```
 
 **`SequenceSchema` fields:**
@@ -360,7 +368,12 @@ Managed with `dxcrm template list|get|create|delete|render`.
 | `id` | string | Yes | Unique sequence ID |
 | `name` | string | Yes | Human-readable name |
 | `steps` | SequenceStep[] | Yes | Min 1 step |
+| `starter` | boolean | No | `true` on the example sequence seeded by `dxcrm init`; absent otherwise |
 | `createdAt` | string | Yes | ISO 8601 timestamp |
+
+> **Starter content:** `dxcrm init` seeds one `starter-cold-outreach` example sequence
+> (3 steps) plus the templates its steps reference, so `enroll_in_sequence` works on a
+> fresh vault. Deleting it is permanent — a later `init` does not recreate it.
 
 **`SequenceStepSchema` fields:**
 
@@ -621,7 +634,7 @@ Managed with `dxcrm agent spawn|status|remove`.
 │   ├── Q-2026-001.json                # QuoteSchema
 │   └── Q-2026-001.html                # Generated HTML
 ├── sequences/                         # Email sequence definitions
-│   └── <id>.json                      # SequenceSchema
+│   └── <id>.yaml                      # SequenceSchema (YAML)
 ├── sequence-enrollments.json          # All enrollments (SequenceEnrollmentSchema[])
 ├── surveys/                           # Survey definitions
 │   └── <id>.json                      # SurveyDefinitionSchema

@@ -16,6 +16,7 @@ export async function handleListSequences(
     name: seq.name,
     stepCount: seq.steps.length,
     enrollmentCount: enrollments.filter((e) => e.sequenceId === seq.id).length,
+    ...(seq.starter ? { starter: true } : {}),
   }));
 
   return {

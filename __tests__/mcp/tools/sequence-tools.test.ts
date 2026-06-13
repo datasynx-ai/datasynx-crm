@@ -81,6 +81,21 @@ describe("handleListSequences", () => {
     const parsed = JSON.parse(result.content[0].text) as { sequences: unknown[] };
     expect(parsed.sequences.length).toBe(0);
   });
+
+  it("surfaces the starter flag, omitting it for non-starter sequences", async () => {
+    mockListSequences.mockReturnValue([
+      { ...makeSequence("starter-cold-outreach", 3), starter: true },
+      makeSequence("custom", 2),
+    ]);
+    mockReadEnrollments.mockReturnValue([]);
+    const { handleListSequences } = await import("../../../src/mcp/tools/list-sequences.js");
+    const result = await handleListSequences({}, DATA_DIR);
+    const parsed = JSON.parse(result.content[0].text) as {
+      sequences: Array<{ id: string; starter?: boolean }>;
+    };
+    expect(parsed.sequences.find((s) => s.id === "starter-cold-outreach")!.starter).toBe(true);
+    expect(parsed.sequences.find((s) => s.id === "custom")!.starter).toBeUndefined();
+  });
 });
 
 // ─── list_sequence_enrollments ─────────────────────────────────────────────────

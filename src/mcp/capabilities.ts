@@ -899,6 +899,11 @@ Returns: { date, generatedAt, urgent: string[], opportunities: string[], forecas
 
 ## H2 — Email Templates
 
+A fresh vault is seeded by \`dxcrm init\` with starter example templates (flagged
+\`starter: true\`, ids prefixed \`starter-\`) across outreach/followup/support, so
+\`draft_email\` works immediately. They are editable/deletable; deleted starters are
+not recreated on a later init.
+
 ### list_email_templates (MCP)
 List all saved email templates. Returns id, name, category, subject, and body preview.
 \`\`\`
@@ -922,6 +927,10 @@ draft_email({ slug: "acme-corp", templateId: "proposal-follow-up", overrides: { 
 Returns: { subject, body, suggestedTo, suggestedCc?, variables }
 
 ## H1 — Email Sequences
+
+\`dxcrm init\` seeds one starter example sequence (\`starter-cold-outreach\`, 3 steps)
+plus the templates its steps reference, so \`enroll_in_sequence\` works on a fresh vault.
+Starter sequences are flagged \`starter: true\` in \`list_sequences\` output.
 
 ### enroll_in_sequence (MCP)
 Enroll a customer contact in a multi-step email sequence. Steps are sent automatically.

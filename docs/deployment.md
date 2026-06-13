@@ -9,6 +9,11 @@ ONNXRUNTIME_NODE_INSTALL=skip npm install -g @datasynx/agentic-crm
 dxcrm init
 ```
 
+`dxcrm init` also seeds starter email templates and one example sequence so
+template-driven outreach works immediately. They are clearly-labeled examples
+(`starter: true`) and can be edited or deleted; a deleted starter is not recreated
+on a later `init`.
+
 The MCP server runs as a stdio process — spawned on-demand by your AI framework.
 No persistent server process needed for single-user use.
 
