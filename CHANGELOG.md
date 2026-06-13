@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/datasynx/datasynx-crm/compare/v1.40.1...v1.41.0) (2026-06-13)
+
+
+### Features
+
+* **cli:** seed starter email templates & sequences on init ([#103](https://github.com/datasynx/datasynx-crm/issues/103)) ([#105](https://github.com/datasynx/datasynx-crm/issues/105)) ([4927fc7](https://github.com/datasynx/datasynx-crm/commit/4927fc7e90a1a5b863932f6578f2e61eaeaf00ae))
+
 ## [1.40.1](https://github.com/datasynx/datasynx-crm/compare/v1.40.0...v1.40.1) (2026-06-13)
 
 
