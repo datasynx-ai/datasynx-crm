@@ -4,7 +4,7 @@ This guide gets you from zero to a working CRM that auto-syncs your Gmail.
 
 ## Prerequisites
 
-- Node.js 18+ installed
+- Node.js 20+ installed
 - A Google account
 - Claude Code, Cursor, or another MCP-compatible agent framework
 
@@ -30,42 +30,40 @@ dxcrm init
 
 ## Step 3 — Connect Gmail
 
-### 3a — Create Google OAuth Credentials
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a project → **APIs & Services** → **Enable APIs** → enable **Gmail API**
-3. **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
-4. Application type: **Desktop app**
-5. Download JSON → save as `~/.agentic/gmail-credentials.json`
-
-### 3b — Authorize dxcrm
+`dxcrm mailbox login` runs the Google OAuth flow for you and stores the token
+locally. (Gmail requires OAuth for IMAP access in 2026 — passwords no longer work.)
 
 ```bash
-dxcrm sync gmail --init
+dxcrm mailbox login gmail --user you@gmail.com
 ```
 
-This opens a URL in your terminal. Visit it, authorize, paste the code back.  
-Your token is saved to `~/.agentic/gmail-token.json` — keep it private.
-
-### 3c — Configure Gmail Query per Customer
-
-For each customer you want to track:
+This opens a URL in your terminal. Visit it, authorize, and the token is saved
+to `<your CRM root>/.agentic/` — keep that directory private. Confirm the
+account is connected with:
 
 ```bash
-dxcrm create acme-corp --name "Acme Corp" --domain acme.com
-dxcrm sync gmail --enable acme-corp --query "from:acme.com OR to:acme.com"
+dxcrm mailbox list   # shows logged-in accounts and token status
 ```
 
 ## Step 4 — Add Your First Customer
 
+`dxcrm create` with `--domain` automatically configures the Gmail query for that
+customer (`from:<domain> OR to:<domain>`), so mailbox sync can route mail to it:
+
 ```bash
-dxcrm create stripe --name "Stripe" --domain stripe.com
-dxcrm sync gmail --enable stripe --query "from:stripe.com OR to:stripe.com"
+dxcrm create "Stripe" --domain stripe.com
 ```
 
 Or via your agent:
 ```
 Create a customer for Stripe (domain: stripe.com)
+```
+
+Then sync the whole mailbox — messages are auto-routed to the right customer by
+sender/recipient domain:
+
+```bash
+dxcrm mailbox sync --account gmail:you@gmail.com
 ```
 
 ## Step 5 — Start the Background Daemon
@@ -114,7 +112,7 @@ dxcrm doctor                        # data integrity, temp files, logs, backups
 dxcrm doctor --integrations --live  # per-provider readiness (tokens verified)
 dxcrm status                        # daemon running, customers synced, queue empty
 dxcrm list                          # list all customers
-dxcrm show stripe                   # show Stripe's profile
+dxcrm nba stripe                    # next-best-action for Stripe
 dxcrm audit                         # recent write operations
 ```
 
@@ -123,7 +121,7 @@ dxcrm audit                         # recent write operations
 ## Troubleshooting
 
 **"Gmail auth not configured"**
-→ Run `dxcrm sync gmail --init` and complete the OAuth flow.
+→ Run `dxcrm mailbox login gmail --user you@gmail.com` and complete the OAuth flow.
 
 **"No customers directory found"**
 → You're in the wrong directory. `cd ~/my-crm` first.

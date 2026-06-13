@@ -19,7 +19,7 @@ export async function handleTriggerSync(
           type: "text",
           text: JSON.stringify({
             success: false,
-            error: "Gmail auth not configured. Run `dxcrm sync gmail --init` first.",
+            error: "Gmail auth not configured. Run `dxcrm mailbox login gmail` first.",
           }),
         },
       ],

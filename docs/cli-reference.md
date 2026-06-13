@@ -164,7 +164,7 @@ dxcrm sync --provider google-meet         # Google Meet transcripts
 
 **Prerequisites for Gmail:**
 - `.agentic/gmail-credentials.json` — OAuth2 credentials
-- `.agentic/gmail-token.json` — OAuth2 access token (run `dxcrm sync --setup-gmail` to generate)
+- `.agentic/gmail-token.json` — OAuth2 access token (run `dxcrm mailbox login gmail` to generate)
 - `customers/<slug>/sources.json` — Gmail query configured
 
 **Prerequisites for Microsoft Outlook:**

@@ -67,7 +67,7 @@ export const syncCommand = new Command("sync")
         const credPath = path.join(dataDir, ".agentic", "gmail-credentials.json");
 
         if (!fs.existsSync(tokenPath) || !fs.existsSync(credPath)) {
-          console.log(info("  Gmail: credentials not configured (run dxcrm sync --setup-gmail)"));
+          console.log(info("  Gmail: credentials not configured (run dxcrm mailbox login gmail)"));
         } else {
           try {
             console.log(info(`  Syncing Gmail for ${bold(slug)}...`));

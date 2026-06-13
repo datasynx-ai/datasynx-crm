@@ -27,7 +27,7 @@ Your pipeline lives as plain Markdown on your machine — and your AI agents rea
 
 > **You don't open a CRM to find your customer. Your customer's agent finds _you_ — briefed, current, and ready to act.**
 
-Your AI agents are brilliant — and forgetful. **Datasynx Agentic CRM is the long-term memory and the hands** they use to run your customer relationships. Every customer is a folder of human-readable Markdown on your own disk; **62 purpose-built [Model Context Protocol](https://modelcontextprotocol.io) tools** let any agent load full context, score deals, forecast revenue, draft the follow-up, and log what happened — without you copy-pasting a thing.
+Your AI agents are brilliant — and forgetful. **Datasynx Agentic CRM is the long-term memory and the hands** they use to run your customer relationships. Every customer is a folder of human-readable Markdown on your own disk; **82 purpose-built [Model Context Protocol](https://modelcontextprotocol.io) tools** let any agent load full context, score deals, forecast revenue, draft the follow-up, and log what happened — without you copy-pasting a thing.
 
 **No database. No cloud lock-in. No per-seat pricing. Zero telemetry.**
 
@@ -64,7 +64,7 @@ flowchart LR
     Agent["🤖 Claude Code · Codex · Cursor"] <-->|Model Context Protocol| MCP
 
     subgraph local["🔒 Your machine"]
-        MCP["⚙️ dxcrm MCP server<br/>62 typed tools · RBAC · audit"]
+        MCP["⚙️ dxcrm MCP server<br/>82 typed tools · RBAC · audit"]
         Files["📁 customers/&lt;name&gt;/<br/>main_facts · interactions · pipeline"]
         MCP <--> Files
     end
@@ -336,7 +336,7 @@ and `get_pipeline_funnel` MCP tools. No setup — it gets sharper every day the 
 | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | **Not another SaaS tab.**    | It lives inside your AI agent and your filesystem — not a browser dashboard you have to open. |
 | **Not a database.**          | Customers are Markdown folders. Back them up with `cp`, version them with `git`.              |
-| **Not a chatbot wrapper.**   | 62 typed MCP tools with RBAC and audit — not a single prompt pretending to be a product.      |
+| **Not a chatbot wrapper.**   | 82 typed MCP tools with RBAC and audit — not a single prompt pretending to be a product.      |
 | **Not a data grab.**         | Zero telemetry. Your data never leaves your machine unless you wire up an integration.        |
 | **Not lock-in.**             | MIT-licensed, plain files, export anytime. Leaving is a `cp -r` away.                         |
 
